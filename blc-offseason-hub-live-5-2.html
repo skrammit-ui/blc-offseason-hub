@@ -2412,9 +2412,9 @@ function switchView(view, btn) {
 
   const legend = document.getElementById('view-legend');
   if (view === 'builder') {
-    legend.innerHTML = `<span style="font-size:12px;color:var(--text-3)">Drag players from the pool into roster slots to plan your kept lineup. <strong>Green</strong> = MLB keeper, <strong>Blue</strong> = MiLB keeper.</span>`;
+    legend.innerHTML = `<span style="font-size:12px;color:var(--text-3)">Auto-populated by position from keeper selections. Drag keepers between slots to reassign — <span style="color:var(--green);font-weight:600">green highlight</span> = eligible position, <span style="color:#d97706;font-weight:600">amber</span> = ineligible.</span>`;
   } else if (view === 'draft') {
-    legend.innerHTML = `<span style="font-size:12px;color:var(--text-3)">Drag kept MLB players into their round slot (salary = round used). Remaining rounds show as available picks.</span>`;
+    legend.innerHTML = `<span style="font-size:12px;color:var(--text-3)">Auto-populated using keeper salary rounds. Drag keepers between pick slots to reassign — <span style="color:var(--green);font-weight:600">green</span> = exact SAL match, gold = valid bump, <span style="color:#d97706;font-weight:600">amber</span> = later than SAL.</span>`;
   } else {
     legend.innerHTML = `
       <span class="stag stag-active" style="cursor:default">MLB</span> uses a draft slot &nbsp;
@@ -2584,8 +2584,7 @@ let dragSource = null; // 'pool' or slotId
 
 function buildBuilderView(players) {
   const slotsEl = document.getElementById('builder-slots');
-  const poolEl  = document.getElementById('builder-pool');
-  if (!slotsEl || !poolEl) return;
+  if (!slotsEl) return;
 
   // Section headers
   let slotsHtml = '';
