@@ -2892,16 +2892,7 @@ function buildDraftPlanView(players) {
     <div style="font-size:11px;color:var(--text-3)"><span style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--green)">${30 - roundsUsed}</span>&nbsp;open picks</div>
     <div style="font-size:11px;color:var(--text-3);margin-left:auto">Auto-populated from keeper selections · Drag keepers between rounds to reassign</div>
   </div>
-  <div style="display:flex;align-items:center;margin-bottom:4px">
-    <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3)">Draft Board — ${plannerRoundCount} Pick${plannerRoundCount !== 1 ? 's' : ''}</div>
-    <div style="margin-left:auto;display:flex;gap:0">
-      <span class="slot-stat-hdr">HR<br><span style="color:var(--blue)">ERA</span></span>
-      <span class="slot-stat-hdr">RBI<br><span style="color:var(--blue)">WHIP</span></span>
-      <span class="slot-stat-hdr">OBP<br><span style="color:var(--blue)">K</span></span>
-      <span class="slot-stat-hdr">SB<br><span style="color:var(--blue)">IP</span></span>
-      <span style="width:32px;flex-shrink:0"></span>
-    </div>
-  </div>`;
+  <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Draft Board — ${plannerRoundCount} Pick${plannerRoundCount !== 1 ? 's' : ''}</div>`;
 
   // Build a flat ordered list of (r, pk) slots — one row per pick
   const pickSlots = [];
@@ -2923,36 +2914,23 @@ function buildDraftPlanView(players) {
 
     let innerHtml = '';
     if (assigned.length === 0) {
-      innerHtml = `<span style="flex:1;font-size:11px;color:var(--text-3);font-style:italic">Open pick</span>
-        <span class="slot-stat" style="color:var(--border)">—</span>
-        <span class="slot-stat" style="color:var(--border)">—</span>
-        <span class="slot-stat" style="color:var(--border)">—</span>
-        <span class="slot-stat" style="color:var(--border)">—</span>
-        <span style="width:32px;flex-shrink:0"></span>`;
+      innerHtml = `<span style="font-size:11px;color:var(--text-3);font-style:italic">Open pick</span>`;
     } else {
       const p = assigned[0];
       const isExp = p.contract === '2026';
       const sal = parseInt(p.salary);
+      // SAL badge — always shown; colour indicates placement vs salary
       const salColor = !sal ? '' : r === sal ? 'color:var(--text-3);background:var(--surface);border:1px solid var(--border)' : r < sal ? 'color:#92400e;background:#fef3c7' : 'color:var(--red);background:var(--red-lt)';
       const bumpBadge = sal ? `<span style="font-size:9px;font-family:var(--mono);font-weight:700;padding:1px 5px;border-radius:3px;flex-shrink:0;${salColor}">SAL ${sal}</span>` : '';
-      const pStats = STATS[p.id] || STATS[p.player] || {};
-      const isHit = !isPitcher(p.position);
-      const s1 = isHit ? (pStats['HR'] || '—') : (pStats['ERA'] || '—');
-      const s2 = isHit ? (pStats['RBI'] || '—') : (pStats['WHIP'] || '—');
-      const s3 = isHit ? (pStats['OBP'] || '—') : (pStats['K'] || '—');
-      const s4 = isHit ? (pStats['SB'] || '—') : (pStats['IP'] || '—');
       innerHtml = `
-        <div style="flex:1;min-width:0">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <span class="round-player" style="cursor:grab">${p.player}${isExp ? '&nbsp;<span style="font-size:9px;color:var(--red);font-family:var(--mono);font-weight:700">EXP</span>' : ''}</span>
             ${bumpBadge}
+            ${compactStatLine(p)}
           </div>
           <span class="round-meta">${p.mlb_team}&nbsp;·&nbsp;${p.position}</span>
         </div>
-        <span class="slot-stat">${s1}</span>
-        <span class="slot-stat">${s2}</span>
-        <span class="slot-stat">${s3}</span>
-        <span class="slot-stat">${s4}</span>
         <span class="slot-clear" onclick="clearDraftSlot('${slotKey}','${p.player.replace(/'/g,"\\'")}')">✕</span>`;
     }
 
