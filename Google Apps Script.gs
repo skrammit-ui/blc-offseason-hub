@@ -22,6 +22,7 @@ function doGet(e) {
       picks:       getPicks(ss),
       stats:       getStats(ss),
       projections: getProjections(ss),
+      r5Status:    getR5Status(ss),
     };
     return corsResponse({ ok: true, data });
   } catch(err) {
@@ -69,6 +70,9 @@ function doPost(e) {
         break;
       case 'saveProjections':
         saveProjections(ss, payload.projections);
+        break;
+      case 'setR5Status':
+        setR5Status(ss, payload.status);
         break;
       default:
         return corsResponse({ ok: false, error: 'Unknown action: ' + payload.action });
@@ -121,6 +125,27 @@ function getOwnerMap(ss) {
     if (key && value) map[key] = value;
   });
   return map;
+}
+function getR5Status(ss) {
+  const sheet = ss.getSheetByName('Settings');
+  if (!sheet) return 'pending';
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === '__r5Status') return String(data[i][1] || 'pending');
+  }
+  return 'pending';
+}
+function setR5Status(ss, status) {
+  const sheet = ss.getSheetByName('Settings');
+  if (!sheet) return;
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === '__r5Status') {
+      sheet.getRange(i + 1, 2).setValue(status);
+      return;
+    }
+  }
+  sheet.appendRow(['__r5Status', status]);
 }
 function getStandings(ss) {
   const sheet = ss.getSheetByName('Standings');

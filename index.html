@@ -827,7 +827,8 @@ input[type=file] { display: none; }
           <span class="card-title">&#x1F4CB; Draft Board</span>
           <div style="display:flex;gap:8px;align-items:center">
             <span id="r5-picks-made" style="font-size:12px;color:var(--text-3)">0 picks made</span>
-            <button class="btn btn-danger" style="font-size:11px;padding:5px 10px" onclick="r5Reset()">Reset Draft</button>
+            <span id="r5-status-badge"></span>
+            <div id="r5-controls" style="display:flex;gap:6px"></div>
           </div>
         </div>
         <div id="r5-board" style="padding:0"></div>
@@ -2341,6 +2342,7 @@ function applyOwner(key) {
   loadTeam(yourTeam);
   buildStandings();
   r5UpdateOrderBar();
+  r5RenderPageControls();
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -2450,6 +2452,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       Object.keys(PROJECTIONS).forEach(k => delete PROJECTIONS[k]);
       Object.assign(PROJECTIONS, data.projections);
     }
+
+    if (data.r5Status) r5Status = data.r5Status;
 
     setLoadingProgress(90, 'Almost ready…');
 
@@ -3520,6 +3524,12 @@ let standingsOrder = Object.keys(LEAGUE);
 // State
 const r5Picks = [];        // [{pickNum, selectingTeam, player, fromTeam}]
 const r5LossCounts = {};   // teamName -> number of players taken from them
+let r5Status = 'pending';  // 'pending' | 'active' | 'ended'
+
+function r5OwnTeam() {
+  const key = window._currentOwnerKey;
+  return key ? (OWNER_MAP[key] || null) : null;
+}
 const r5Protected = 35;    // keepers per team
 
 // Draft order by team index (0-based). Teams are ordered by finish seeding.
@@ -3588,6 +3598,8 @@ function r5CurrentSelectingTeam() {
 }
 
 function r5SelectPlayer(playerName, fromTeam) {
+  if (r5Status !== 'active') return toast('⚠ Draft is not active');
+  if (!IS_COMMISH && r5CurrentSelectingTeam() !== r5OwnTeam()) return toast('⚠ It\'s not your pick');
   const selectingTeam = r5CurrentSelectingTeam();
   if (!selectingTeam) return alert('All picks have been made!');
 
@@ -3646,6 +3658,7 @@ function r5SelectPlayer(playerName, fromTeam) {
 }
 
 function r5UndoLastPick() {
+  if (!IS_COMMISH) return;
   if (r5Picks.length === 0) return;
   const last = r5Picks.pop();
 
@@ -3670,9 +3683,64 @@ function r5UndoLastPick() {
 }
 
 function r5Reset() {
+  if (!IS_COMMISH) return;
   if (r5Picks.length > 0 && !confirm('Reset the entire Rule 5 draft? This will undo all picks and move players back to their original teams.')) return;
-  // Undo all picks in reverse order
   while (r5Picks.length > 0) r5UndoLastPick();
+}
+
+function r5Start() {
+  if (!IS_COMMISH) return;
+  r5Status = 'active';
+  remotePost({ action: 'setR5Status', status: 'active' });
+  r5RenderPageControls();
+  r5RenderBoard();
+  r5RenderPool();
+}
+
+function r5End() {
+  if (!IS_COMMISH) return;
+  if (!confirm('End the Rule 5 draft? No further picks or changes will be possible (you can reopen if needed).')) return;
+  r5Status = 'ended';
+  remotePost({ action: 'setR5Status', status: 'ended' });
+  r5RenderPageControls();
+  r5RenderBoard();
+  r5RenderPool();
+}
+
+function r5Reopen() {
+  if (!IS_COMMISH) return;
+  r5Status = 'active';
+  remotePost({ action: 'setR5Status', status: 'active' });
+  r5RenderPageControls();
+  r5RenderBoard();
+  r5RenderPool();
+}
+
+function r5RenderPageControls() {
+  const badge = document.getElementById('r5-status-badge');
+  if (badge) {
+    const cfg = {
+      pending: { label: 'Not Started', color: 'var(--text-3)' },
+      active:  { label: '● Live',       color: 'var(--green)'  },
+      ended:   { label: '■ Ended',      color: 'var(--red)'    },
+    }[r5Status] || { label: '', color: '' };
+    badge.textContent = cfg.label;
+    badge.style.cssText = `font-size:11px;font-weight:700;color:${cfg.color};font-family:var(--mono);white-space:nowrap`;
+  }
+  const ctrl = document.getElementById('r5-controls');
+  if (!ctrl) return;
+  if (!IS_COMMISH) { ctrl.innerHTML = ''; return; }
+  let html = '';
+  if (r5Status === 'pending') {
+    html = `<button class="btn btn-green" style="font-size:11px;padding:5px 10px" onclick="r5Start()">▶ Start Draft</button>`;
+  } else if (r5Status === 'active') {
+    html = `<button class="btn btn-danger" style="font-size:11px;padding:5px 10px" onclick="r5End()">■ End Draft</button>
+            <button class="btn" style="font-size:11px;padding:5px 10px" onclick="r5Reset()">Reset</button>`;
+  } else if (r5Status === 'ended') {
+    html = `<button class="btn" style="font-size:11px;padding:5px 10px" onclick="r5Reopen()">Reopen</button>
+            <button class="btn" style="font-size:11px;padding:5px 10px" onclick="r5Reset()">Reset</button>`;
+  }
+  ctrl.innerHTML = html;
 }
 
 function r5RenderBoard() {
@@ -3708,7 +3776,7 @@ function r5RenderBoard() {
         <span style="font-size:10px;color:var(--text-3);margin-left:6px">from <em>${pick.fromTeam}</em></span>
       </span>
       <span class="stag stag-active" style="font-size:9px">PICKED</span>`;
-      if (i === currentIdx - 1) {
+      if (i === currentIdx - 1 && IS_COMMISH && r5Status !== 'ended') {
         pickContent += `<button onclick="r5UndoLastPick()" style="margin-left:8px;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;border:1px solid #f5b7b1;background:var(--red-lt);color:var(--red);cursor:pointer">Undo</button>`;
       }
     } else if (isCurrent) {
@@ -3729,6 +3797,7 @@ function r5RenderBoard() {
   }
 
   boardEl.innerHTML = html;
+  r5RenderPageControls();
 }
 
 function r5RenderPool() {
@@ -3746,6 +3815,15 @@ function r5RenderPool() {
 
   if (countEl) countEl.textContent = players.length + ' available';
 
+  if (r5Status === 'pending') {
+    poolEl.innerHTML = '<div style="font-size:12px;color:var(--text-3);padding:8px;font-style:italic">Draft has not started yet.</div>';
+    return;
+  }
+  if (r5Status === 'ended') {
+    poolEl.innerHTML = '<div style="font-size:12px;color:var(--text-3);padding:8px;font-style:italic">Draft has ended.</div>';
+    return;
+  }
+
   const currentSelecting = r5CurrentSelectingTeam();
   const isDraftComplete = !currentSelecting;
 
@@ -3753,6 +3831,9 @@ function r5RenderPool() {
     poolEl.innerHTML = '<div style="font-size:12px;color:var(--text-3);padding:8px;font-style:italic">Draft complete.</div>';
     return;
   }
+
+  // For non-commish: only clickable when it's their turn
+  const canPick = IS_COMMISH || r5CurrentSelectingTeam() === r5OwnTeam();
 
   if (players.length === 0) {
     poolEl.innerHTML = '<div style="font-size:12px;color:var(--text-3);padding:8px;font-style:italic">No unprotected players available' + (teamFilter ? ' for this team' : '') + '.</div>';
@@ -3762,9 +3843,10 @@ function r5RenderPool() {
   poolEl.innerHTML = players.map(p => {
     const safePlayer = p.player.replace(/'/g, "\'");
     const safeTeam   = p.fromTeam.replace(/'/g, "\'");
-    return `<div style="display:flex;align-items:center;gap:6px;padding:7px 8px;border-radius:5px;border:1px solid var(--border);background:var(--surface);cursor:pointer;transition:background .1s"
-      onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='var(--surface)'"
-      onclick="r5SelectPlayer('${safePlayer}','${safeTeam}')">
+    const clickable  = canPick;
+    return `<div style="display:flex;align-items:center;gap:6px;padding:7px 8px;border-radius:5px;border:1px solid var(--border);background:var(--surface);${clickable ? 'cursor:pointer' : 'opacity:.5;cursor:not-allowed'};transition:background .1s"
+      ${clickable ? `onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='var(--surface)'"` : ''}
+      ${clickable ? `onclick="r5SelectPlayer('${safePlayer}','${safeTeam}')"` : ''}>
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.player}</div>
         <div style="font-size:10px;color:var(--text-3)">${p.position} · ${p.mlb_team} · <em>${p.fromTeam}</em></div>
