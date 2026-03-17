@@ -2794,11 +2794,19 @@ function buildDraftPlanView(players) {
     const plannerPk = teamPickInRound[r];
     const plannerOvr = plannerPk != null ? plannerCumBefore[r] + plannerPk : null;
     const roundBadge = plannerPk != null
-      ? `<div style="display:flex;flex-direction:column;align-items:center;font-family:var(--mono);width:46px;flex-shrink:0;line-height:1.2">
-          <span style="font-size:8px;color:var(--text-3);letter-spacing:.04em">RD</span>
-          <span style="font-size:13px;font-weight:700;color:var(--navy)">${r}</span>
-          <span style="font-size:8px;color:var(--text-3)">PK&thinsp;${plannerPk}</span>
-          <span style="font-size:8px;color:var(--text-3)">OVR&thinsp;${plannerOvr}</span>
+      ? `<div style="display:flex;gap:10px;align-items:center;font-family:var(--mono);flex-shrink:0;padding-right:6px">
+          <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
+            <span style="font-size:8px;color:var(--text-3);letter-spacing:.05em">RD</span>
+            <span style="font-size:13px;font-weight:700;color:var(--navy)">${r}</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
+            <span style="font-size:8px;color:var(--text-3);letter-spacing:.05em">PK</span>
+            <span style="font-size:13px;font-weight:700;color:var(--navy)">${plannerPk}</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
+            <span style="font-size:8px;color:var(--text-3);letter-spacing:.05em">OVR</span>
+            <span style="font-size:13px;font-weight:700;color:var(--navy)">${plannerOvr}</span>
+          </div>
          </div>`
       : `<span class="round-num">${r}</span>`;
 
