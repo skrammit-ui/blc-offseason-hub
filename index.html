@@ -122,26 +122,6 @@ body {
 .page-sub { font-size: 13px; color: var(--text-3); margin-bottom: 24px; }
 
 /* ── Team selector bar ── */
-.team-bar {
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 18px; background: var(--navy);
-  border-radius: var(--r); margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-.team-bar label { font-size: 12px; color: var(--gold); font-weight: 600; letter-spacing: .05em; text-transform: uppercase; }
-.team-select {
-  font-family: var(--body); font-size: 13px; font-weight: 600;
-  padding: 6px 12px; border-radius: 5px;
-  border: 1.5px solid var(--gold); background: var(--navy-2);
-  color: #fff; cursor: pointer; min-width: 220px;
-}
-.team-select:focus { outline: 2px solid var(--gold-2); }
-.view-badge {
-  margin-left: auto; font-size: 11px; font-weight: 600; letter-spacing: .05em;
-  padding: 4px 10px; border-radius: 4px;
-  background: var(--navy-3); color: var(--gold);
-}
-.view-badge.own { background: var(--green); color: #fff; }
 
 /* ── Roster table ── */
 .scroll-x { overflow-x: auto; }
@@ -575,8 +555,6 @@ input[type=file] { display: none; }
   #edit-popover .pop-opt { padding: 8px 4px; font-size: 12px; min-height: 36px; }
 
   /* Team selector bar */
-  .team-bar { padding: 10px 12px; gap: 8px; }
-  .team-select { min-width: 0; width: 100%; }
 
   /* Inputs & selects: 16px prevents iOS auto-zoom */
   input, select, textarea {
@@ -1010,31 +988,6 @@ input[type=file] { display: none; }
   <div class="page-title">Team Rosters</div>
   <div class="page-sub">2025 Season · Post-draft contracts &amp; salaries</div>
 
-  <div class="team-bar">
-    <label>Viewing team</label>
-    <select class="team-select" id="team-select" onchange="loadTeam(this.value)">
-      <option value="Brew Crew">Brew Crew</option>
-      <option value="Cleveland Jardians">Cleveland Jardians</option>
-      <option value="DAN R">DAN R</option>
-      <option value="Defered Victory">Defered Victory</option>
-      <option value="Domingo Sherman">Domingo Sherman</option>
-      <option value="Gelof My Lawn">Gelof My Lawn</option>
-      <option value="Holliday Road">Holliday Road</option>
-      <option value="Iron Fists">Iron Fists</option>
-      <option value="Kiners Korners">Kiners Korners</option>
-      <option value="Kurtz Your Enthusiasm">Kurtz Your Enthusiasm</option>
-      <option value="Loveable Losers">Loveable Losers</option>
-      <option value="Never Gunnar Give You Up">Never Gunnar Give You Up</option>
-      <option value="Parker Meadows Can't Lose">Parker Meadows Can't Lose</option>
-      <option value="Perdomo My Last Email">Perdomo My Last Email</option>
-      <option value="REID">REID</option>
-      <option value="Rally Happs">Rally Happs</option>
-      <option value="The Great Platoon">The Great Platoon</option>
-      <option value="Thoughts & Prayers">Thoughts & Prayers</option>
-      <option value="Tortured Owners Department">Tortured Owners Department</option>
-      <option value="Wetherholt 45s" selected>Wetherholt 45s (You)</option>
-    </select>
-    <span class="view-badge own" id="view-badge">✓ Your Team</span>
   </div>
 
   <div class="card" id="roster-card">
@@ -1617,12 +1570,6 @@ function loadTeam(teamName) {
   currentTeam = teamName;
   const isOwn = teamName === 'Wetherholt 45s';
 
-  // Badge
-  const badge = document.getElementById('view-badge');
-  if (badge) {
-    badge.className = 'view-badge' + (isOwn ? ' own' : '');
-    badge.textContent = isOwn ? '✓ Your Team' : '👁 View Only';
-  }
   document.getElementById('roster-card-title').textContent = teamName;
 
   const players = LEAGUE[teamName] || [];
@@ -1773,11 +1720,7 @@ function processCSV(text, type, filename) {
     });
     remotePost({ action: 'importRosters', league: leagueByKey });
 
-    // Rebuild select
-    const sel = document.getElementById('team-select');
-    sel.innerHTML = Object.keys(LEAGUE).sort().map(n =>
-      `<option value="${n}"${n === 'Wetherholt 45s' ? ' selected' : ''}>${n}${n === 'Wetherholt 45s' ? ' (You)' : ''}</option>`
-    ).join('');
+
 
     let statusMsg = `✓ Loaded ${rows.length} players across ${Object.keys(newLeague).length} teams from ${filename}`;
     if (graduatedCount > 0) statusMsg += ` · ${graduatedCount} player${graduatedCount !== 1 ? 's' : ''} auto-graduated to ${graduatedYear}`;
