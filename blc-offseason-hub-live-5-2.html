@@ -1367,18 +1367,21 @@ function playerRow(p, status, editable, isHitter) {
 
   let statCols = '';
   if (isHitter) {
-    const ks = ['AB','H','R','HR','RBI','SB','OBP'];
-    ks.forEach(k => {
+    // H/AB combined column
+    const h = stats['H'] || '—', ab = stats['AB'] || '—';
+    const ph = proj['H'], pab = proj['AB'];
+    const habProj = (ph && pab) ? `<div class="stat-proj up" style="font-size:8px">${ph}/${pab}</div>` : '';
+    statCols += `<td class="col-stat c">${h === '—' ? '—' : `${h}/${ab}`}${habProj}</td>`;
+    ['R','HR','RBI','SB','OBP'].forEach(k => {
       const v = stats[k] || '—';
       const pv = proj[k];
       const projStr = pv ? `<div class="stat-proj ${parseFloat(pv) >= parseFloat(v) ? 'up' : 'down'}">${pv}</div>` : '';
       statCols += `<td class="col-stat c">${v}${projStr}</td>`;
     });
   } else {
-    const ks = ['IP','ERA','WHIP','K','W','SV+H'];
-    ks.forEach(k => {
-      const v = stats[k] || stats[k === 'SV+H' ? 'SVH' : k] || '—';
-      const pv = proj[k];
+    ['IP','K','K/9','QA','SVH','ERA','WHIP'].forEach(k => {
+      const v = stats[k] || stats[k === 'K/9' ? 'K9' : k] || '—';
+      const pv = proj[k] || proj[k === 'K/9' ? 'K9' : k];
       const lowerBetter = ['ERA','WHIP'].includes(k);
       const projStr = pv ? `<div class="stat-proj ${lowerBetter ? (parseFloat(pv) <= parseFloat(v) ? 'up' : 'down') : (parseFloat(pv) >= parseFloat(v) ? 'up' : 'down')}">${pv}</div>` : '';
       statCols += `<td class="col-stat c">${v}${projStr}</td>`;
@@ -1404,8 +1407,8 @@ function sectionHdr(label, cls, colCount) {
 
 function buildThead(isHitter) {
   const statCols = isHitter
-    ? ['AB','H','R','HR','RBI','SB','OBP']
-    : ['IP','ERA','WHIP','K','W','SV+H'];
+    ? ['H/AB','R','HR','RBI','SB','OBP']
+    : ['IP','K','K/9','QA','SVH','ERA','WHIP'];
   return `<tr>
     <th class="col-status">Status</th>
     <th class="col-rd c">Rd</th>
@@ -2071,8 +2074,8 @@ function renderOverview(players, keptPlayers = {}) {
     return a.player.localeCompare(b.player);
   });
 
-  const HIT_STATS = ['AB','H','R','HR','RBI','SB','OBP'];
-  const PIT_STATS = ['IP','ERA','WHIP','K','QA','W','SV+H'];
+  const HIT_STATS = ['H/AB','R','HR','RBI','SB','OBP'];
+  const PIT_STATS = ['IP','K','K/9','QA','SVH','ERA','WHIP'];
   const ALL_STATS = [...HIT_STATS, ...PIT_STATS];
 
   const thead = `<tr>
@@ -2099,8 +2102,14 @@ function renderOverview(players, keptPlayers = {}) {
     const statCols = ALL_STATS.map(k => {
       const relevant = isHitter ? HIT_STATS.includes(k) : PIT_STATS.includes(k);
       if (!relevant) return `<td class="col-stat c" style="color:var(--border)">—</td>`;
-      const v = stats[k] || stats[k === 'SV+H' ? 'SVH' : k] || '—';
-      const pv = proj[k] || proj[k === 'SV+H' ? 'SVH' : k];
+      // H/AB — combined column
+      if (k === 'H/AB') {
+        const h = stats['H'] || '—', ab = stats['AB'] || '—';
+        return `<td class="col-stat c">${h === '—' ? '—' : `${h}/${ab}`}</td>`;
+      }
+      const dataKey = k === 'K/9' ? (stats['K/9'] !== undefined ? 'K/9' : 'K9') : k;
+      const v = stats[dataKey] || '—';
+      const pv = proj[dataKey];
       const lowerBetter = ['ERA','WHIP'].includes(k);
       const projStr = pv ? `<div class="stat-proj ${lowerBetter ? (parseFloat(pv) <= parseFloat(v) ? 'up':'down') : (parseFloat(pv) >= parseFloat(v) ? 'up':'down')}">${pv}</div>` : '';
       return `<td class="col-stat c">${v}${projStr}</td>`;
@@ -2429,27 +2438,24 @@ function switchView(view, btn) {
   }
 }
 
-// ── Pre-fill builder + draft from keeper checkmarks ──────────────────────────
+// ── Pre-fill builder + draft from keeperStore ────────────────────────────────
 function prefillFromKeepers(players) {
-  // Read which players have been checked in the overview
+  // Read keeper state from the authoritative store (not DOM)
+  const keptMap = keeperStore[currentTeam] || {};
   const keptMlb  = [];
   const keptMilb = [];
-  document.querySelectorAll('#view-overview tr[data-player]').forEach(row => {
-    const btn = row.querySelector('.keep-btn');
-    if (!btn) return;
-    const playerName = row.dataset.player;
+  for (const [playerName, type] of Object.entries(keptMap)) {
     const p = players.find(x => x.player === playerName);
-    if (!p) return;
-    if (btn.classList.contains('kept-mlb'))  keptMlb.push(p);
-    if (btn.classList.contains('kept-milb')) keptMilb.push(p);
-  });
+    if (!p) continue;
+    if (type === 'milb') keptMilb.push(p);
+    else keptMlb.push(p);
+  }
 
   // Clear current assignments then re-fill
   Object.keys(slotAssignments).forEach(k => delete slotAssignments[k]);
   Object.keys(draftAssignments).forEach(k => delete draftAssignments[k]);
 
-  // ── Fill roster slots ─────────────────────────────────────────────────────
-  // Position → eligible slot IDs (in priority order)
+  // ── Fill Keeper Builder slots by position ─────────────────────────────────
   const POS_SLOT_PRIORITY = {
     'C':  ['C','UT1','UT2'],
     '1B': ['1B','CI','UT1','UT2'],
@@ -2466,7 +2472,6 @@ function prefillFromKeepers(players) {
 
   function assignToSlot(p) {
     const positions = p.position.split(',').map(x => x.trim());
-    // Try each position's preferred slots in order
     for (const pos of positions) {
       const candidates = POS_SLOT_PRIORITY[pos] || [];
       for (const slotId of candidates) {
@@ -2480,7 +2485,6 @@ function prefillFromKeepers(players) {
     return false;
   }
 
-  // Assign MLB keepers to active slots first, overflow to bench
   let benchIdx = 1;
   keptMlb.forEach(p => {
     const placed = assignToSlot(p);
@@ -2491,7 +2495,6 @@ function prefillFromKeepers(players) {
     }
   });
 
-  // Assign MiLB keepers to MiLB slots
   let milbIdx = 1;
   keptMilb.forEach(p => {
     if (milbIdx <= 25) {
@@ -2501,7 +2504,51 @@ function prefillFromKeepers(players) {
     }
   });
 
-  // Draft board is now populated live from keeper checkmarks in buildDraftPlanView
+  // ── Auto-populate Draft Planner using same slot logic as Draft Results ─────
+  if (Object.keys(pickOrder).length > 0) {
+    // Build team's picks per round, sorted ascending by pick number
+    const teamPicksByRd = {};
+    for (const [key, assignedTeam] of Object.entries(pickOrder)) {
+      if (assignedTeam !== currentTeam) continue;
+      const [rdStr, pkStr] = key.split('_');
+      const rd = parseInt(rdStr), pk = parseInt(pkStr);
+      if (!teamPicksByRd[rd]) teamPicksByRd[rd] = [];
+      teamPicksByRd[rd].push(pk);
+    }
+    for (const rd of Object.keys(teamPicksByRd)) teamPicksByRd[rd].sort((a,b) => a-b);
+
+    // Assign highest-SAL keepers first; use latest available pick per round,
+    // climbing up (SAL-1, SAL-2…) if no slot found in the keeper's own round.
+    const occupiedSlots = new Set();
+    const allMlb = keptMlb.slice().sort((a,b) =>
+      (parseInt(b.salary)||0) - (parseInt(a.salary)||0) || a.player.localeCompare(b.player)
+    );
+    for (const p of allMlb) {
+      const sal = parseInt(p.salary);
+      if (!sal || sal > 30) continue;
+      for (let tryRd = sal; tryRd >= 1; tryRd--) {
+        const pks = teamPicksByRd[tryRd];
+        if (!pks) continue;
+        let placed = false;
+        for (let i = pks.length - 1; i >= 0; i--) {
+          const slotKey = `${tryRd}_${pks[i]}`;
+          if (!occupiedSlots.has(slotKey)) {
+            occupiedSlots.add(slotKey);
+            draftAssignments[slotKey] = [p];
+            placed = true;
+            break;
+          }
+        }
+        if (placed) break;
+      }
+    }
+  } else {
+    // No pick order — assign to salary round
+    keptMlb.forEach(p => {
+      const r = parseInt(p.salary);
+      if (r >= 1 && r <= 30) draftAssignments[String(r)] = [p];
+    });
+  }
 }
 
 // ── VIEW 2: Keeper Builder ─────────────────────────────────────────────────────
@@ -2606,7 +2653,11 @@ function buildBuilderView(players) {
          <span class="slot-clear" onclick="clearSlot('${slot.id}')">✕</span>`
       : `<span style="font-size:11px;color:var(--text-3);font-style:italic">Empty — drag a player here</span>`;
 
+    const dragAttrs = filled
+      ? `draggable="true" ondragstart="slotDragStart(event,'${slot.id}')" style="cursor:grab"`
+      : '';
     slotsHtml += `<div class="slot-row ${filledCls}" id="slot-${slot.id}"
+      ${dragAttrs}
       ondragover="slotDragOver(event,'${slot.id}')"
       ondragleave="slotDragLeave('${slot.id}')"
       ondrop="slotDrop(event,'${slot.id}')">
@@ -2667,6 +2718,13 @@ function poolDragStart(event, playerName) {
   event.dataTransfer.effectAllowed = 'move';
   event.currentTarget.classList.add('dragging');
   setTimeout(() => event.currentTarget && event.currentTarget.classList.remove('dragging'), 0);
+}
+
+function slotDragStart(event, slotId) {
+  draggedPlayer = slotAssignments[slotId] || null;
+  if (!draggedPlayer) { event.preventDefault(); return; }
+  dragSource = 'slot';
+  event.dataTransfer.effectAllowed = 'move';
 }
 
 function slotDragOver(event, slotId) {
