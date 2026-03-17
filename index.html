@@ -1362,6 +1362,16 @@ function slotStatHdrRow(sectionType, labelWidth) {
   </div>`;
 }
 
+// Enforce league rules on all LEAGUE data in-memory
+// (2026 contracts are always Expired; call after any bulk load or edit)
+function normalizeLeague() {
+  Object.values(LEAGUE).forEach(roster => {
+    roster.forEach(p => {
+      if (p.contract === '2026' && p.status !== 'Expired') p.status = 'Expired';
+    });
+  });
+}
+
 function conTag(contract, editable) {
   const ed = editable ? ' data-type="con"' : '';
   if (!contract || contract === '' || contract === '-') {
@@ -1963,7 +1973,10 @@ function applyEdit(tile, type, val) {
       const p = team.find(x => x.player === player);
       if (p) {
         if (type === 'rd')  p.salary   = val === '—' ? '0' : val;
-        if (type === 'con') p.contract = val === '—' ? '' : val;
+        if (type === 'con') {
+          p.contract = val === '—' ? '' : val;
+          if (p.contract === '2026') p.status = 'Expired';
+        }
       }
     }
   }
@@ -2398,6 +2411,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (data.league && Object.keys(data.league).length > 0) {
       Object.keys(LEAGUE).forEach(k => delete LEAGUE[k]);
       Object.assign(LEAGUE, data.league);
+      normalizeLeague();
     }
 
     // Hydrate OWNER_MAP
@@ -3586,6 +3600,7 @@ function r5SelectPlayer(playerName, fromTeam) {
     fromTeam,
     mlb_team: playerObj.mlb_team,
     position: playerObj.position,
+    originalStatus: playerObj.status,
   });
 
   // Update loss count
@@ -3629,9 +3644,12 @@ function r5UndoLastPick() {
   if (pIdx !== -1) {
     const [moved] = toRoster.splice(pIdx, 1);
     LEAGUE[last.fromTeam] = LEAGUE[last.fromTeam] || [];
-    LEAGUE[last.fromTeam].push({ ...moved, status: 'Rule 5' });
+    const restoredStatus = last.originalStatus
+      ? (moved.contract === '2026' ? 'Expired' : last.originalStatus)
+      : (moved.contract === '2026' ? 'Expired' : 'Active');
+    LEAGUE[last.fromTeam].push({ ...moved, status: restoredStatus });
     // ── Sync Rule 5 undo to Google Sheet ─────────────────────────────────
-    remotePost({ action: 'r5Pick', player: last.player, fromTeam: last.selectingTeam, toTeam: last.fromTeam, newStatus: 'Rule 5' });
+    remotePost({ action: 'r5Pick', player: last.player, fromTeam: last.selectingTeam, toTeam: last.fromTeam, newStatus: restoredStatus });
   }
 
   r5LossCounts[last.fromTeam] = Math.max(0, (r5LossCounts[last.fromTeam] || 1) - 1);
