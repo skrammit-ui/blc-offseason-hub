@@ -2706,9 +2706,6 @@ function clearSlot(slotId) {
 // ── VIEW 3: Draft Planner ──────────────────────────────────────────────────────
 // draftAssignments: round (1-30) → player array, ordered by pick A/B/C within that round
 const draftAssignments = {};
-let subpickDragRound = null;
-let subpickDragIdx = null;
-
 function buildDraftPlanView(players) {
   const boardEl = document.getElementById('draft-board');
   const poolEl  = document.getElementById('draft-pool');
@@ -2762,77 +2759,66 @@ function buildDraftPlanView(players) {
   </div>
   <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Draft Board — ${plannerRoundCount} Pick${plannerRoundCount !== 1 ? 's' : ''}</div>`;
 
+  // Build a flat ordered list of (r, pk) slots — one row per pick
+  const pickSlots = [];
   for (let r = 1; r <= 30; r++) {
-    const assigned = draftAssignments[r] || [];
-    // When pick order is loaded, only show rounds where this team has a pick (or already has an assignment)
-    if (hasPlannerPickOrder && !teamPicksInRound[r] && assigned.length === 0) continue;
+    const pks = teamPicksInRound[r];
+    if (hasPlannerPickOrder) {
+      if (pks) pks.slice().sort((a,b)=>a-b).forEach(pk => pickSlots.push({r, pk, slotKey: `${r}_${pk}`}));
+      // also show any rounds with an existing assignment that lost pick order
+      else if (Object.keys(draftAssignments).some(k => k === String(r) && draftAssignments[k]?.length))
+        pickSlots.push({r, pk: null, slotKey: String(r)});
+    } else {
+      pickSlots.push({r, pk: null, slotKey: String(r)});
+    }
+  }
+
+  for (const {r, pk, slotKey} of pickSlots) {
+    const assigned = draftAssignments[slotKey] || [];
     const takenCls = assigned.length ? 'taken' : '';
 
     let innerHtml = '';
     if (assigned.length === 0) {
       innerHtml = `<span style="font-size:11px;color:var(--text-3);font-style:italic">Open pick</span>`;
-    } else if (assigned.length === 1) {
+    } else {
       const p = assigned[0];
       const isExp = p.contract === '2026';
       innerHtml = `
         <span class="round-player">${p.player}${isExp ? '&nbsp;<span style="font-size:9px;color:var(--red);font-family:var(--mono);font-weight:700">EXP</span>' : ''}</span>
         <span class="round-meta">${p.mlb_team}&nbsp;·&nbsp;${p.position}</span>
-        <span class="slot-clear" onclick="clearDraftSlot(${r},'${p.player.replace(/'/g,"\\'")}')">✕</span>`;
-    } else {
-      // Multiple picks in this round — lettered A/B/C, draggable to reorder
-      innerHtml = `<div style="display:flex;flex-direction:column;gap:3px;flex:1">` +
-        assigned.map((p, i) => {
-          const isExp = p.contract === '2026';
-          return `<div class="draft-subpick" draggable="true"
-            ondragstart="subpickDragStart(event,${r},${i})"
-            ondragover="subpickDragOver(event,this)"
-            ondragleave="subpickDragLeave(this)"
-            ondrop="subpickDrop(event,${r},${i})">
-            <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--text-3);width:14px;flex-shrink:0">${String.fromCharCode(65+i)}</span>
-            <span class="round-player" style="flex:1">${p.player}${isExp ? '&nbsp;<span style="font-size:9px;color:var(--red);font-family:var(--mono);font-weight:700">EXP</span>' : ''}</span>
-            <span class="round-meta">${p.mlb_team}&nbsp;·&nbsp;${p.position}</span>
-            <span class="slot-clear" onclick="clearDraftSlot(${r},'${p.player.replace(/'/g,"\\'")}')">✕</span>
-          </div>`;
-        }).join('') + `</div>`;
+        <span class="slot-clear" onclick="clearDraftSlot('${slotKey}','${p.player.replace(/'/g,"\\'")}')">✕</span>`;
     }
 
-    const plannerPks = teamPicksInRound[r];
-    const rdCol = `<div style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
+    let roundBadge;
+    if (pk != null) {
+      const ovr = plannerCumBefore[r] + pk;
+      roundBadge = `<div style="display:flex;gap:10px;align-items:center;font-family:var(--mono);flex-shrink:0;padding-right:6px">
+          <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
             <span style="font-size:8px;color:var(--text-3);letter-spacing:.05em">RD</span>
             <span style="font-size:13px;font-weight:700;color:var(--navy)">${r}</span>
-          </div>`;
-    let roundBadge;
-    if (plannerPks && plannerPks.length > 0) {
-      // One badge per pick the team holds in this round
-      const pkCols = plannerPks.sort((a,b)=>a-b).map(pk => {
-        const ovr = plannerCumBefore[r] + pk;
-        return `<div style="display:flex;gap:10px;align-items:center">
-            <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
-              <span style="font-size:8px;color:var(--text-3);letter-spacing:.05em">PK</span>
-              <span style="font-size:13px;font-weight:700;color:var(--navy)">${pk}</span>
-            </div>
-            <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
-              <span style="font-size:8px;color:var(--text-3);letter-spacing:.05em">OVR</span>
-              <span style="font-size:13px;font-weight:700;color:var(--navy)">${ovr}</span>
-            </div>
-          </div>`;
-      }).join(`<div style="width:1px;height:24px;background:var(--border);margin:0 4px"></div>`);
-      roundBadge = `<div style="display:flex;gap:10px;align-items:center;font-family:var(--mono);flex-shrink:0;padding-right:6px">
-          ${rdCol}
-          <div style="width:1px;height:24px;background:var(--border)"></div>
-          ${pkCols}
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
+            <span style="font-size:8px;color:var(--text-3);letter-spacing:.05em">PK</span>
+            <span style="font-size:13px;font-weight:700;color:var(--navy)">${pk}</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
+            <span style="font-size:8px;color:var(--text-3);letter-spacing:.05em">OVR</span>
+            <span style="font-size:13px;font-weight:700;color:var(--navy)">${ovr}</span>
+          </div>
          </div>`;
     } else {
-      // No pick order data — show RD-only badge in the same style
       roundBadge = `<div style="display:flex;gap:10px;align-items:center;font-family:var(--mono);flex-shrink:0;padding-right:6px">
-          ${rdCol}
+          <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
+            <span style="font-size:8px;color:var(--text-3);letter-spacing:.05em">RD</span>
+            <span style="font-size:13px;font-weight:700;color:var(--navy)">${r}</span>
+          </div>
          </div>`;
     }
 
-    boardHtml += `<div class="draft-round ${takenCls}" id="dround-${r}"
-      ondragover="draftDragOver(event,${r})"
-      ondragleave="draftDragLeave(${r})"
-      ondrop="draftDrop(event,${r})">
+    boardHtml += `<div class="draft-round ${takenCls}" id="dround-${slotKey}"
+      ondragover="draftDragOver(event,'${slotKey}')"
+      ondragleave="draftDragLeave('${slotKey}')"
+      ondrop="draftDrop(event,'${slotKey}')">
       ${roundBadge}
       ${innerHtml}
     </div>`;
@@ -2864,70 +2850,36 @@ function buildDraftPlanView(players) {
 function draftDragStart(event, playerName) {
   const p = (LEAGUE[currentTeam] || []).find(x => x.player === playerName);
   draggedPlayer = p || null;
-  subpickDragRound = null;
   event.dataTransfer.effectAllowed = 'move';
 }
 
-function draftDragOver(event, round) {
+function draftDragOver(event, slotKey) {
   event.preventDefault();
-  document.getElementById('dround-' + round)?.classList.add('drag-over');
+  document.getElementById('dround-' + slotKey)?.classList.add('drag-over');
 }
 
-function draftDragLeave(round) {
-  document.getElementById('dround-' + round)?.classList.remove('drag-over');
+function draftDragLeave(slotKey) {
+  document.getElementById('dround-' + slotKey)?.classList.remove('drag-over');
 }
 
-function draftDrop(event, round) {
+function draftDrop(event, slotKey) {
   event.preventDefault();
-  document.getElementById('dround-' + round)?.classList.remove('drag-over');
+  document.getElementById('dround-' + slotKey)?.classList.remove('drag-over');
   if (!draggedPlayer) return;
-  // Remove from any existing round
+  // Remove player from any existing slot
   Object.keys(draftAssignments).forEach(k => {
     draftAssignments[k] = (draftAssignments[k] || []).filter(p => p.player !== draggedPlayer.player);
     if (!draftAssignments[k].length) delete draftAssignments[k];
   });
-  if (!draftAssignments[round]) draftAssignments[round] = [];
-  draftAssignments[round].push(draggedPlayer);
+  draftAssignments[slotKey] = [draggedPlayer];
   draggedPlayer = null;
   buildDraftPlanView(LEAGUE[currentTeam] || []);
 }
 
-function clearDraftSlot(round, playerName) {
-  if (!draftAssignments[round]) return;
-  draftAssignments[round] = draftAssignments[round].filter(p => p.player !== playerName);
-  if (!draftAssignments[round].length) delete draftAssignments[round];
-  buildDraftPlanView(LEAGUE[currentTeam] || []);
-}
-
-// Reorder picks within a round by dragging A/B/C sub-rows
-function subpickDragStart(event, round, idx) {
-  subpickDragRound = round;
-  subpickDragIdx = idx;
-  draggedPlayer = null; // not a pool drag
-  event.dataTransfer.effectAllowed = 'move';
-  event.stopPropagation();
-}
-
-function subpickDragOver(event, el) {
-  event.preventDefault();
-  event.stopPropagation();
-  el.style.borderTop = '2px solid var(--gold)';
-}
-
-function subpickDragLeave(el) {
-  el.style.borderTop = '';
-}
-
-function subpickDrop(event, round, targetIdx) {
-  event.preventDefault();
-  event.stopPropagation();
-  if (subpickDragRound !== round || subpickDragIdx === null) return;
-  const arr = draftAssignments[round];
-  if (!arr) return;
-  const [moved] = arr.splice(subpickDragIdx, 1);
-  arr.splice(targetIdx, 0, moved);
-  subpickDragRound = null;
-  subpickDragIdx = null;
+function clearDraftSlot(slotKey, playerName) {
+  if (!draftAssignments[slotKey]) return;
+  draftAssignments[slotKey] = draftAssignments[slotKey].filter(p => p.player !== playerName);
+  if (!draftAssignments[slotKey].length) delete draftAssignments[slotKey];
   buildDraftPlanView(LEAGUE[currentTeam] || []);
 }
 
