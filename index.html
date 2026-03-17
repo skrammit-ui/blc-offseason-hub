@@ -540,21 +540,22 @@ input[type=file] { display: none; }
   <div class="brand-name">Bush League Chew</div>
   <div class="brand-sub">Offseason Hub</div>
   <div class="nav-divider"></div>
-  <div class="nav-item active" onclick="nav('rules',this)">
-    <span class="nav-icon">📖</span> Rules
-  </div>
-  <div class="nav-item" onclick="nav('rosters',this)">
+  <div class="nav-item active" onclick="nav('rosters',this)">
     <span class="nav-icon">📋</span> Rosters
-  </div>
-  <div class="nav-item" onclick="nav('rule5',this)">
-    <span class="nav-icon">🟣</span> Rule 5
   </div>
   <div class="nav-item" onclick="nav('keepers',this)">
     <span class="nav-icon">🔒</span> Keepers
   </div>
+  <div class="nav-item" onclick="nav('rule5',this)">
+    <span class="nav-icon">🟣</span> Rule 5
+  </div>
   <div class="nav-divider"></div>
   <div class="nav-item" onclick="nav('draft',this)">
     <span class="nav-icon">🎯</span> Draft
+  </div>
+  <div class="nav-divider"></div>
+  <div class="nav-item" onclick="nav('rules',this)">
+    <span class="nav-icon">📖</span> Rules
   </div>
   <div class="nav-divider"></div>
   <div class="nav-item" id="nav-commish" onclick="nav('commish',this)">
@@ -616,7 +617,7 @@ input[type=file] { display: none; }
 <!-- ════════════════════════════════════════
      RULES PAGE
 ════════════════════════════════════════ -->
-<div class="page active" id="page-rules">
+<div class="page" id="page-rules">
   <div class="page-title">League Rules</div>
   <div class="page-sub">Bush League Chew &middot; Updated Dec 10, 2025</div>
 
@@ -857,7 +858,7 @@ input[type=file] { display: none; }
 <!-- ════════════════════════════════════════
      ROSTERS PAGE
 ════════════════════════════════════════ -->
-<div class="page" id="page-rosters">
+<div class="page active" id="page-rosters">
   <div class="page-title">Team Rosters</div>
   <div class="page-sub">2025 Season · Post-draft contracts &amp; salaries</div>
 
