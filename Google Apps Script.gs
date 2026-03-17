@@ -36,14 +36,14 @@ function doPost(e) {
     const ss = SpreadsheetApp.openById(SHEET_ID);
     switch (payload.action) {
       case 'setKeeper':
-        setKeeper(ss, payload.team, payload.player, payload.keeperType);
+        setKeeper(ss, payload.teamKey, payload.player, payload.keeperType, payload.playerId);
         break;
       case 'removeKeeper':
-        removeKeeper(ss, payload.team, payload.player);
+        removeKeeper(ss, payload.teamKey, payload.playerId, payload.player);
         break;
       case 'editPlayer':
         // payload.fields = { contract, salary, status, ... }
-        editPlayerFields(ss, payload.team, payload.player, payload.fields);
+        editPlayerFields(ss, payload.teamKey, payload.playerId, payload.fields);
         break;
       case 'importRosters':
         // payload.league = full LEAGUE object from CSV parse
@@ -60,7 +60,7 @@ function doPost(e) {
         setPick(ss, payload.round, payload.pick, payload.team, payload.player, payload.salary, payload.contract);
         break;
       case 'r5Pick':
-        r5MovePlayer(ss, payload.player, payload.fromTeam, payload.toTeam, payload.newStatus);
+        r5MovePlayer(ss, payload.playerId, payload.player, payload.fromTeamKey, payload.toTeamKey, payload.newStatus);
         break;
       case 'tradePlayers':
         tradePlayers(ss, payload.moves);
@@ -86,33 +86,46 @@ function doPost(e) {
 //  READERS
 // ════════════════════════════════════════════════════════════════════════════
 function getRosters(ss) {
+  const ownerMap = getOwnerMap(ss);          // key → teamName
+  const validNames = new Set(Object.values(ownerMap));
   const sheet = ss.getSheetByName('Rosters');
   if (!sheet) return {};
   const [headers, ...rows] = sheet.getDataRange().getValues();
+  // Support both old header ('team') and new header ('teamKey')
+  const teamHeader = headers.includes('teamKey') ? 'teamKey' : 'team';
   const league = {};
   rows.forEach(row => {
     const obj = {};
     headers.forEach((h, i) => obj[h] = String(row[i] ?? ''));
-    const team = obj.team;
-    if (!team) return;
-    if (!league[team]) league[team] = [];
-    // Remove the 'team' key from the player object (it's the map key)
-    const { team: _t, ...player } = obj;
-    league[team].push(player);
+    const raw = obj[teamHeader];
+    if (!raw) return;
+    // Resolve: try as ownerKey first, then treat as teamName (backward compat)
+    const teamName = ownerMap[raw] || raw;
+    if (!validNames.has(teamName)) return; // skip unknown teams
+    if (!league[teamName]) league[teamName] = [];
+    const { team: _t, teamKey: _tk, ...player } = obj;
+    league[teamName].push(player);
   });
   return league;
 }
 function getKeepers(ss) {
+  const ownerMap = getOwnerMap(ss);
   const sheet = ss.getSheetByName('Keepers');
   if (!sheet) return {};
-  const [headers, ...rows] = sheet.getDataRange().getValues();
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0] || [];
+  const typeIdx = headers.indexOf('keeperType');
   const keepers = {};
-  rows.forEach(row => {
-    const [team, player, type] = row;
-    if (!team || !player || !type) return;
-    if (!keepers[team]) keepers[team] = {};
-    keepers[team][player] = type;
-  });
+  for (let i = 1; i < data.length; i++) {
+    const raw    = String(data[i][0] || '').trim();
+    const player = String(data[i][1] || '').trim();
+    const type   = typeIdx >= 0 ? String(data[i][typeIdx] || '').trim() : String(data[i][2] || '').trim();
+    if (!raw || !player || !type) continue;
+    // Resolve teamKey → teamName (with backward compat for old teamName rows)
+    const teamName = ownerMap[raw] || raw;
+    if (!keepers[teamName]) keepers[teamName] = {};
+    keepers[teamName][player] = type;
+  }
   return keepers;
 }
 function getOwnerMap(ss) {
@@ -197,33 +210,47 @@ function _readStatsSheet(sheet) {
 // ════════════════════════════════════════════════════════════════════════════
 //  WRITERS
 // ════════════════════════════════════════════════════════════════════════════
-function setKeeper(ss, team, player, keeperType) {
-  const sheet = ss.getSheetByName('Keepers');
-  const data  = sheet.getDataRange().getValues();
+function setKeeper(ss, teamKey, player, keeperType, playerId) {
+  const sheet   = ss.getSheetByName('Keepers');
+  const data    = sheet.getDataRange().getValues();
+  const headers = data[0] || [];
+  const typeIdx = headers.indexOf('keeperType');
   for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === team && data[i][1] === player) {
-      sheet.getRange(i + 1, 3).setValue(keeperType);
+    const rowKey      = String(data[i][0]).trim();
+    const rowPlayerId = String(data[i][2]).trim(); // col C = playerId in new schema
+    const rowPlayer   = String(data[i][1]).trim();
+    const match = rowKey === teamKey && (playerId ? rowPlayerId === playerId : rowPlayer === player);
+    if (match) {
+      sheet.getRange(i + 1, typeIdx >= 0 ? typeIdx + 1 : 4).setValue(keeperType);
       return;
     }
   }
-  sheet.appendRow([team, player, keeperType]);
+  // New row: [teamKey, player, playerId, keeperType]
+  sheet.appendRow([teamKey, player, playerId || '', keeperType]);
 }
-function removeKeeper(ss, team, player) {
+function removeKeeper(ss, teamKey, playerId, player) {
   const sheet = ss.getSheetByName('Keepers');
   const data  = sheet.getDataRange().getValues();
   for (let i = data.length - 1; i >= 1; i--) {
-    if (data[i][0] === team && data[i][1] === player) {
+    const rowKey      = String(data[i][0]).trim();
+    const rowPlayerId = String(data[i][2]).trim();
+    const rowPlayer   = String(data[i][1]).trim();
+    if (rowKey === teamKey && (playerId ? rowPlayerId === playerId : rowPlayer === player)) {
       sheet.deleteRow(i + 1);
       return;
     }
   }
 }
-function editPlayerFields(ss, team, player, fields) {
+function editPlayerFields(ss, teamKey, playerId, fields) {
   const sheet   = ss.getSheetByName('Rosters');
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   const data    = sheet.getDataRange().getValues();
+  const teamCol = headers.indexOf('teamKey') >= 0 ? headers.indexOf('teamKey') : headers.indexOf('team');
+  const idCol   = headers.indexOf('id');
   for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === team && data[i][1] === player) {
+    const rowKey = String(data[i][teamCol]).trim();
+    const rowId  = idCol >= 0 ? String(data[i][idCol]).trim() : '';
+    if (rowKey === teamKey && rowId === playerId) {
       Object.entries(fields).forEach(([field, value]) => {
         const col = headers.indexOf(field);
         if (col >= 0) sheet.getRange(i + 1, col + 1).setValue(value);
@@ -233,16 +260,18 @@ function editPlayerFields(ss, team, player, fields) {
   }
 }
 function importRosters(ss, league) {
+  // league is keyed by ownerKey (not teamName)
   const sheet = ss.getSheetByName('Rosters');
-  const HEADERS = ['team','player','mlb_team','position','status','salary','contract','id'];
-  // Clear existing data (keep header row)
+  const HEADERS = ['teamKey','player','mlb_team','position','status','salary','contract','id'];
   const lastRow = sheet.getLastRow();
   if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, HEADERS.length).clearContent();
+  // Always rewrite header row so old 'team' column becomes 'teamKey'
+  sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
   const rows = [];
-  Object.entries(league).forEach(([team, players]) => {
+  Object.entries(league).forEach(([teamKey, players]) => {
     players.forEach(p => {
       rows.push([
-        team,
+        teamKey,
         p.player    || '',
         p.mlb_team  || '',
         p.position  || '',
@@ -272,7 +301,7 @@ function importStandings(ss, standings) {
   }
 }
 function renameTeam(ss, oldName, newName, ownerKey) {
-  // Update Settings
+  // Update Settings (canonical source — Rosters/Keepers use ownerKey so no update needed there)
   const settingsSheet = ss.getSheetByName('Settings');
   const settingsData  = settingsSheet.getDataRange().getValues();
   for (let i = 1; i < settingsData.length; i++) {
@@ -281,28 +310,14 @@ function renameTeam(ss, oldName, newName, ownerKey) {
       break;
     }
   }
-  // Update team column in Rosters
-  const rosterSheet = ss.getSheetByName('Rosters');
-  const rosterData  = rosterSheet.getDataRange().getValues();
-  for (let i = 1; i < rosterData.length; i++) {
-    if (rosterData[i][0] === oldName) {
-      rosterSheet.getRange(i + 1, 1).setValue(newName);
-    }
-  }
-  // Update Keepers
-  const keepersSheet = ss.getSheetByName('Keepers');
-  const keepersData  = keepersSheet.getDataRange().getValues();
-  for (let i = 1; i < keepersData.length; i++) {
-    if (keepersData[i][0] === oldName) {
-      keepersSheet.getRange(i + 1, 1).setValue(newName);
-    }
-  }
-  // Update Standings
+  // Update Standings (still uses teamName as display key)
   const standingsSheet = ss.getSheetByName('Standings');
-  const standingsData  = standingsSheet.getDataRange().getValues();
-  for (let i = 1; i < standingsData.length; i++) {
-    if (standingsData[i][0] === oldName) {
-      standingsSheet.getRange(i + 1, 1).setValue(newName);
+  if (standingsSheet) {
+    const standingsData = standingsSheet.getDataRange().getValues();
+    for (let i = 1; i < standingsData.length; i++) {
+      if (standingsData[i][0] === oldName) {
+        standingsSheet.getRange(i + 1, 1).setValue(newName);
+      }
     }
   }
 }
@@ -323,47 +338,48 @@ function tradePlayers(ss, moves) {
   const sheet   = ss.getSheetByName('Rosters');
   const data    = sheet.getDataRange().getValues();
   const headers = data[0];
-  const teamCol   = headers.indexOf('team') + 1;
-  const playerCol = headers.indexOf('player') + 1;
-  moves.forEach(({ player, toTeam }) => {
-    const norm = String(player).trim();
-    const dest = String(toTeam).trim();
+  const teamCol = (headers.indexOf('teamKey') >= 0 ? headers.indexOf('teamKey') : headers.indexOf('team')) + 1;
+  const idCol   = headers.indexOf('id'); // 0-based
+  moves.forEach(({ playerId, player, toTeamKey }) => {
+    const idNorm   = String(playerId || '').trim();
+    const nameNorm = String(player || '').trim();
+    const dest     = String(toTeamKey).trim();
     for (let i = 1; i < data.length; i++) {
-      if (String(data[i][playerCol - 1]).trim() === norm) {
+      const rowId = idCol >= 0 ? String(data[i][idCol]).trim() : '';
+      const matched = idNorm ? rowId === idNorm : String(data[i][headers.indexOf('player')]).trim() === nameNorm;
+      if (matched) {
         sheet.getRange(i + 1, teamCol).setValue(dest);
-        data[i][teamCol - 1] = dest; // keep local array in sync for subsequent iterations
-        Logger.log('tradePlayers: moved ' + norm + ' to ' + dest);
+        data[i][teamCol - 1] = dest;
+        Logger.log('tradePlayers: moved ' + (idNorm || nameNorm) + ' to ' + dest);
         break;
       }
     }
   });
 }
 // ── Rule 5 player move ───────────────────────────────────────────────────────
-function r5MovePlayer(ss, player, fromTeam, toTeam, newStatus) {
+function r5MovePlayer(ss, playerId, player, fromTeamKey, toTeamKey, newStatus) {
   const sheet   = ss.getSheetByName('Rosters');
   const data    = sheet.getDataRange().getValues();
   const headers = data[0];
-  const teamCol   = headers.indexOf('team') + 1;
+  const teamCol   = (headers.indexOf('teamKey') >= 0 ? headers.indexOf('teamKey') : headers.indexOf('team')) + 1;
   const playerCol = headers.indexOf('player') + 1;
   const statusCol = headers.indexOf('status') + 1;
-  // Normalize inputs — trim whitespace to avoid mismatches from Excel import
-  const playerNorm   = String(player).trim();
-  const fromTeamNorm = String(fromTeam).trim();
-  const toTeamNorm   = String(toTeam).trim();
+  const idCol     = headers.indexOf('id'); // 0-based
+  const idNorm    = String(playerId || '').trim();
+  const nameNorm  = String(player  || '').trim();
+  const destNorm  = String(toTeamKey || '').trim();
   for (let i = 1; i < data.length; i++) {
+    const rowId     = idCol >= 0 ? String(data[i][idCol]).trim() : '';
     const rowPlayer = String(data[i][playerCol - 1]).trim();
-    const rowTeam   = String(data[i][teamCol - 1]).trim();
-    // Match on player name only — find wherever this player currently lives
-    // (in case they were already moved by a previous pick)
-    if (rowPlayer === playerNorm) {
-      sheet.getRange(i + 1, teamCol).setValue(toTeamNorm);
+    const matched   = idNorm ? rowId === idNorm : rowPlayer === nameNorm;
+    if (matched) {
+      sheet.getRange(i + 1, teamCol).setValue(destNorm);
       sheet.getRange(i + 1, statusCol).setValue(newStatus || 'Rule 5');
-      Logger.log('r5MovePlayer: moved ' + playerNorm + ' from ' + rowTeam + ' to ' + toTeamNorm);
+      Logger.log('r5MovePlayer: moved ' + (idNorm || nameNorm) + ' to ' + destNorm);
       return;
     }
   }
-  // If we get here, player wasn't found at all — log it
-  Logger.log('r5MovePlayer ERROR: could not find player "' + playerNorm + '" in Rosters sheet');
+  Logger.log('r5MovePlayer ERROR: could not find player "' + (idNorm || nameNorm) + '" in Rosters sheet');
 }
 // ── Save stats to sheet ───────────────────────────────────────────────────────
 function saveStats(ss, stats) {
@@ -413,8 +429,8 @@ function writeStatsSheet(sheet, statsObj) {
 function setupSheets() {
   const ss = SpreadsheetApp.openById(SHEET_ID);
   const sheets = {
-    'Rosters':     ['team','player','mlb_team','position','status','salary','contract','id'],
-    'Keepers':     ['team','player','keeperType'],
+    'Rosters':     ['teamKey','player','mlb_team','position','status','salary','contract','id'],
+    'Keepers':     ['teamKey','player','playerId','keeperType'],
     'Settings':    ['ownerKey','teamName'],
     'Standings':   ['team','W','L','pct','GB','RS','RA','streak'],
     'Picks':       ['round','pick','team','player','salary','contract','key'],
