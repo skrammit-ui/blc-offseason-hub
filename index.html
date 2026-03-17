@@ -1570,9 +1570,17 @@ function processCSV(text, type, filename) {
     const graduatedYear = String(new Date().getFullYear() + 4);
     let graduatedCount = 0;
 
+    // Build reverse map: lowercase teamName → ownerKey (for CSV manager name lookup)
+    const nameToKey = {};
+    Object.entries(OWNER_MAP).forEach(([k, v]) => { nameToKey[v.toLowerCase()] = k; });
+
     rows.forEach(r => {
-      const mgr = (r.Manager || '').trim();
-      if (!mgr) return;
+      const mgrRaw = (r.Manager || '').trim();
+      if (!mgrRaw) return;
+      // Resolve to canonical team name via OWNER_MAP (skip unknown managers)
+      const mgrKey  = nameToKey[mgrRaw.toLowerCase()];
+      if (!mgrKey) return; // not a known team — ignore
+      const mgr = OWNER_MAP[mgrKey]; // canonical team name
       if (!newLeague[mgr]) newLeague[mgr] = [];
 
       const playerName = (r.Player || '').trim();
@@ -1609,8 +1617,12 @@ function processCSV(text, type, filename) {
 
     Object.assign(LEAGUE, newLeague);
 
-    // ── Sync full roster import to Google Sheet ───────────────────────────
-    remotePost({ action: 'importRosters', league: newLeague });
+    // ── Sync full roster import to Google Sheet (keyed by ownerKey) ───────
+    const leagueByKey = {};
+    Object.entries(newLeague).forEach(([teamName, players]) => {
+      leagueByKey[ownerKeyFor(teamName)] = players;
+    });
+    remotePost({ action: 'importRosters', league: leagueByKey });
 
     // Rebuild select
     const sel = document.getElementById('team-select');
@@ -2001,7 +2013,7 @@ function applyEdit(tile, type, val) {
       const fields = {};
       if (type === 'rd')  fields.salary   = val === '—' ? '0' : val;
       if (type === 'con') fields.contract = val === '—' ? '' : val;
-      remotePost({ action: 'editPlayer', team: manager2, player: player2, fields });
+      remotePost({ action: 'editPlayer', teamKey: ownerKeyFor(manager2), playerId: playerIdFor(manager2, player2), fields });
     }
   }
   closePop();
@@ -2051,11 +2063,11 @@ function toggleKeeper(btn) {
     const keeperType = nowNorm === 'MiLB' ? 'milb' : nowNorm === 'Rule 5' ? 'rule5' : nowNorm === 'Trade' ? 'trade' : 'mlb';
     keeperStore[manager][player] = keeperType;
     // ── Sync to Google Sheet ──────────────────────────────────────────────
-    remotePost({ action: 'setKeeper', team: manager, player, keeperType });
+    remotePost({ action: 'setKeeper', teamKey: ownerKeyFor(manager), player, keeperType, playerId: playerIdFor(manager, player) });
   } else {
     delete keeperStore[manager][player];
     // ── Sync to Google Sheet ──────────────────────────────────────────────
-    remotePost({ action: 'removeKeeper', team: manager, player });
+    remotePost({ action: 'removeKeeper', teamKey: ownerKeyFor(manager), player, playerId: playerIdFor(manager, player) });
   }
 
   // Rebuild builder and draft views to reflect the change
@@ -2248,6 +2260,14 @@ const OWNER_MAP = {
   'tortured':    'Tortured Owners Department',
 };
 const COMMISH_KEY = 'wetherholt';
+
+// ── Key / ID helpers for sheet operations ────────────────────────────────────
+function ownerKeyFor(teamName) {
+  return Object.entries(OWNER_MAP).find(([, v]) => v === teamName)?.[0] || teamName;
+}
+function playerIdFor(teamName, playerName) {
+  return (LEAGUE[teamName] || []).find(p => p.player === playerName)?.id || '';
+}
 
 // ── Team Picker ───────────────────────────────────────────────────────────────
 let pickedOwnerKey = null;
@@ -3620,6 +3640,7 @@ function r5SelectPlayer(playerName, fromTeam) {
     pickNum: r5Picks.length + 1,
     selectingTeam,
     player: playerName,
+    id: playerObj.id || '',
     fromTeam,
     mlb_team: playerObj.mlb_team,
     position: playerObj.position,
@@ -3637,7 +3658,7 @@ function r5SelectPlayer(playerName, fromTeam) {
     LEAGUE[selectingTeam] = LEAGUE[selectingTeam] || [];
     LEAGUE[selectingTeam].push({ ...moved, status: 'Rule 5' });
     // ── Sync Rule 5 pick to Google Sheet ─────────────────────────────────
-    remotePost({ action: 'r5Pick', player: playerName, fromTeam, toTeam: selectingTeam, newStatus: 'Rule 5' });
+    remotePost({ action: 'r5Pick', playerId: moved.id || '', player: playerName, fromTeamKey: ownerKeyFor(fromTeam), toTeamKey: ownerKeyFor(selectingTeam), newStatus: 'Rule 5' });
   }
 
   // Populate draft order bar with team names
@@ -3673,7 +3694,7 @@ function r5UndoLastPick() {
       : (moved.contract === '2026' ? 'Expired' : 'Active');
     LEAGUE[last.fromTeam].push({ ...moved, status: restoredStatus });
     // ── Sync Rule 5 undo to Google Sheet ─────────────────────────────────
-    remotePost({ action: 'r5Pick', player: last.player, fromTeam: last.selectingTeam, toTeam: last.fromTeam, newStatus: restoredStatus });
+    remotePost({ action: 'r5Pick', playerId: last.id || '', player: last.player, fromTeamKey: ownerKeyFor(last.selectingTeam), toTeamKey: ownerKeyFor(last.fromTeam), newStatus: restoredStatus });
   }
 
   r5LossCounts[last.fromTeam] = Math.max(0, (r5LossCounts[last.fromTeam] || 1) - 1);
@@ -3989,7 +4010,7 @@ function executeTrade() {
     if (idx < 0) return;
     const [p] = LEAGUE[teamA].splice(idx, 1);
     LEAGUE[teamB].push(p);
-    moves.push({ player: name, fromTeam: teamA, toTeam: teamB });
+    moves.push({ player: name, playerId: p.id || '', fromTeamKey: ownerKeyFor(teamA), toTeamKey: ownerKeyFor(teamB) });
   });
 
   bNames.forEach(name => {
@@ -3997,7 +4018,7 @@ function executeTrade() {
     if (idx < 0) return;
     const [p] = LEAGUE[teamB].splice(idx, 1);
     LEAGUE[teamA].push(p);
-    moves.push({ player: name, fromTeam: teamB, toTeam: teamA });
+    moves.push({ player: name, playerId: p.id || '', fromTeamKey: ownerKeyFor(teamB), toTeamKey: ownerKeyFor(teamA) });
   });
 
   if (!moves.length) { toast('No players found to move'); return; }
