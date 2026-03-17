@@ -1021,6 +1021,43 @@ input[type=file] { display: none; }
     </div>
   </div>
 
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">&#x1F501; Execute Trade</span></div>
+    <div style="padding:20px">
+      <div style="display:grid;grid-template-columns:1fr 32px 1fr;gap:12px;align-items:start">
+
+        <!-- Team A -->
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Team A gives</div>
+          <select id="trade-team-a" onchange="populateTradeRoster('a')"
+            style="width:100%;font-family:var(--body);font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text)">
+            <option value="">— Select team —</option>
+          </select>
+          <div id="trade-roster-a" style="margin-top:8px;max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:5px;font-size:12px"></div>
+        </div>
+
+        <!-- Divider arrow -->
+        <div style="text-align:center;padding-top:32px;font-size:18px;color:var(--text-3)">&#x21C4;</div>
+
+        <!-- Team B -->
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Team B gives</div>
+          <select id="trade-team-b" onchange="populateTradeRoster('b')"
+            style="width:100%;font-family:var(--body);font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text)">
+            <option value="">— Select team —</option>
+          </select>
+          <div id="trade-roster-b" style="margin-top:8px;max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:5px;font-size:12px"></div>
+        </div>
+
+      </div>
+
+      <!-- Preview + execute -->
+      <div id="trade-preview" style="margin-top:14px;font-size:12px;color:var(--text-2);min-height:20px"></div>
+      <button class="btn btn-primary" onclick="executeTrade()" style="margin-top:12px">&#x2713; Execute Trade</button>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-header"><span class="card-title">Season Stats</span></div>
     <div style="padding:20px">
@@ -3576,6 +3613,75 @@ function r5InitPage() {
 }
 
 // ── Commissioner Page Init ────────────────────────────────────────────────────
+
+// ── Trade execution ────────────────────────────────────────────────────────────
+function populateTradeRoster(side) {
+  const team = document.getElementById('trade-team-' + side).value;
+  const el   = document.getElementById('trade-roster-' + side);
+  if (!team || !LEAGUE[team]) { el.innerHTML = ''; updateTradePreview(); return; }
+  const sorted = [...LEAGUE[team]].sort((a,b) => a.player.localeCompare(b.player));
+  el.innerHTML = sorted.map(p =>
+    `<label style="display:flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer;border-bottom:1px solid var(--border)">
+      <input type="checkbox" data-player="${p.player.replace(/"/g,'&quot;')}" onchange="updateTradePreview()">
+      <span style="flex:1">${p.player}</span>
+      <span style="font-size:11px;color:var(--text-3)">${p.position} &middot; ${p.mlb_team}</span>
+    </label>`
+  ).join('');
+  updateTradePreview();
+}
+
+function updateTradePreview() {
+  const teamA  = document.getElementById('trade-team-a').value;
+  const teamB  = document.getElementById('trade-team-b').value;
+  const aNames = [...document.querySelectorAll('#trade-roster-a input:checked')].map(cb => cb.dataset.player);
+  const bNames = [...document.querySelectorAll('#trade-roster-b input:checked')].map(cb => cb.dataset.player);
+  const el     = document.getElementById('trade-preview');
+  if (!el) return;
+  if (!aNames.length && !bNames.length) { el.textContent = ''; return; }
+  const parts = [];
+  if (aNames.length) parts.push(`<strong>${teamA}</strong> sends: ${aNames.join(', ')}`);
+  if (bNames.length) parts.push(`<strong>${teamB}</strong> sends: ${bNames.join(', ')}`);
+  el.innerHTML = parts.join(' &nbsp;|&nbsp; ');
+}
+
+function executeTrade() {
+  const teamA  = document.getElementById('trade-team-a').value;
+  const teamB  = document.getElementById('trade-team-b').value;
+  if (!teamA || !teamB)        { toast('Select both teams'); return; }
+  if (teamA === teamB)         { toast('Teams must be different'); return; }
+  const aNames = [...document.querySelectorAll('#trade-roster-a input:checked')].map(cb => cb.dataset.player);
+  const bNames = [...document.querySelectorAll('#trade-roster-b input:checked')].map(cb => cb.dataset.player);
+  if (!aNames.length && !bNames.length) { toast('Select at least one player'); return; }
+
+  const moves = [];
+
+  aNames.forEach(name => {
+    const idx = LEAGUE[teamA].findIndex(p => p.player === name);
+    if (idx < 0) return;
+    const [p] = LEAGUE[teamA].splice(idx, 1);
+    LEAGUE[teamB].push(p);
+    moves.push({ player: name, fromTeam: teamA, toTeam: teamB });
+  });
+
+  bNames.forEach(name => {
+    const idx = LEAGUE[teamB].findIndex(p => p.player === name);
+    if (idx < 0) return;
+    const [p] = LEAGUE[teamB].splice(idx, 1);
+    LEAGUE[teamA].push(p);
+    moves.push({ player: name, fromTeam: teamB, toTeam: teamA });
+  });
+
+  if (!moves.length) { toast('No players found to move'); return; }
+
+  remotePost({ action: 'tradePlayers', moves });
+  toast(`Trade executed: ${moves.length} player${moves.length !== 1 ? 's' : ''} moved`);
+
+  // Reset selectors and refresh
+  populateTradeRoster('a');
+  populateTradeRoster('b');
+  if (document.getElementById('page-rosters')?.classList.contains('active')) loadTeam(currentTeam);
+}
+
 function initCommishPage() {
   buildStandingsInputGrid();
   populateCommishSelects();
@@ -3607,6 +3713,15 @@ function populateCommishSelects() {
       `<option value="${name}">${name}</option>`
     ).join('');
   }
+
+  // Trade: team A and B selects
+  const teams = Object.keys(LEAGUE).sort();
+  const teamOpts = '<option value="">— Select team —</option>' +
+    teams.map(t => `<option value="${t.replace(/"/g,'&quot;')}">${t}</option>`).join('');
+  ['trade-team-a','trade-team-b'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (sel) sel.innerHTML = teamOpts;
+  });
 }
 
 function prefillRenameField() {
