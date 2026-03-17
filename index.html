@@ -532,17 +532,23 @@ input[type=file] { display: none; }
 
 /* ── Mobile ── */
 @media (max-width:768px) {
-  /* Nav: make horizontally scrollable instead of overflowing */
+  /* Nav: two-line layout — brand on top row, nav items below */
   .topbar {
-    padding: 0 12px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    padding: 4px 12px 0;
+    flex-wrap: wrap;
+    height: auto;
+    overflow-x: visible;
+    gap: 0;
   }
-  .topbar::-webkit-scrollbar { display: none; }
-  .brand-sub { display: none; }
-  .brand-name { margin-right: 8px; }
+  /* Brand logo + name stay on line 1 */
+  .brand-logo { order: 1; margin: 4px 8px 4px 0; }
+  .brand-name { order: 1; flex: 1; margin: 0; font-size: 14px; }
+  .brand-sub  { display: none; }
+  /* Commish badge hides on mobile (shown in page header area instead) */
   .commish-badge { display: none; }
+  /* Nav items and dividers drop to line 2 */
+  .nav-divider { order: 2; height: 18px; align-self: center; }
+  .nav-item    { order: 2; height: 38px; padding: 0 11px; font-size: 12px; }
 
   /* Main content padding */
   .main { padding: 14px 12px; }
@@ -572,12 +578,61 @@ input[type=file] { display: none; }
     font-size: 16px !important;
   }
 
-  /* Roster table — reduce column widths */
-  .roster-tbl .col-player { width: 160px; }
-  .roster-tbl .col-status { width: 58px; }
-  .roster-tbl .col-stat   { width: 44px; }
-  .roster-tbl .col-rd     { width: 44px; }
-  .roster-tbl .col-con    { width: 52px; }
+  /* ── Roster table: card layout — no horizontal scroll ── */
+  /* Flatten the table into block/flex rows (each row = a card) */
+  table.roster-tbl,
+  table.roster-tbl tbody { display: block; width: 100%; }
+  table.roster-tbl thead { display: none; }  /* headers replaced by card layout */
+
+  /* Each data row becomes a flex-wrap container */
+  table.roster-tbl tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 6px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    box-sizing: border-box;
+    width: 100%;
+  }
+  table.roster-tbl td {
+    display: block;
+    border: none;
+    padding: 0;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  /* Line 1 — Status · Rd · Con (auto-sized chips, left-aligned) */
+  table.roster-tbl .col-status { order: 1; flex: 0 0 auto; }
+  table.roster-tbl .col-rd     { order: 2; flex: 0 0 auto; }
+  table.roster-tbl .col-con    { order: 3; flex: 0 0 auto; }
+
+  /* Line 2 — Player name + meta (full width forces a new flex line) */
+  table.roster-tbl .col-player {
+    order: 4;
+    flex: 1 1 100%;
+    font-size: 14px;
+  }
+
+  /* Line 3 — Stats flow inline below player */
+  table.roster-tbl .col-stat {
+    order: 5;
+    flex: 0 0 auto;
+    text-align: center;
+    min-width: 32px;
+    font-size: 12px;
+  }
+
+  /* Section header rows (Active / Bench / MiLB dividers) */
+  table.roster-tbl .tbl-section-hdr { display: block; }
+  table.roster-tbl .tbl-section-hdr td {
+    display: block;
+    width: 100%;
+    padding: 5px 10px;
+    box-sizing: border-box;
+  }
 
   /* Pool cards — better touch target */
   .pool-card { padding: 10px 12px; min-height: 44px; }
@@ -599,7 +654,7 @@ input[type=file] { display: none; }
 }
 
 @media (max-width:480px) {
-  .nav-item { padding: 0 10px; font-size: 12px; }
+  .nav-item { padding: 0 8px; font-size: 11.5px; }
   .brand-name { font-size: 13px; }
   .page-title { font-size: 18px; }
 }
