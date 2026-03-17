@@ -2543,7 +2543,11 @@ const POS_SLOT_PRIORITY = {
 function isEligibleForSlot(player, slotId) {
   if (!player) return true;
   const slot = ROSTER_SLOTS.find(s => s.id === slotId);
-  if (!slot || slot.type === 'bench' || slot.type === 'milb') return true;
+  if (!slot) return true;
+  const isMiLB = STATUS_MAP[player.status] === 'MiLB';
+  if (slot.type === 'milb') return isMiLB;
+  if (isMiLB) return false; // MiLB players can only go in MiLB slots
+  if (slot.type === 'bench') return true;
   const positions = player.position.split(',').map(x => x.trim());
   return positions.some(pos => (POS_SLOT_PRIORITY[pos] || []).includes(slotId));
 }
