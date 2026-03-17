@@ -614,10 +614,8 @@ input[type=file] { display: none; }
     min-width: 0;
     font-size: 14px;
   }
-  /* Player meta (team · position) flows inline on mobile */
+  /* Player meta (team · position) — span is inline natively; just set spacing */
   table.roster-tbl .col-player .player-meta {
-    display: inline;
-    margin-top: 0;
     margin-left: 5px;
   }
 
@@ -1584,7 +1582,7 @@ function playerRow(p, status, editable, isHitter) {
     <td class="col-status">${stag}</td>
     <td class="col-rd c"${editAttr}>${rdTile(p.salary, editable)}</td>
     <td class="col-con c"${editAttr}>${conTag(p.contract, editable)}</td>
-    <td class="col-player"><strong>${p.player}</strong>${mTile}${keepBtn}<div class="player-meta">${p.mlb_team} · ${p.position}</div></td>
+    <td class="col-player"><strong>${p.player}</strong>${mTile}${keepBtn}<span class="player-meta">${p.mlb_team} · ${p.position}</span></td>
     ${statCols}
   </tr>`;
 }
@@ -2338,7 +2336,7 @@ function renderOverview(players, keptPlayers = {}) {
       <td class="col-status">${stag}</td>
       <td class="col-rd c"${editAttr}>${rdTile(p.salary, editable)}</td>
       <td class="col-con c"${editAttr}>${conTag(p.contract, editable)}</td>
-      <td class="col-player"><strong>${p.player}</strong>${keepBtn}<div class="player-meta">${p.mlb_team} · ${p.position}</div></td>
+      <td class="col-player"><strong>${p.player}</strong>${keepBtn}<span class="player-meta">${p.mlb_team} · ${p.position}</span></td>
       ${statCols}
     </tr>`;
   }).join('');
