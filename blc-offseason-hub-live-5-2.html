@@ -2545,9 +2545,8 @@ function isEligibleForSlot(player, slotId) {
   const slot = ROSTER_SLOTS.find(s => s.id === slotId);
   if (!slot) return true;
   const isMiLB = STATUS_MAP[player.status] === 'MiLB';
-  if (slot.type === 'milb') return isMiLB;
-  if (isMiLB) return false; // MiLB players can only go in MiLB slots
-  if (slot.type === 'bench') return true;
+  if (slot.type === 'milb') return isMiLB;   // MiLB slots: MiLB players only
+  if (slot.type === 'bench') return true;     // bench: any player (MLB or MiLB)
   const positions = player.position.split(',').map(x => x.trim());
   return positions.some(pos => (POS_SLOT_PRIORITY[pos] || []).includes(slotId));
 }
