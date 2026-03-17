@@ -74,6 +74,12 @@ function doPost(e) {
       case 'setR5Status':
         setR5Status(ss, payload.status);
         break;
+      case 'importPickOrder':
+        importPickOrder(ss, payload.slots);
+        break;
+      case 'importDraftResults':
+        importDraftResults(ss, payload.results);
+        break;
       default:
         return corsResponse({ ok: false, error: 'Unknown action: ' + payload.action });
     }
@@ -322,16 +328,86 @@ function renameTeam(ss, oldName, newName, ownerKey) {
   }
 }
 function setPick(ss, round, pick, team, player, salary, contract) {
-  const sheet = ss.getSheetByName('Picks');
-  const data  = sheet.getDataRange().getValues();
-  const key   = String(round) + '_' + String(pick);
+  const sheet   = ss.getSheetByName('Picks');
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const data    = sheet.getDataRange().getValues();
+  const key     = String(round) + '_' + String(pick);
+  const numCols = Math.max(headers.length, 9);
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]) === String(round) && String(data[i][1]) === String(pick)) {
-      sheet.getRange(i + 1, 3, 1, 5).setValues([[team, player || '', salary || '', contract || '', key]]);
+      sheet.getRange(i + 1, 3).setValue(team);
+      sheet.getRange(i + 1, 4).setValue(player || '');
+      sheet.getRange(i + 1, 7).setValue(salary || '');
+      sheet.getRange(i + 1, 8).setValue(contract || '');
+      sheet.getRange(i + 1, 9).setValue(key);
       return;
     }
   }
-  sheet.appendRow([round, pick, team, player || '', salary || '', contract || '', key]);
+  sheet.appendRow([round, pick, team, player || '', '', '', salary || '', contract || '', key]);
+}
+// ── Bulk-import pick order (round/pick/team slots, no player data) ────────────
+function importPickOrder(ss, slots) {
+  const sheet   = ss.getSheetByName('Picks') || ss.insertSheet('Picks');
+  const HEADERS = ['round','pick','team','player','mlb_team','position','salary','contract','key'];
+  // Build map of existing rows to preserve any player data already present
+  const existing = {};
+  const lastRow  = sheet.getLastRow();
+  if (lastRow > 1) {
+    const rows = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
+    rows.forEach((row, i) => {
+      const k = String(row[0]) + '_' + String(row[1]);
+      existing[k] = { rowIndex: i + 2, data: row };
+    });
+  }
+  sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+  slots.forEach(s => {
+    const key = String(s.round) + '_' + String(s.pick);
+    if (existing[key]) {
+      // Update team column only; preserve player and other columns
+      sheet.getRange(existing[key].rowIndex, 3).setValue(s.team || '');
+    } else {
+      sheet.appendRow([s.round, s.pick, s.team || '', '', '', '', '', '', key]);
+    }
+  });
+}
+// ── Bulk-import draft results (player picks with mlb_team/position) ───────────
+function importDraftResults(ss, results) {
+  const sheet   = ss.getSheetByName('Picks') || ss.insertSheet('Picks');
+  const HEADERS = ['round','pick','team','player','mlb_team','position','salary','contract','key'];
+  // Ensure header row has all columns
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(HEADERS);
+  } else {
+    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+  }
+  // Build map of existing rows by round_pick key
+  const existing = {};
+  const lastRow  = sheet.getLastRow();
+  if (lastRow > 1) {
+    const rows = sheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
+    rows.forEach((row, i) => {
+      const k = String(row[0]) + '_' + String(row[1]);
+      existing[k] = i + 2;
+    });
+  }
+  results.forEach(r => {
+    const key = String(r.round) + '_' + String(r.pick);
+    const row = [
+      r.round, r.pick,
+      r.manager || r.team || '',
+      r.player  || '',
+      r.mlb_team || '',
+      r.position || '',
+      r.salary   || '',
+      r.contract || '',
+      key,
+    ];
+    if (existing[key]) {
+      sheet.getRange(existing[key], 1, 1, HEADERS.length).setValues([row]);
+    } else {
+      sheet.appendRow(row);
+    }
+  });
 }
 // ── Trade: move players between teams ────────────────────────────────────────
 function tradePlayers(ss, moves) {
@@ -433,7 +509,7 @@ function setupSheets() {
     'Keepers':     ['teamKey','player','playerId','keeperType'],
     'Settings':    ['ownerKey','teamName'],
     'Standings':   ['team','W','L','pct','GB','RS','RA','streak'],
-    'Picks':       ['round','pick','team','player','salary','contract','key'],
+    'Picks':       ['round','pick','team','player','mlb_team','position','salary','contract','key'],
     'Stats':       ['Player'],
     'Projections': ['Player'],
   };
