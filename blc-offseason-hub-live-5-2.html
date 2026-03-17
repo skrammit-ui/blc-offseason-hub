@@ -2964,24 +2964,66 @@ function buildDraftBoard() {
       if (!sal || sal > 30) continue;
       keepers.push({ player: playerName, mlb_team: p.mlb_team, position: p.position, manager: team, contract: p.contract, sal });
     }
-    // Group by SAL
-    const bySal = {};
-    keepers.forEach(k => { if (!bySal[k.sal]) bySal[k.sal] = []; bySal[k.sal].push(k); });
-    // Assign rounds: first keeper in group gets sal, next gets sal-1, etc. Sort by player name.
-    for (const [sal, group] of Object.entries(bySal)) {
-      group.sort((a,b) => a.player.localeCompare(b.player));
-      group.forEach((k, i) => {
-        const assignedRd = parseInt(sal) - i;
-        if (assignedRd >= 1) keeperAssignments.push({ ...k, rd: assignedRd });
-      });
+    if (hasPickOrder) {
+      // Build this team's picks per round, sorted ascending by pick number
+      const teamPicksByRd = {};
+      for (const [key, assignedTeam] of Object.entries(pickOrder)) {
+        if (assignedTeam !== team) continue;
+        const [rdStr, pkStr] = key.split('_');
+        const rd = parseInt(rdStr), pk = parseInt(pkStr);
+        if (!teamPicksByRd[rd]) teamPicksByRd[rd] = [];
+        teamPicksByRd[rd].push(pk);
+      }
+      for (const rd of Object.keys(teamPicksByRd)) teamPicksByRd[rd].sort((a,b) => a-b);
+
+      // Process highest-SAL keepers first; within a SAL group sort by player name.
+      // Each keeper claims the latest available pick in its SAL round, then climbs
+      // up (SAL-1, SAL-2…) if that round is full or the team has no pick there.
+      const occupiedSlots = new Set();
+      keepers.sort((a,b) => b.sal - a.sal || a.player.localeCompare(b.player));
+      for (const k of keepers) {
+        for (let tryRd = k.sal; tryRd >= 1; tryRd--) {
+          const pks = teamPicksByRd[tryRd];
+          if (!pks) continue;
+          // Take the latest unoccupied pick in this round
+          let placed = false;
+          for (let i = pks.length - 1; i >= 0; i--) {
+            const slotKey = `${tryRd}_${pks[i]}`;
+            if (!occupiedSlots.has(slotKey)) {
+              occupiedSlots.add(slotKey);
+              keeperAssignments.push({ ...k, rd: tryRd, pk: pks[i] });
+              placed = true;
+              break;
+            }
+          }
+          if (placed) break;
+        }
+      }
+    } else {
+      // No pick order — bump duplicates alphabetically (existing behavior)
+      const bySal = {};
+      keepers.forEach(k => { if (!bySal[k.sal]) bySal[k.sal] = []; bySal[k.sal].push(k); });
+      for (const [sal, group] of Object.entries(bySal)) {
+        group.sort((a,b) => a.player.localeCompare(b.player));
+        group.forEach((k, i) => {
+          const assignedRd = parseInt(sal) - i;
+          if (assignedRd >= 1) keeperAssignments.push({ ...k, rd: assignedRd });
+        });
+      }
     }
   }
 
-  // Index by round for quick lookup: roundKeepers[rd] = [keeperAssignment, ...]
+  // Index by round for round-header counts and no-pick-order path
   const roundKeepers = {};
   keeperAssignments.forEach(k => {
     if (!roundKeepers[k.rd]) roundKeepers[k.rd] = [];
     roundKeepers[k.rd].push(k);
+  });
+
+  // Index by exact pick slot for the pick-order render path: `${rd}_${pk}` → keeper
+  const keeperBySlot = {};
+  keeperAssignments.forEach(k => {
+    if (k.pk != null) keeperBySlot[`${k.rd}_${k.pk}`] = k;
   });
 
   // Index all draft results by round+pick for direct lookup
@@ -3023,7 +3065,7 @@ function buildDraftBoard() {
     if (hasPickOrder && numPicks > 0) {
       for (let pk = 1; pk <= numPicks; pk++) {
         const assignedTeam = pickOrder[pickKey(rd, pk)] || '';
-        const keeper = keepersThisRound.find(k => k.manager === assignedTeam);
+        const keeper = keeperBySlot[`${rd}_${pk}`];
         const drafted = draftByRoundPick[`${rd}_${pk}`];
         if (keeper) {
           rows.push({ rd, pk, type: 'keeper', ...keeper, team: assignedTeam });
