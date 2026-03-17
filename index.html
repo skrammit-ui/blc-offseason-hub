@@ -1511,9 +1511,20 @@ function buildStandings() {
 // ── CSV parsing ───────────────────────────────────────────────────────────────
 function parseCSV(text) {
   const lines = text.trim().split(/\r?\n/);
-  const headers = lines[0].split(',').map(h => h.trim());
+  const parseRow = line => {
+    const vals = []; let curr = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { if (inQ && line[i+1] === '"') { curr += '"'; i++; } else { inQ = !inQ; } }
+      else if (c === ',' && !inQ) { vals.push(curr.trim()); curr = ''; }
+      else { curr += c; }
+    }
+    vals.push(curr.trim());
+    return vals;
+  };
+  const headers = parseRow(lines[0]);
   return lines.slice(1).map(line => {
-    const vals = line.split(',');
+    const vals = parseRow(line);
     const obj = {};
     headers.forEach((h, i) => obj[h] = (vals[i] || '').trim());
     return obj;
