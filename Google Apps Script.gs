@@ -61,6 +61,9 @@ function doPost(e) {
       case 'r5Pick':
         r5MovePlayer(ss, payload.player, payload.fromTeam, payload.toTeam, payload.newStatus);
         break;
+      case 'tradePlayers':
+        tradePlayers(ss, payload.moves);
+        break;
       case 'saveStats':
         saveStats(ss, payload.stats);
         break;
@@ -288,6 +291,26 @@ function setPick(ss, round, pick, team, player, salary, contract) {
     }
   }
   sheet.appendRow([round, pick, team, player || '', salary || '', contract || '', key]);
+}
+// ── Trade: move players between teams ────────────────────────────────────────
+function tradePlayers(ss, moves) {
+  const sheet   = ss.getSheetByName('Rosters');
+  const data    = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const teamCol   = headers.indexOf('team') + 1;
+  const playerCol = headers.indexOf('player') + 1;
+  moves.forEach(({ player, toTeam }) => {
+    const norm = String(player).trim();
+    const dest = String(toTeam).trim();
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][playerCol - 1]).trim() === norm) {
+        sheet.getRange(i + 1, teamCol).setValue(dest);
+        data[i][teamCol - 1] = dest; // keep local array in sync for subsequent iterations
+        Logger.log('tradePlayers: moved ' + norm + ' to ' + dest);
+        break;
+      }
+    }
+  });
 }
 // ── Rule 5 player move ───────────────────────────────────────────────────────
 function r5MovePlayer(ss, player, fromTeam, toTeam, newStatus) {

@@ -1021,6 +1021,43 @@ input[type=file] { display: none; }
     </div>
   </div>
 
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">&#x1F501; Execute Trade</span></div>
+    <div style="padding:20px">
+      <div style="display:grid;grid-template-columns:1fr 32px 1fr;gap:12px;align-items:start">
+
+        <!-- Team A -->
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Team A gives</div>
+          <select id="trade-team-a" onchange="populateTradeRoster('a')"
+            style="width:100%;font-family:var(--body);font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text)">
+            <option value="">— Select team —</option>
+          </select>
+          <div id="trade-roster-a" style="margin-top:8px;max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:5px;font-size:12px"></div>
+        </div>
+
+        <!-- Divider arrow -->
+        <div style="text-align:center;padding-top:32px;font-size:18px;color:var(--text-3)">&#x21C4;</div>
+
+        <!-- Team B -->
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Team B gives</div>
+          <select id="trade-team-b" onchange="populateTradeRoster('b')"
+            style="width:100%;font-family:var(--body);font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text)">
+            <option value="">— Select team —</option>
+          </select>
+          <div id="trade-roster-b" style="margin-top:8px;max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:5px;font-size:12px"></div>
+        </div>
+
+      </div>
+
+      <!-- Preview + execute -->
+      <div id="trade-preview" style="margin-top:14px;font-size:12px;color:var(--text-2);min-height:20px"></div>
+      <button class="btn btn-primary" onclick="executeTrade()" style="margin-top:12px">&#x2713; Execute Trade</button>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-header"><span class="card-title">Season Stats</span></div>
     <div style="padding:20px">
@@ -1324,8 +1361,8 @@ function playerRow(p, status, editable, isHitter) {
   const stag = `<span class="stag ${m.cls}"${toggleAttr}>${m.label}</span>`;
 
   // Stats columns
-  const stats = STATS[p.player] || {};
-  const proj  = PROJECTIONS[p.player] || {};
+  const stats = STATS[p.id] || STATS[p.player] || {};
+  const proj  = PROJECTIONS[p.id] || PROJECTIONS[p.player] || {};
 
   let statCols = '';
   if (isHitter) {
@@ -1455,15 +1492,17 @@ function handleDrop(event, type) {
 function processCSV(text, type, filename) {
   const rows = parseCSV(text);
   if (type === 'stats') {
-    rows.forEach(r => { if (r.Player) STATS[r.Player] = r; });
+    rows.forEach(r => { const key = r['Player ID'] || r['ID'] || r.id || r.Player; if (key) STATS[key] = r; });
     document.getElementById('stats-status').textContent = `✓ Loaded ${rows.length} players from ${filename}`;
     toast(`Stats loaded: ${rows.length} players`);
     loadTeam(currentTeam);
+    remotePost({ action: 'saveStats', stats: STATS });
   } else if (type === 'proj') {
-    rows.forEach(r => { if (r.Player) PROJECTIONS[r.Player] = r; });
+    rows.forEach(r => { const key = r['Player ID'] || r['ID'] || r.id || r.Player; if (key) PROJECTIONS[key] = r; });
     document.getElementById('proj-status').textContent = `✓ Loaded ${rows.length} projections from ${filename}`;
     toast(`Projections loaded: ${rows.length} players`);
     loadTeam(currentTeam);
+    remotePost({ action: 'saveProjections', projections: PROJECTIONS });
   } else if (type === 'roster') {
     // Re-parse full league data from Fantrax format
     const newLeague = {};
@@ -2053,8 +2092,8 @@ function renderOverview(players, keptPlayers = {}) {
     const keepBtn = isExpiring ? '' : `<span class="keep-btn" onclick="toggleKeeper(this)" title="Mark as keeper">✓</span>`;
     const editAttr = editable ? ' onclick="openEdit(this)"' : '';
     const isHitter = !isPitcher(p.position);
-    const stats = STATS[p.player] || {};
-    const proj  = PROJECTIONS[p.player] || {};
+    const stats = STATS[p.id] || STATS[p.player] || {};
+    const proj  = PROJECTIONS[p.id] || PROJECTIONS[p.player] || {};
 
     const statCols = ALL_STATS.map(k => {
       const relevant = isHitter ? HIT_STATS.includes(k) : PIT_STATS.includes(k);
@@ -2235,7 +2274,7 @@ function applyOwner(key) {
 //  Replace APPS_SCRIPT_URL with your deployed Web App URL.
 //  Format: https://script.google.com/macros/s/YOUR_DEPLOY_ID/exec
 // ════════════════════════════════════════════════════════════════════════════
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxnNIJzP4qqxXYLR6FuwZyc8hIxknMK0pZk5Zs7Q0YvubQX-AyF39uWGUuZiY-yMhgm/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwRxAe7MsmMfN4O5f3q4eRUExkzJ6PnyxKAiD4Sn4BYyyWk3YuJbaD8HHCBuljwOclr/exec';
 
 // ── Remote data fetch ─────────────────────────────────────────────────────
 async function fetchLeagueData() {
@@ -2323,6 +2362,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       Object.assign(keeperStore, data.keepers);
       // Ensure every team has an entry
       Object.keys(LEAGUE).forEach(team => { if (!keeperStore[team]) keeperStore[team] = {}; });
+    }
+
+    // Hydrate STATS
+    if (data.stats && Object.keys(data.stats).length > 0) {
+      Object.keys(STATS).forEach(k => delete STATS[k]);
+      Object.assign(STATS, data.stats);
+    }
+
+    // Hydrate PROJECTIONS
+    if (data.projections && Object.keys(data.projections).length > 0) {
+      Object.keys(PROJECTIONS).forEach(k => delete PROJECTIONS[k]);
+      Object.assign(PROJECTIONS, data.projections);
     }
 
     setLoadingProgress(90, 'Almost ready…');
@@ -3562,6 +3613,75 @@ function r5InitPage() {
 }
 
 // ── Commissioner Page Init ────────────────────────────────────────────────────
+
+// ── Trade execution ────────────────────────────────────────────────────────────
+function populateTradeRoster(side) {
+  const team = document.getElementById('trade-team-' + side).value;
+  const el   = document.getElementById('trade-roster-' + side);
+  if (!team || !LEAGUE[team]) { el.innerHTML = ''; updateTradePreview(); return; }
+  const sorted = [...LEAGUE[team]].sort((a,b) => a.player.localeCompare(b.player));
+  el.innerHTML = sorted.map(p =>
+    `<label style="display:flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer;border-bottom:1px solid var(--border)">
+      <input type="checkbox" data-player="${p.player.replace(/"/g,'&quot;')}" onchange="updateTradePreview()">
+      <span style="flex:1">${p.player}</span>
+      <span style="font-size:11px;color:var(--text-3)">${p.position} &middot; ${p.mlb_team}</span>
+    </label>`
+  ).join('');
+  updateTradePreview();
+}
+
+function updateTradePreview() {
+  const teamA  = document.getElementById('trade-team-a').value;
+  const teamB  = document.getElementById('trade-team-b').value;
+  const aNames = [...document.querySelectorAll('#trade-roster-a input:checked')].map(cb => cb.dataset.player);
+  const bNames = [...document.querySelectorAll('#trade-roster-b input:checked')].map(cb => cb.dataset.player);
+  const el     = document.getElementById('trade-preview');
+  if (!el) return;
+  if (!aNames.length && !bNames.length) { el.textContent = ''; return; }
+  const parts = [];
+  if (aNames.length) parts.push(`<strong>${teamA}</strong> sends: ${aNames.join(', ')}`);
+  if (bNames.length) parts.push(`<strong>${teamB}</strong> sends: ${bNames.join(', ')}`);
+  el.innerHTML = parts.join(' &nbsp;|&nbsp; ');
+}
+
+function executeTrade() {
+  const teamA  = document.getElementById('trade-team-a').value;
+  const teamB  = document.getElementById('trade-team-b').value;
+  if (!teamA || !teamB)        { toast('Select both teams'); return; }
+  if (teamA === teamB)         { toast('Teams must be different'); return; }
+  const aNames = [...document.querySelectorAll('#trade-roster-a input:checked')].map(cb => cb.dataset.player);
+  const bNames = [...document.querySelectorAll('#trade-roster-b input:checked')].map(cb => cb.dataset.player);
+  if (!aNames.length && !bNames.length) { toast('Select at least one player'); return; }
+
+  const moves = [];
+
+  aNames.forEach(name => {
+    const idx = LEAGUE[teamA].findIndex(p => p.player === name);
+    if (idx < 0) return;
+    const [p] = LEAGUE[teamA].splice(idx, 1);
+    LEAGUE[teamB].push(p);
+    moves.push({ player: name, fromTeam: teamA, toTeam: teamB });
+  });
+
+  bNames.forEach(name => {
+    const idx = LEAGUE[teamB].findIndex(p => p.player === name);
+    if (idx < 0) return;
+    const [p] = LEAGUE[teamB].splice(idx, 1);
+    LEAGUE[teamA].push(p);
+    moves.push({ player: name, fromTeam: teamB, toTeam: teamA });
+  });
+
+  if (!moves.length) { toast('No players found to move'); return; }
+
+  remotePost({ action: 'tradePlayers', moves });
+  toast(`Trade executed: ${moves.length} player${moves.length !== 1 ? 's' : ''} moved`);
+
+  // Reset selectors and refresh
+  populateTradeRoster('a');
+  populateTradeRoster('b');
+  if (document.getElementById('page-rosters')?.classList.contains('active')) loadTeam(currentTeam);
+}
+
 function initCommishPage() {
   buildStandingsInputGrid();
   populateCommishSelects();
@@ -3593,6 +3713,15 @@ function populateCommishSelects() {
       `<option value="${name}">${name}</option>`
     ).join('');
   }
+
+  // Trade: team A and B selects
+  const teams = Object.keys(LEAGUE).sort();
+  const teamOpts = '<option value="">— Select team —</option>' +
+    teams.map(t => `<option value="${t.replace(/"/g,'&quot;')}">${t}</option>`).join('');
+  ['trade-team-a','trade-team-b'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (sel) sel.innerHTML = teamOpts;
+  });
 }
 
 function prefillRenameField() {
