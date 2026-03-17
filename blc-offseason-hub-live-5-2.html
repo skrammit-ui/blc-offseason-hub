@@ -2738,6 +2738,9 @@ function slotDrop(event, slotId) {
   el?.classList.remove('drag-over', 'drag-over-ok', 'drag-over-warn');
   if (!draggedPlayer) return;
 
+  // Block: bench and MiLB slots accept anything; position slots require eligibility
+  if (!isEligibleForSlot(draggedPlayer, slotId)) { draggedPlayer = null; return; }
+
   // Swap: if target slot already has a player, move them to the source slot
   const displaced = slotAssignments[slotId];
   const sourceSlot = Object.keys(slotAssignments).find(k => slotAssignments[k]?.player === draggedPlayer.player);
@@ -2835,10 +2838,9 @@ function buildDraftPlanView(players) {
       const p = assigned[0];
       const isExp = p.contract === '2026';
       const sal = parseInt(p.salary);
-      // Show SAL badge when player is placed in a different round than their salary
-      const bumpBadge = sal && sal !== r
-        ? `<span style="font-size:9px;font-family:var(--mono);font-weight:700;padding:1px 5px;border-radius:3px;flex-shrink:0;${r < sal ? 'color:#92400e;background:#fef3c7' : 'color:var(--red);background:var(--red-lt)'}">SAL ${sal}</span>`
-        : '';
+      // SAL badge — always shown; colour indicates placement vs salary
+      const salColor = !sal ? '' : r === sal ? 'color:var(--text-3);background:var(--surface);border:1px solid var(--border)' : r < sal ? 'color:#92400e;background:#fef3c7' : 'color:var(--red);background:var(--red-lt)';
+      const bumpBadge = sal ? `<span style="font-size:9px;font-family:var(--mono);font-weight:700;padding:1px 5px;border-radius:3px;flex-shrink:0;${salColor}">SAL ${sal}</span>` : '';
       innerHtml = `
         <span class="round-player" style="cursor:grab">${p.player}${isExp ? '&nbsp;<span style="font-size:9px;color:var(--red);font-family:var(--mono);font-weight:700">EXP</span>' : ''}</span>
         ${bumpBadge}
@@ -2901,8 +2903,8 @@ function draftDragOver(event, slotKey) {
   if (el && draggedPlayer) {
     const rd = parseInt(slotKey.split('_')[0]) || parseInt(slotKey);
     const sal = parseInt(draggedPlayer.salary) || 0;
-    // Green = exact SAL match, amber = bumped to earlier round (valid), red = later than SAL (invalid)
-    const cls = rd === sal ? 'drag-over-ok' : (rd < sal ? 'drag-over' : 'drag-over-warn');
+    // Green = exact SAL match, gold = valid earlier round, amber = later than SAL (blocked)
+    const cls = rd > sal ? 'drag-over-warn' : rd === sal ? 'drag-over-ok' : 'drag-over';
     el.classList.add(cls);
   } else {
     el?.classList.add('drag-over');
@@ -2917,6 +2919,10 @@ function draftDrop(event, slotKey) {
   event.preventDefault();
   document.getElementById('dround-' + slotKey)?.classList.remove('drag-over', 'drag-over-ok', 'drag-over-warn');
   if (!draggedPlayer) return;
+  // Block: cannot place a keeper in a round later than their salary
+  const targetRd = parseInt(slotKey.split('_')[0]) || parseInt(slotKey);
+  const sal = parseInt(draggedPlayer.salary) || 0;
+  if (sal && targetRd > sal) { draggedPlayer = null; return; }
   // Swap: if target already has a keeper, move them to the source slot
   const existing = (draftAssignments[slotKey] || [])[0];
   const sourceKey = Object.keys(draftAssignments).find(k =>
