@@ -387,6 +387,15 @@ tr.keeper-trade:hover  td { background: #ffe4cc !important; }
 }
 .slot-clear:hover { color: var(--red); background: var(--red-lt); }
 .slot-meta { font-size: 11px; color: var(--text-3); }
+.slot-stat {
+  width: 42px; flex-shrink: 0; text-align: center;
+  font-family: var(--mono); font-size: 11px; color: var(--text-2);
+}
+.slot-stat-hdr {
+  width: 42px; flex-shrink: 0; text-align: center;
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  color: var(--text-3); letter-spacing: .05em; text-transform: uppercase;
+}
 
 /* ── Pool card (builder + draft) ── */
 .pool-card {
@@ -1322,6 +1331,35 @@ function compactStatLine(p) {
   const parts = pairs.filter(([,v]) => v != null && v !== '').map(([k,v]) => `${v} ${k}`);
   if (!parts.length) return '';
   return `<span style="font-size:10px;font-family:var(--mono);color:var(--text-3);white-space:nowrap;flex-shrink:0">${parts.join(' &middot; ')}</span>`;
+}
+
+const HIT_STAT_COLS = ['H/AB','R','HR','RBI','SB','OBP'];
+const PIT_STAT_COLS = ['IP','K','K/9','QA','SVH','ERA','WHIP'];
+
+function slotStatCells(p, sectionType) {
+  const cols = sectionType === 'hit' ? HIT_STAT_COLS : PIT_STAT_COLS;
+  if (!p) return cols.map(() => `<span class="slot-stat" style="color:var(--border)">—</span>`).join('');
+  const stats = STATS[p.id] || STATS[p.player] || {};
+  return cols.map(k => {
+    let v;
+    if (k === 'H/AB') {
+      const h = stats['H'], ab = stats['AB'];
+      v = (h && ab) ? `${h}/${ab}` : '—';
+    } else {
+      v = stats[k === 'K/9' ? 'K9' : k] || stats[k] || '—';
+    }
+    return `<span class="slot-stat">${v}</span>`;
+  }).join('');
+}
+
+function slotStatHdrRow(sectionType, labelWidth) {
+  const cols = sectionType === 'hit' ? HIT_STAT_COLS : PIT_STAT_COLS;
+  return `<div style="display:flex;align-items:center;gap:10px;padding:0 10px;margin-bottom:2px">
+    <span style="width:${labelWidth}px;flex-shrink:0"></span>
+    <span style="flex:1;font-size:10px;font-weight:600;color:var(--text-3)">Player</span>
+    ${cols.map(c => `<span class="slot-stat-hdr">${c}</span>`).join('')}
+    <span style="width:24px;flex-shrink:0"></span>
+  </div>`;
 }
 
 function conTag(contract, editable) {
@@ -2650,7 +2688,10 @@ function buildBuilderView(players) {
       const topMargin = slot.type === 'hit' ? '0' : '16px';
       const color = slot.type === 'bench' ? '#92400e' : slot.type === 'milb' ? 'var(--blue)' : 'var(--text-3)';
       const bg = slot.type === 'bench' ? 'background:#fffcf0;padding:4px 8px;border-radius:4px;' : slot.type === 'milb' ? 'background:#e8f2fd;padding:4px 8px;border-radius:4px;' : '';
-      slotsHtml += `<div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:${color};margin:${topMargin} 0 6px;${bg}">${sectionLabels[slot.type]}</div>`;
+      slotsHtml += `<div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:${color};margin:${topMargin} 0 4px;${bg}">${sectionLabels[slot.type]}</div>`;
+      if (slot.type === 'hit' || slot.type === 'pit') {
+        slotsHtml += slotStatHdrRow(slot.type, 36);
+      }
     }
     const filled = slotAssignments[slot.id];
     const isMilb = filled && STATUS_MAP[filled.status] === 'MiLB';
@@ -2661,16 +2702,32 @@ function buildBuilderView(players) {
       else if (slot.type === 'bench') filledCls = 'filled bench-slot';
       else filledCls = isMilb ? 'filled milb-slot' : 'filled';
     }
-    const playerHtml = filled
-      ? `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
-           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-             <span class="slot-player">${filled.player}</span>
-             ${compactStatLine(filled)}
+
+    const hasStatCols = slot.type === 'hit' || slot.type === 'pit';
+    let playerHtml;
+    if (hasStatCols) {
+      playerHtml = filled
+        ? `<div style="flex:1;min-width:0">
+             <div style="font-size:13px;font-weight:500">${filled.player}</div>
+             <span class="slot-meta">${filled.mlb_team} · ${filled.position}</span>
            </div>
-           <span class="slot-meta">${filled.mlb_team} · ${filled.position}</span>
-         </div>
-         <span class="slot-clear" onclick="clearSlot('${slot.id}')">✕</span>`
-      : `<span style="font-size:11px;color:var(--text-3);font-style:italic">Empty — drag a player here</span>`;
+           ${slotStatCells(filled, slot.type)}
+           <span class="slot-clear" onclick="clearSlot('${slot.id}')">✕</span>`
+        : `<span style="flex:1;font-size:11px;color:var(--text-3);font-style:italic">Empty — drag a player here</span>
+           ${slotStatCells(null, slot.type)}
+           <span style="width:24px;flex-shrink:0"></span>`;
+    } else {
+      playerHtml = filled
+        ? `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+               <span class="slot-player">${filled.player}</span>
+               ${compactStatLine(filled)}
+             </div>
+             <span class="slot-meta">${filled.mlb_team} · ${filled.position}</span>
+           </div>
+           <span class="slot-clear" onclick="clearSlot('${slot.id}')">✕</span>`
+        : `<span style="font-size:11px;color:var(--text-3);font-style:italic">Empty — drag a player here</span>`;
+    }
 
     const dragAttrs = filled
       ? `draggable="true" ondragstart="slotDragStart(event,'${slot.id}')" style="cursor:grab"`
@@ -2835,7 +2892,16 @@ function buildDraftPlanView(players) {
     <div style="font-size:11px;color:var(--text-3)"><span style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--green)">${30 - roundsUsed}</span>&nbsp;open picks</div>
     <div style="font-size:11px;color:var(--text-3);margin-left:auto">Auto-populated from keeper selections · Drag keepers between rounds to reassign</div>
   </div>
-  <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Draft Board — ${plannerRoundCount} Pick${plannerRoundCount !== 1 ? 's' : ''}</div>`;
+  <div style="display:flex;align-items:center;margin-bottom:4px">
+    <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3)">Draft Board — ${plannerRoundCount} Pick${plannerRoundCount !== 1 ? 's' : ''}</div>
+    <div style="margin-left:auto;display:flex;gap:0">
+      <span class="slot-stat-hdr">HR<br><span style="color:var(--blue)">ERA</span></span>
+      <span class="slot-stat-hdr">RBI<br><span style="color:var(--blue)">WHIP</span></span>
+      <span class="slot-stat-hdr">OBP<br><span style="color:var(--blue)">K</span></span>
+      <span class="slot-stat-hdr">SB<br><span style="color:var(--blue)">IP</span></span>
+      <span style="width:32px;flex-shrink:0"></span>
+    </div>
+  </div>`;
 
   // Build a flat ordered list of (r, pk) slots — one row per pick
   const pickSlots = [];
@@ -2857,23 +2923,36 @@ function buildDraftPlanView(players) {
 
     let innerHtml = '';
     if (assigned.length === 0) {
-      innerHtml = `<span style="font-size:11px;color:var(--text-3);font-style:italic">Open pick</span>`;
+      innerHtml = `<span style="flex:1;font-size:11px;color:var(--text-3);font-style:italic">Open pick</span>
+        <span class="slot-stat" style="color:var(--border)">—</span>
+        <span class="slot-stat" style="color:var(--border)">—</span>
+        <span class="slot-stat" style="color:var(--border)">—</span>
+        <span class="slot-stat" style="color:var(--border)">—</span>
+        <span style="width:32px;flex-shrink:0"></span>`;
     } else {
       const p = assigned[0];
       const isExp = p.contract === '2026';
       const sal = parseInt(p.salary);
-      // SAL badge — always shown; colour indicates placement vs salary
       const salColor = !sal ? '' : r === sal ? 'color:var(--text-3);background:var(--surface);border:1px solid var(--border)' : r < sal ? 'color:#92400e;background:#fef3c7' : 'color:var(--red);background:var(--red-lt)';
       const bumpBadge = sal ? `<span style="font-size:9px;font-family:var(--mono);font-weight:700;padding:1px 5px;border-radius:3px;flex-shrink:0;${salColor}">SAL ${sal}</span>` : '';
+      const pStats = STATS[p.id] || STATS[p.player] || {};
+      const isHit = !isPitcher(p.position);
+      const s1 = isHit ? (pStats['HR'] || '—') : (pStats['ERA'] || '—');
+      const s2 = isHit ? (pStats['RBI'] || '—') : (pStats['WHIP'] || '—');
+      const s3 = isHit ? (pStats['OBP'] || '—') : (pStats['K'] || '—');
+      const s4 = isHit ? (pStats['SB'] || '—') : (pStats['IP'] || '—');
       innerHtml = `
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+        <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <span class="round-player" style="cursor:grab">${p.player}${isExp ? '&nbsp;<span style="font-size:9px;color:var(--red);font-family:var(--mono);font-weight:700">EXP</span>' : ''}</span>
             ${bumpBadge}
-            ${compactStatLine(p)}
           </div>
           <span class="round-meta">${p.mlb_team}&nbsp;·&nbsp;${p.position}</span>
         </div>
+        <span class="slot-stat">${s1}</span>
+        <span class="slot-stat">${s2}</span>
+        <span class="slot-stat">${s3}</span>
+        <span class="slot-stat">${s4}</span>
         <span class="slot-clear" onclick="clearDraftSlot('${slotKey}','${p.player.replace(/'/g,"\\'")}')">✕</span>`;
     }
 
