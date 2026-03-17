@@ -2574,7 +2574,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       data.picks.forEach(p => {
         const rd = String(p.round || '').trim();
         const pk = String(p.pick  || '').trim();
-        const tm = String(p.team  || '').trim();
+        // Normalize: owner key (e.g. "wetherholt") → canonical team name ("Wetherholt 45s")
+        const tmRaw = String(p.team  || '').trim();
+        const tm = OWNER_MAP[tmRaw] || tmRaw;
         if (rd && pk && tm) pickOrder[rd + '_' + pk] = tm;
         if (p.player) {
           draftResults.push({
@@ -3483,28 +3485,42 @@ function handleDraftResultsUpload(event) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    const lines = e.target.result.split('\n').filter(l => l.trim());
-    if (lines.length < 2) return;
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-    const rdIdx   = headers.findIndex(h => h.includes('round') || h === 'rd');
-    const pkIdx   = headers.findIndex(h => h === 'pick' || h === 'pk');
-    const plIdx   = headers.findIndex(h => h.includes('player'));
-    const teamIdx = headers.findIndex(h => h.includes('mlb') || h === 'team');
-    const mgrIdx  = headers.findIndex(h => h.includes('manager') || h.includes('owner'));
-    const posIdx  = headers.findIndex(h => h.includes('pos'));
-    const conIdx  = headers.findIndex(h => h.includes('con') || h.includes('contract'));
+    const rows = parseCSV(e.target.result);
+    if (!rows.length) return;
+
+    // Build lookup: owner key OR team name (both lowercased) → canonical team name
+    const nameToTeam = {};
+    Object.entries(OWNER_MAP).forEach(([k, v]) => {
+      nameToTeam[k.toLowerCase()] = v;  // owner key  → team name
+      nameToTeam[v.toLowerCase()] = v;  // team name  → team name
+    });
+
+    // Detect columns by header name (case-insensitive)
+    const hdrs = Object.keys(rows[0]);
+    const find = (...terms) => hdrs.find(h => terms.some(t => h.toLowerCase().includes(t))) || null;
+    const rdCol  = find('round', 'rd');
+    const pkCol  = find('pick', 'pk');
+    const plCol  = find('player');
+    const tmCol  = find('mlb', 'team');
+    const mgrCol = find('manager', 'owner');
+    const posCol = find('pos');
+    const conCol = find('contract', 'con');
+
     draftResults = [];
-    for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g,''));
-      if (!cols[plIdx]) continue;
+    for (const r of rows) {
+      const playerName = plCol ? (r[plCol] || '').trim() : '';
+      if (!playerName) continue;
+      const mgrRaw = mgrCol ? (r[mgrCol] || '').trim() : '';
+      // Normalize to canonical team name; fall back to raw value if unknown
+      const manager = nameToTeam[mgrRaw.toLowerCase()] || mgrRaw;
       draftResults.push({
-        round:    cols[rdIdx]  || '',
-        pick:     pkIdx >= 0 ? cols[pkIdx] : '',
-        player:   cols[plIdx]  || '',
-        mlb_team: teamIdx >= 0 ? cols[teamIdx] : '',
-        manager:  mgrIdx  >= 0 ? cols[mgrIdx]  : '',
-        position: posIdx  >= 0 ? cols[posIdx]  : '',
-        contract: conIdx  >= 0 ? cols[conIdx]  : '',
+        round:    rdCol  ? (r[rdCol]  || '') : '',
+        pick:     pkCol  ? (r[pkCol]  || '') : '',
+        player:   playerName,
+        mlb_team: tmCol  ? (r[tmCol]  || '') : '',
+        manager,
+        position: posCol ? (r[posCol] || '') : '',
+        contract: conCol ? (r[conCol] || '') : '',
         type: 'draft',
       });
     }
