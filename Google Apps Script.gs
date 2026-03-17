@@ -367,7 +367,9 @@ function writeStatsSheet(sheet, statsObj) {
     return row;
   });
 
-  const headers = Object.keys(augmented[0]);
+  const allKeys = new Set();
+  augmented.forEach(row => Object.keys(row).forEach(k => allKeys.add(k)));
+  const headers = [...allKeys];
   const rows = augmented.map(row => headers.map(h => row[h] ?? ''));
   // Clear and rewrite
   sheet.clearContents();
