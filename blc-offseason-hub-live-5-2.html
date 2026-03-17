@@ -1313,6 +1313,17 @@ function isPitcher(pos) {
   return pos.split(',').every(p => ['SP','RP','P'].includes(p.trim()));
 }
 
+function compactStatLine(p) {
+  const stats = STATS[p.id] || STATS[p.player] || {};
+  const isHit = !isPitcher(p.position);
+  const pairs = isHit
+    ? [['HR', stats.HR], ['RBI', stats.RBI], ['OBP', stats.OBP], ['SB', stats.SB]]
+    : [['ERA', stats.ERA], ['WHIP', stats.WHIP], ['K', stats.K], ['IP', stats.IP]];
+  const parts = pairs.filter(([,v]) => v != null && v !== '').map(([k,v]) => `${v} ${k}`);
+  if (!parts.length) return '';
+  return `<span style="font-size:10px;font-family:var(--mono);color:var(--text-3);white-space:nowrap;flex-shrink:0">${parts.join(' &middot; ')}</span>`;
+}
+
 function conTag(contract, editable) {
   const ed = editable ? ' data-type="con"' : '';
   if (!contract || contract === '' || contract === '-') {
@@ -1522,11 +1533,14 @@ function processCSV(text, type, filename) {
       const salary   = existingPlayer?.salary   || (r.Salary   || '').trim();
       const contract = existingPlayer?.contract || (r.Contract || '').trim();
 
+      // 2026 contracts are always Expired
+      const effectiveStatus = contract === '2026' ? 'Expired' : newStatus;
+
       newLeague[mgr].push({
         player:   playerName,
         mlb_team: (r.Team || '').trim(),
         position: (r.Position || '').trim(),
-        status:   newStatus,
+        status:   effectiveStatus,
         salary,
         contract,
         id: (r.ID || r['Player ID'] || existingPlayer?.id || '').trim(),
@@ -1695,6 +1709,8 @@ function processSalaryReviewFile(file) {
       if (newMlbTeam)   p.mlb_team = newMlbTeam;
       if (newPosition)  p.position = newPosition;
       if (newStatus)    p.status   = newStatus;
+      // 2026 contracts are always Expired regardless of what CSV says
+      if (p.contract === '2026') p.status = 'Expired';
       autoUpdated++;
 
       // ── 2. Team move ──────────────────────────────────────────────────────
@@ -2646,8 +2662,13 @@ function buildBuilderView(players) {
       else filledCls = isMilb ? 'filled milb-slot' : 'filled';
     }
     const playerHtml = filled
-      ? `<span class="slot-player">${filled.player}</span>
-         <span class="slot-meta">${filled.mlb_team} · ${filled.position}</span>
+      ? `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+             <span class="slot-player">${filled.player}</span>
+             ${compactStatLine(filled)}
+           </div>
+           <span class="slot-meta">${filled.mlb_team} · ${filled.position}</span>
+         </div>
          <span class="slot-clear" onclick="clearSlot('${slot.id}')">✕</span>`
       : `<span style="font-size:11px;color:var(--text-3);font-style:italic">Empty — drag a player here</span>`;
 
@@ -2845,9 +2866,14 @@ function buildDraftPlanView(players) {
       const salColor = !sal ? '' : r === sal ? 'color:var(--text-3);background:var(--surface);border:1px solid var(--border)' : r < sal ? 'color:#92400e;background:#fef3c7' : 'color:var(--red);background:var(--red-lt)';
       const bumpBadge = sal ? `<span style="font-size:9px;font-family:var(--mono);font-weight:700;padding:1px 5px;border-radius:3px;flex-shrink:0;${salColor}">SAL ${sal}</span>` : '';
       innerHtml = `
-        <span class="round-player" style="cursor:grab">${p.player}${isExp ? '&nbsp;<span style="font-size:9px;color:var(--red);font-family:var(--mono);font-weight:700">EXP</span>' : ''}</span>
-        ${bumpBadge}
-        <span class="round-meta">${p.mlb_team}&nbsp;·&nbsp;${p.position}</span>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span class="round-player" style="cursor:grab">${p.player}${isExp ? '&nbsp;<span style="font-size:9px;color:var(--red);font-family:var(--mono);font-weight:700">EXP</span>' : ''}</span>
+            ${bumpBadge}
+            ${compactStatLine(p)}
+          </div>
+          <span class="round-meta">${p.mlb_team}&nbsp;·&nbsp;${p.position}</span>
+        </div>
         <span class="slot-clear" onclick="clearDraftSlot('${slotKey}','${p.player.replace(/'/g,"\\'")}')">✕</span>`;
     }
 
