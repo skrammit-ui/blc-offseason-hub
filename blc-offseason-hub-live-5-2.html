@@ -1459,11 +1459,13 @@ function processCSV(text, type, filename) {
     document.getElementById('stats-status').textContent = `✓ Loaded ${rows.length} players from ${filename}`;
     toast(`Stats loaded: ${rows.length} players`);
     loadTeam(currentTeam);
+    remotePost({ action: 'saveStats', stats: STATS });
   } else if (type === 'proj') {
     rows.forEach(r => { if (r.Player) PROJECTIONS[r.Player] = r; });
     document.getElementById('proj-status').textContent = `✓ Loaded ${rows.length} projections from ${filename}`;
     toast(`Projections loaded: ${rows.length} players`);
     loadTeam(currentTeam);
+    remotePost({ action: 'saveProjections', projections: PROJECTIONS });
   } else if (type === 'roster') {
     // Re-parse full league data from Fantrax format
     const newLeague = {};
@@ -2323,6 +2325,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       Object.assign(keeperStore, data.keepers);
       // Ensure every team has an entry
       Object.keys(LEAGUE).forEach(team => { if (!keeperStore[team]) keeperStore[team] = {}; });
+    }
+
+    // Hydrate STATS
+    if (data.stats && Object.keys(data.stats).length > 0) {
+      Object.keys(STATS).forEach(k => delete STATS[k]);
+      Object.assign(STATS, data.stats);
+    }
+
+    // Hydrate PROJECTIONS
+    if (data.projections && Object.keys(data.projections).length > 0) {
+      Object.keys(PROJECTIONS).forEach(k => delete PROJECTIONS[k]);
+      Object.assign(PROJECTIONS, data.projections);
     }
 
     setLoadingProgress(90, 'Almost ready…');
