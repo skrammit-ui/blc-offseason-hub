@@ -604,26 +604,28 @@ input[type=file] { display: none; }
     text-overflow: clip;
   }
 
-  /* Line 1 — Status · Rd · Con (auto-sized chips, left-aligned) */
+  /* Line 1 — Status · Rd · Con · Player (all on one line) */
   table.roster-tbl .col-status { order: 1; flex: 0 0 auto; }
   table.roster-tbl .col-rd     { order: 2; flex: 0 0 auto; }
   table.roster-tbl .col-con    { order: 3; flex: 0 0 auto; }
-
-  /* Line 2 — Player name + meta (full width forces a new flex line) */
   table.roster-tbl .col-player {
     order: 4;
-    flex: 1 1 100%;
+    flex: 1 1 auto;
+    min-width: 0;
     font-size: 14px;
   }
 
-  /* Line 3 — Stats flow inline below player */
+  /* Line 2 — Relevant stats only (stats are wide enough to always wrap naturally) */
   table.roster-tbl .col-stat {
     order: 5;
     flex: 0 0 auto;
     text-align: center;
-    min-width: 32px;
-    font-size: 12px;
+    min-width: 30px;
+    font-size: 11px;
+    padding-top: 3px;
   }
+  /* Hide irrelevant "—" stat cols (hitter cols on pitcher rows and vice versa) */
+  table.roster-tbl .col-stat-irrel { display: none; }
 
   /* Section header rows (Active / Bench / MiLB dividers) */
   table.roster-tbl .tbl-section-hdr { display: block; }
@@ -636,6 +638,10 @@ input[type=file] { display: none; }
 
   /* Pool cards — better touch target */
   .pool-card { padding: 10px 12px; min-height: 44px; }
+
+  /* Builder slot rows — allow horizontal scroll so stats stay on one line */
+  .slot-row { overflow-x: auto; flex-wrap: nowrap; }
+  .slot-stat, .slot-stat-hdr { width: 32px; flex-shrink: 0; font-size: 10px; }
 
   /* Slot clear button — bigger tap area */
   .slot-clear { padding: 8px; font-size: 16px; }
@@ -2308,7 +2314,7 @@ function renderOverview(players, keptPlayers = {}) {
 
     const statCols = ALL_STATS.map(k => {
       const relevant = isHitter ? HIT_STATS.includes(k) : PIT_STATS.includes(k);
-      if (!relevant) return `<td class="col-stat c" style="color:var(--border)">—</td>`;
+      if (!relevant) return `<td class="col-stat col-stat-irrel c" style="color:var(--border)">—</td>`;
       // H/AB — combined column
       if (k === 'H/AB') {
         const h = stats['H'] || '—', ab = stats['AB'] || '—';
