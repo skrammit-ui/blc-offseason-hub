@@ -151,12 +151,13 @@ function getStats(ss) {
 function getProjections(ss) {
   return _readStatsSheet(ss.getSheetByName('Projections'));
 }
-// Shared reader: keys by 'Player ID' or 'ID' column when present, falls back to first column
+// Shared reader: keys by 'Player ID' / 'ID' / 'id' column when present, falls back to first column
 function _readStatsSheet(sheet) {
   if (!sheet || sheet.getLastRow() < 2) return {};
   const [headers, ...rows] = sheet.getDataRange().getValues();
   const idCol = headers.indexOf('Player ID') >= 0 ? headers.indexOf('Player ID')
               : headers.indexOf('ID')        >= 0 ? headers.indexOf('ID')
+              : headers.indexOf('id')        >= 0 ? headers.indexOf('id')
               : 0;
   const result = {};
   rows.forEach(row => {
@@ -351,8 +352,23 @@ function saveProjections(ss, projections) {
 function writeStatsSheet(sheet, statsObj) {
   const entries = Object.entries(statsObj);
   if (!entries.length) return;
-  const headers = Object.keys(entries[0][1]);
-  const rows = entries.map(([, stat]) => headers.map(h => stat[h] ?? ''));
+
+  // Augment each row to ensure the dict key (player ID) and player name are
+  // always present as recoverable columns, regardless of what the source CSV
+  // called them. This is what lets other users load stats correctly.
+  const augmented = entries.map(([key, stat]) => {
+    const row = Object.assign({}, stat);
+    if (!row.hasOwnProperty('Player ID') && !row.hasOwnProperty('ID') && !row.hasOwnProperty('id')) {
+      row.id = key;
+    }
+    if (!row.hasOwnProperty('Player') && !row.hasOwnProperty('player')) {
+      row.player = key;
+    }
+    return row;
+  });
+
+  const headers = Object.keys(augmented[0]);
+  const rows = augmented.map(row => headers.map(h => row[h] ?? ''));
   // Clear and rewrite
   sheet.clearContents();
   sheet.getRange(1, 1, 1, headers.length).setValues([headers])

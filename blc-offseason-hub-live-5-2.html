@@ -371,7 +371,9 @@ tr.keeper-trade:hover  td { background: #ffe4cc !important; }
 .slot-row.filled { border-style: solid; border-color: var(--green); background: #edf7f1; }
 .slot-row.filled.milb-slot  { border-color: var(--blue);  background: #e8f2fd; }
 .slot-row.filled.bench-slot { border-color: #d97706; background: #fffbea; }
-.slot-row.drag-over { border-color: var(--gold); background: #fffdf0; }
+.slot-row.drag-over      { border-color: var(--gold);  background: #fffdf0; }
+.slot-row.drag-over-ok   { border-color: var(--green); background: #edf7f1; }
+.slot-row.drag-over-warn { border-color: #d97706;      background: #fffbea; }
 .slot-label {
   font-family: var(--mono); font-size: 11px; font-weight: 600;
   width: 36px; flex-shrink: 0; color: var(--text-3);
@@ -407,8 +409,10 @@ tr.keeper-trade:hover  td { background: #ffe4cc !important; }
   border: 1.5px dashed var(--border); min-height: 40px;
   transition: all .12s;
 }
-.draft-round.taken    { border-style: solid; border-color: var(--green); background: #edf7f1; }
-.draft-round.drag-over { border-color: var(--gold); background: #fffdf0; }
+.draft-round.taken        { border-style: solid; border-color: var(--green); background: #edf7f1; }
+.draft-round.drag-over      { border-color: var(--gold);  background: #fffdf0; }
+.draft-round.drag-over-ok   { border-color: var(--green); background: #edf7f1; }
+.draft-round.drag-over-warn { border-color: #d97706;      background: #fff8e6; }
 .round-num {
   font-family: var(--mono); font-size: 11px; font-weight: 600;
   width: 28px; flex-shrink: 0; color: var(--text-3); text-align: center;
@@ -903,30 +907,12 @@ input[type=file] { display: none; }
 
     <!-- VIEW 2: Keeper Builder -->
     <div id="view-builder" class="roster-view" style="display:none">
-      <div style="display:grid;grid-template-columns:1fr 300px;min-height:400px">
-        <!-- Roster slots -->
-        <div id="builder-slots" style="border-right:1px solid var(--border);padding:16px;overflow-y:auto"></div>
-        <!-- Player pool -->
-        <div style="padding:12px;background:var(--bg)">
-          <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Player Pool</div>
-          <input type="text" id="pool-search" placeholder="Search players…" oninput="filterPool(this.value)"
-            style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:5px;font-size:12px;margin-bottom:8px;font-family:var(--body)">
-          <div id="builder-pool" style="display:flex;flex-direction:column;gap:4px;max-height:600px;overflow-y:auto"></div>
-        </div>
-      </div>
+      <div id="builder-slots" style="padding:16px;overflow-y:auto"></div>
     </div>
 
     <!-- VIEW 3: Draft Planner -->
     <div id="view-draft-plan" class="roster-view" style="display:none">
-      <div style="display:grid;grid-template-columns:1fr 300px;min-height:400px">
-        <!-- Draft board -->
-        <div id="draft-board" style="padding:16px;border-right:1px solid var(--border)"></div>
-        <!-- Unassigned keepers -->
-        <div style="padding:12px;background:var(--bg)">
-          <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Kept Players (MLB)</div>
-          <div id="draft-pool" style="display:flex;flex-direction:column;gap:4px;max-height:600px;overflow-y:auto"></div>
-        </div>
-      </div>
+      <div id="draft-board" style="padding:16px"></div>
     </div>
   </div>
 </div>
@@ -1222,6 +1208,7 @@ input[type=file] { display: none; }
           <tr style="background:var(--navy)">
             <th style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);padding:9px 12px;text-align:center;width:40px">RD</th>
             <th style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);padding:9px 12px;text-align:center;width:40px">PK</th>
+            <th style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);padding:9px 12px;text-align:center;width:48px">OVR</th>
             <th style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);padding:9px 12px;text-align:left">Manager</th>
             <th style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);padding:9px 12px;text-align:left">Player</th>
             <th style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);padding:9px 12px;text-align:center;width:52px">SAL</th>
@@ -1366,18 +1353,21 @@ function playerRow(p, status, editable, isHitter) {
 
   let statCols = '';
   if (isHitter) {
-    const ks = ['AB','H','R','HR','RBI','SB','OBP'];
-    ks.forEach(k => {
+    // H/AB combined column
+    const h = stats['H'] || '—', ab = stats['AB'] || '—';
+    const ph = proj['H'], pab = proj['AB'];
+    const habProj = (ph && pab) ? `<div class="stat-proj up" style="font-size:8px">${ph}/${pab}</div>` : '';
+    statCols += `<td class="col-stat c">${h === '—' ? '—' : `${h}/${ab}`}${habProj}</td>`;
+    ['R','HR','RBI','SB','OBP'].forEach(k => {
       const v = stats[k] || '—';
       const pv = proj[k];
       const projStr = pv ? `<div class="stat-proj ${parseFloat(pv) >= parseFloat(v) ? 'up' : 'down'}">${pv}</div>` : '';
       statCols += `<td class="col-stat c">${v}${projStr}</td>`;
     });
   } else {
-    const ks = ['IP','ERA','WHIP','K','W','SV+H'];
-    ks.forEach(k => {
-      const v = stats[k] || stats[k === 'SV+H' ? 'SVH' : k] || '—';
-      const pv = proj[k];
+    ['IP','K','K/9','QA','SVH','ERA','WHIP'].forEach(k => {
+      const v = stats[k] || stats[k === 'K/9' ? 'K9' : k] || '—';
+      const pv = proj[k] || proj[k === 'K/9' ? 'K9' : k];
       const lowerBetter = ['ERA','WHIP'].includes(k);
       const projStr = pv ? `<div class="stat-proj ${lowerBetter ? (parseFloat(pv) <= parseFloat(v) ? 'up' : 'down') : (parseFloat(pv) >= parseFloat(v) ? 'up' : 'down')}">${pv}</div>` : '';
       statCols += `<td class="col-stat c">${v}${projStr}</td>`;
@@ -1403,8 +1393,8 @@ function sectionHdr(label, cls, colCount) {
 
 function buildThead(isHitter) {
   const statCols = isHitter
-    ? ['AB','H','R','HR','RBI','SB','OBP']
-    : ['IP','ERA','WHIP','K','W','SV+H'];
+    ? ['H/AB','R','HR','RBI','SB','OBP']
+    : ['IP','K','K/9','QA','SVH','ERA','WHIP'];
   return `<tr>
     <th class="col-status">Status</th>
     <th class="col-rd c">Rd</th>
@@ -2070,8 +2060,8 @@ function renderOverview(players, keptPlayers = {}) {
     return a.player.localeCompare(b.player);
   });
 
-  const HIT_STATS = ['AB','H','R','HR','RBI','SB','OBP'];
-  const PIT_STATS = ['IP','ERA','WHIP','K','QA','W','SV+H'];
+  const HIT_STATS = ['H/AB','R','HR','RBI','SB','OBP'];
+  const PIT_STATS = ['IP','K','K/9','QA','SVH','ERA','WHIP'];
   const ALL_STATS = [...HIT_STATS, ...PIT_STATS];
 
   const thead = `<tr>
@@ -2098,8 +2088,14 @@ function renderOverview(players, keptPlayers = {}) {
     const statCols = ALL_STATS.map(k => {
       const relevant = isHitter ? HIT_STATS.includes(k) : PIT_STATS.includes(k);
       if (!relevant) return `<td class="col-stat c" style="color:var(--border)">—</td>`;
-      const v = stats[k] || stats[k === 'SV+H' ? 'SVH' : k] || '—';
-      const pv = proj[k] || proj[k === 'SV+H' ? 'SVH' : k];
+      // H/AB — combined column
+      if (k === 'H/AB') {
+        const h = stats['H'] || '—', ab = stats['AB'] || '—';
+        return `<td class="col-stat c">${h === '—' ? '—' : `${h}/${ab}`}</td>`;
+      }
+      const dataKey = k === 'K/9' ? (stats['K/9'] !== undefined ? 'K/9' : 'K9') : k;
+      const v = stats[dataKey] || '—';
+      const pv = proj[dataKey];
       const lowerBetter = ['ERA','WHIP'].includes(k);
       const projStr = pv ? `<div class="stat-proj ${lowerBetter ? (parseFloat(pv) <= parseFloat(v) ? 'up':'down') : (parseFloat(pv) >= parseFloat(v) ? 'up':'down')}">${pv}</div>` : '';
       return `<td class="col-stat c">${v}${projStr}</td>`;
@@ -2274,7 +2270,7 @@ function applyOwner(key) {
 //  Replace APPS_SCRIPT_URL with your deployed Web App URL.
 //  Format: https://script.google.com/macros/s/YOUR_DEPLOY_ID/exec
 // ════════════════════════════════════════════════════════════════════════════
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwRxAe7MsmMfN4O5f3q4eRUExkzJ6PnyxKAiD4Sn4BYyyWk3YuJbaD8HHCBuljwOclr/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyIo-FxjLFovv31GjbPlRVD5bSBE_Ky_GYwOVd6-2k59HsxNPr1qiNN-pCkwSMALRKD/exec';
 
 // ── Remote data fetch ─────────────────────────────────────────────────────
 async function fetchLeagueData() {
@@ -2416,9 +2412,9 @@ function switchView(view, btn) {
 
   const legend = document.getElementById('view-legend');
   if (view === 'builder') {
-    legend.innerHTML = `<span style="font-size:12px;color:var(--text-3)">Drag players from the pool into roster slots to plan your kept lineup. <strong>Green</strong> = MLB keeper, <strong>Blue</strong> = MiLB keeper.</span>`;
+    legend.innerHTML = `<span style="font-size:12px;color:var(--text-3)">Auto-populated by position from keeper selections. Drag keepers between slots to reassign — <span style="color:var(--green);font-weight:600">green highlight</span> = eligible position, <span style="color:#d97706;font-weight:600">amber</span> = ineligible.</span>`;
   } else if (view === 'draft') {
-    legend.innerHTML = `<span style="font-size:12px;color:var(--text-3)">Drag kept MLB players into their round slot (salary = round used). Remaining rounds show as available picks.</span>`;
+    legend.innerHTML = `<span style="font-size:12px;color:var(--text-3)">Auto-populated using keeper salary rounds. Drag keepers between pick slots to reassign — <span style="color:var(--green);font-weight:600">green</span> = exact SAL match, gold = valid bump, <span style="color:#d97706;font-weight:600">amber</span> = later than SAL.</span>`;
   } else {
     legend.innerHTML = `
       <span class="stag stag-active" style="cursor:default">MLB</span> uses a draft slot &nbsp;
@@ -2428,44 +2424,29 @@ function switchView(view, btn) {
   }
 }
 
-// ── Pre-fill builder + draft from keeper checkmarks ──────────────────────────
+// ── Pre-fill builder + draft from keeperStore ────────────────────────────────
 function prefillFromKeepers(players) {
-  // Read which players have been checked in the overview
+  // Read keeper state from the authoritative store (not DOM)
+  const keptMap = keeperStore[currentTeam] || {};
   const keptMlb  = [];
   const keptMilb = [];
-  document.querySelectorAll('#view-overview tr[data-player]').forEach(row => {
-    const btn = row.querySelector('.keep-btn');
-    if (!btn) return;
-    const playerName = row.dataset.player;
+  for (const [playerName, type] of Object.entries(keptMap)) {
     const p = players.find(x => x.player === playerName);
-    if (!p) return;
-    if (btn.classList.contains('kept-mlb'))  keptMlb.push(p);
-    if (btn.classList.contains('kept-milb')) keptMilb.push(p);
-  });
+    if (!p) continue;
+    if (type === 'milb') keptMilb.push(p);
+    else keptMlb.push(p);
+  }
 
   // Clear current assignments then re-fill
   Object.keys(slotAssignments).forEach(k => delete slotAssignments[k]);
   Object.keys(draftAssignments).forEach(k => delete draftAssignments[k]);
 
-  // ── Fill roster slots ─────────────────────────────────────────────────────
-  // Position → eligible slot IDs (in priority order)
-  const POS_SLOT_PRIORITY = {
-    'C':  ['C','UT1','UT2'],
-    '1B': ['1B','CI','UT1','UT2'],
-    '2B': ['2B','MI','UT1','UT2'],
-    '3B': ['3B','CI','UT1','UT2'],
-    'SS': ['SS','MI','UT1','UT2'],
-    'OF': ['OF1','OF2','OF3','OF4','UT1','UT2'],
-    'SP': ['P1','P2','P3','P4','P5','P6','P7','P8','P9'],
-    'RP': ['P1','P2','P3','P4','P5','P6','P7','P8','P9'],
-    'UT': ['UT1','UT2'],
-  };
-
+  // ── Fill Keeper Builder slots by position ─────────────────────────────────
+  // POS_SLOT_PRIORITY is defined globally above ROSTER_SLOTS
   const usedSlots = new Set();
 
   function assignToSlot(p) {
     const positions = p.position.split(',').map(x => x.trim());
-    // Try each position's preferred slots in order
     for (const pos of positions) {
       const candidates = POS_SLOT_PRIORITY[pos] || [];
       for (const slotId of candidates) {
@@ -2479,7 +2460,6 @@ function prefillFromKeepers(players) {
     return false;
   }
 
-  // Assign MLB keepers to active slots first, overflow to bench
   let benchIdx = 1;
   keptMlb.forEach(p => {
     const placed = assignToSlot(p);
@@ -2490,7 +2470,6 @@ function prefillFromKeepers(players) {
     }
   });
 
-  // Assign MiLB keepers to MiLB slots
   let milbIdx = 1;
   keptMilb.forEach(p => {
     if (milbIdx <= 25) {
@@ -2500,10 +2479,78 @@ function prefillFromKeepers(players) {
     }
   });
 
-  // Draft board is now populated live from keeper checkmarks in buildDraftPlanView
+  // ── Auto-populate Draft Planner using same slot logic as Draft Results ─────
+  if (Object.keys(pickOrder).length > 0) {
+    // Build team's picks per round, sorted ascending by pick number
+    const teamPicksByRd = {};
+    for (const [key, assignedTeam] of Object.entries(pickOrder)) {
+      if (assignedTeam !== currentTeam) continue;
+      const [rdStr, pkStr] = key.split('_');
+      const rd = parseInt(rdStr), pk = parseInt(pkStr);
+      if (!teamPicksByRd[rd]) teamPicksByRd[rd] = [];
+      teamPicksByRd[rd].push(pk);
+    }
+    for (const rd of Object.keys(teamPicksByRd)) teamPicksByRd[rd].sort((a,b) => a-b);
+
+    // Assign highest-SAL keepers first; use latest available pick per round,
+    // climbing up (SAL-1, SAL-2…) if no slot found in the keeper's own round.
+    const occupiedSlots = new Set();
+    const allMlb = keptMlb.slice().sort((a,b) =>
+      (parseInt(b.salary)||0) - (parseInt(a.salary)||0) || a.player.localeCompare(b.player)
+    );
+    for (const p of allMlb) {
+      const sal = parseInt(p.salary);
+      if (!sal || sal > 30) continue;
+      for (let tryRd = sal; tryRd >= 1; tryRd--) {
+        const pks = teamPicksByRd[tryRd];
+        if (!pks) continue;
+        let placed = false;
+        for (let i = pks.length - 1; i >= 0; i--) {
+          const slotKey = `${tryRd}_${pks[i]}`;
+          if (!occupiedSlots.has(slotKey)) {
+            occupiedSlots.add(slotKey);
+            draftAssignments[slotKey] = [p];
+            placed = true;
+            break;
+          }
+        }
+        if (placed) break;
+      }
+    }
+  } else {
+    // No pick order — assign to salary round
+    keptMlb.forEach(p => {
+      const r = parseInt(p.salary);
+      if (r >= 1 && r <= 30) draftAssignments[String(r)] = [p];
+    });
+  }
 }
 
 // ── VIEW 2: Keeper Builder ─────────────────────────────────────────────────────
+// Position → eligible slot IDs (in priority order) — global so drag handlers can use it
+const POS_SLOT_PRIORITY = {
+  'C':  ['C','UT1','UT2'],
+  '1B': ['1B','CI','UT1','UT2'],
+  '2B': ['2B','MI','UT1','UT2'],
+  '3B': ['3B','CI','UT1','UT2'],
+  'SS': ['SS','MI','UT1','UT2'],
+  'OF': ['OF1','OF2','OF3','OF4','UT1','UT2'],
+  'SP': ['P1','P2','P3','P4','P5','P6','P7','P8','P9'],
+  'RP': ['P1','P2','P3','P4','P5','P6','P7','P8','P9'],
+  'UT': ['UT1','UT2'],
+};
+
+function isEligibleForSlot(player, slotId) {
+  if (!player) return true;
+  const slot = ROSTER_SLOTS.find(s => s.id === slotId);
+  if (!slot) return true;
+  const isMiLB = STATUS_MAP[player.status] === 'MiLB';
+  if (slot.type === 'milb') return isMiLB;   // MiLB slots: MiLB players only
+  if (slot.type === 'bench') return true;     // bench: any player (MLB or MiLB)
+  const positions = player.position.split(',').map(x => x.trim());
+  return positions.some(pos => (POS_SLOT_PRIORITY[pos] || []).includes(slotId));
+}
+
 const ROSTER_SLOTS = [
   { id:'C',   label:'C',  type:'hit' },
   { id:'1B',  label:'1B', type:'hit' },
@@ -2540,8 +2587,7 @@ let dragSource = null; // 'pool' or slotId
 
 function buildBuilderView(players) {
   const slotsEl = document.getElementById('builder-slots');
-  const poolEl  = document.getElementById('builder-pool');
-  if (!slotsEl || !poolEl) return;
+  if (!slotsEl) return;
 
   // Section headers
   let slotsHtml = '';
@@ -2605,7 +2651,11 @@ function buildBuilderView(players) {
          <span class="slot-clear" onclick="clearSlot('${slot.id}')">✕</span>`
       : `<span style="font-size:11px;color:var(--text-3);font-style:italic">Empty — drag a player here</span>`;
 
+    const dragAttrs = filled
+      ? `draggable="true" ondragstart="slotDragStart(event,'${slot.id}')" style="cursor:grab"`
+      : '';
     slotsHtml += `<div class="slot-row ${filledCls}" id="slot-${slot.id}"
+      ${dragAttrs}
       ondragover="slotDragOver(event,'${slot.id}')"
       ondragleave="slotDragLeave('${slot.id}')"
       ondrop="slotDrop(event,'${slot.id}')">
@@ -2614,10 +2664,6 @@ function buildBuilderView(players) {
     </div>`;
   });
   slotsEl.innerHTML = slotsHtml;
-
-  // Pool — all players not in a slot
-  const assignedPlayers = new Set(Object.values(slotAssignments).map(p => p.player));
-  renderPool(players.filter(p => !assignedPlayers.has(p.player)), '');
 }
 
 function renderPool(players, filter) {
@@ -2668,30 +2714,44 @@ function poolDragStart(event, playerName) {
   setTimeout(() => event.currentTarget && event.currentTarget.classList.remove('dragging'), 0);
 }
 
+function slotDragStart(event, slotId) {
+  draggedPlayer = slotAssignments[slotId] || null;
+  if (!draggedPlayer) { event.preventDefault(); return; }
+  dragSource = 'slot';
+  event.dataTransfer.effectAllowed = 'move';
+}
+
 function slotDragOver(event, slotId) {
   event.preventDefault();
-  document.getElementById('slot-' + slotId)?.classList.add('drag-over');
+  const el = document.getElementById('slot-' + slotId);
+  if (el && draggedPlayer) {
+    el.classList.add(isEligibleForSlot(draggedPlayer, slotId) ? 'drag-over-ok' : 'drag-over-warn');
+  } else {
+    el?.classList.add('drag-over');
+  }
 }
 
 function slotDragLeave(slotId) {
-  document.getElementById('slot-' + slotId)?.classList.remove('drag-over');
+  document.getElementById('slot-' + slotId)?.classList.remove('drag-over', 'drag-over-ok', 'drag-over-warn');
 }
 
 function slotDrop(event, slotId) {
   event.preventDefault();
   const el = document.getElementById('slot-' + slotId);
-  el?.classList.remove('drag-over');
+  el?.classList.remove('drag-over', 'drag-over-ok', 'drag-over-warn');
   if (!draggedPlayer) return;
 
-  // If this slot already had a player, return them to pool
-  if (slotAssignments[slotId]) {
-    delete slotAssignments[slotId];
-  }
-  // Remove player from any other slot they were in
-  Object.keys(slotAssignments).forEach(k => {
-    if (slotAssignments[k]?.player === draggedPlayer.player) delete slotAssignments[k];
-  });
+  // Block: bench and MiLB slots accept anything; position slots require eligibility
+  if (!isEligibleForSlot(draggedPlayer, slotId)) { draggedPlayer = null; return; }
 
+  // Swap: if target slot already has a player, move them to the source slot
+  const displaced = slotAssignments[slotId];
+  const sourceSlot = Object.keys(slotAssignments).find(k => slotAssignments[k]?.player === draggedPlayer.player);
+  if (displaced && sourceSlot) {
+    slotAssignments[sourceSlot] = displaced;
+  } else if (sourceSlot) {
+    delete slotAssignments[sourceSlot];
+  }
   slotAssignments[slotId] = draggedPlayer;
   draggedPlayer = null;
   buildBuilderView(LEAGUE[currentTeam] || []);
@@ -2705,71 +2765,126 @@ function clearSlot(slotId) {
 // ── VIEW 3: Draft Planner ──────────────────────────────────────────────────────
 // draftAssignments: round (1-30) → player array, ordered by pick A/B/C within that round
 const draftAssignments = {};
-let subpickDragRound = null;
-let subpickDragIdx = null;
-
 function buildDraftPlanView(players) {
   const boardEl = document.getElementById('draft-board');
-  const poolEl  = document.getElementById('draft-pool');
-  if (!boardEl || !poolEl) return;
+  if (!boardEl) return;
 
-  // All checked MLB keepers (including Expired)
+  // All MLB keepers from keeperStore (consistent with prefillFromKeepers)
+  const keptMap = keeperStore[currentTeam] || {};
   const keptMlbPlayers = players.filter(p => {
-    if (STATUS_MAP[p.status] === 'MiLB') return false;
-    const row = document.querySelector(`#view-overview tr[data-player="${p.player.replace(/"/g,'&quot;')}"]`);
-    return row && row.querySelector('.keep-btn.kept-mlb');
+    const type = keptMap[p.player];
+    return type && type !== 'milb' && STATUS_MAP[p.status] !== 'MiLB';
   });
 
-  const assignedNames = new Set(Object.values(draftAssignments).flat().map(p => p.player));
   const roundsUsed = Object.keys(draftAssignments).filter(r => draftAssignments[r]?.length).length;
   const totalKept = keptMlbPlayers.length;
 
+  // Build team's pick numbers per round from pickOrder (collect all picks, a team may have multiple per round)
+  const teamPicksInRound = {};
+  for (const [key, team] of Object.entries(pickOrder)) {
+    if (team === currentTeam) {
+      const [pkRd, pkNum] = key.split('_');
+      const rd = parseInt(pkRd), pk = parseInt(pkNum);
+      if (!teamPicksInRound[rd]) teamPicksInRound[rd] = [];
+      teamPicksInRound[rd].push(pk);
+    }
+  }
+  // Compute cumulative picks before each round for OVR
+  const plannerCumBefore = {};
+  const hasPlannerPickOrder = Object.keys(pickOrder).length > 0;
+  const plannerTeams = Object.keys(LEAGUE);
+  let plannerCum = 0;
+  const plannerPicksPerRound = {};
+  if (hasPlannerPickOrder) {
+    for (const key of Object.keys(pickOrder)) {
+      const [pkRd, pkNum] = key.split('_');
+      plannerPicksPerRound[parseInt(pkRd)] = Math.max(plannerPicksPerRound[parseInt(pkRd)] || 0, parseInt(pkNum));
+    }
+  }
+  for (let r = 1; r <= 30; r++) {
+    plannerCumBefore[r] = plannerCum;
+    plannerCum += plannerPicksPerRound[r] || (hasPlannerPickOrder ? 0 : plannerTeams.length);
+  }
+
   // Summary bar
+  const plannerRoundCount = hasPlannerPickOrder ? Object.keys(teamPicksInRound).length : 30;
   let boardHtml = `<div style="display:flex;gap:20px;margin-bottom:14px;padding:10px 12px;background:var(--bg);border-radius:6px;border:1px solid var(--border);align-items:center">
     <div style="font-size:11px;color:var(--text-3)"><span style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--navy)">${totalKept}</span>&nbsp;MLB keepers</div>
     <div style="width:1px;height:24px;background:var(--border)"></div>
     <div style="font-size:11px;color:var(--text-3)"><span style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--green)">${30 - roundsUsed}</span>&nbsp;open picks</div>
-    <div style="font-size:11px;color:var(--text-3);margin-left:auto">Check ✓ in <strong>Overview</strong> to populate · Drag to reorder picks within a round</div>
+    <div style="font-size:11px;color:var(--text-3);margin-left:auto">Auto-populated from keeper selections · Drag keepers between rounds to reassign</div>
   </div>
-  <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Draft Board — 30 Rounds</div>`;
+  <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Draft Board — ${plannerRoundCount} Pick${plannerRoundCount !== 1 ? 's' : ''}</div>`;
 
+  // Build a flat ordered list of (r, pk) slots — one row per pick
+  const pickSlots = [];
   for (let r = 1; r <= 30; r++) {
-    const assigned = draftAssignments[r] || [];
+    const pks = teamPicksInRound[r];
+    if (hasPlannerPickOrder) {
+      if (pks) pks.slice().sort((a,b)=>a-b).forEach(pk => pickSlots.push({r, pk, slotKey: `${r}_${pk}`}));
+      // also show any rounds with an existing assignment that lost pick order
+      else if (Object.keys(draftAssignments).some(k => k === String(r) && draftAssignments[k]?.length))
+        pickSlots.push({r, pk: null, slotKey: String(r)});
+    } else {
+      pickSlots.push({r, pk: null, slotKey: String(r)});
+    }
+  }
+
+  for (const {r, pk, slotKey} of pickSlots) {
+    const assigned = draftAssignments[slotKey] || [];
     const takenCls = assigned.length ? 'taken' : '';
 
     let innerHtml = '';
     if (assigned.length === 0) {
       innerHtml = `<span style="font-size:11px;color:var(--text-3);font-style:italic">Open pick</span>`;
-    } else if (assigned.length === 1) {
+    } else {
       const p = assigned[0];
       const isExp = p.contract === '2026';
+      const sal = parseInt(p.salary);
+      // SAL badge — always shown; colour indicates placement vs salary
+      const salColor = !sal ? '' : r === sal ? 'color:var(--text-3);background:var(--surface);border:1px solid var(--border)' : r < sal ? 'color:#92400e;background:#fef3c7' : 'color:var(--red);background:var(--red-lt)';
+      const bumpBadge = sal ? `<span style="font-size:9px;font-family:var(--mono);font-weight:700;padding:1px 5px;border-radius:3px;flex-shrink:0;${salColor}">SAL ${sal}</span>` : '';
       innerHtml = `
-        <span class="round-player">${p.player}${isExp ? '&nbsp;<span style="font-size:9px;color:var(--red);font-family:var(--mono);font-weight:700">EXP</span>' : ''}</span>
+        <span class="round-player" style="cursor:grab">${p.player}${isExp ? '&nbsp;<span style="font-size:9px;color:var(--red);font-family:var(--mono);font-weight:700">EXP</span>' : ''}</span>
+        ${bumpBadge}
         <span class="round-meta">${p.mlb_team}&nbsp;·&nbsp;${p.position}</span>
-        <span class="slot-clear" onclick="clearDraftSlot(${r},'${p.player.replace(/'/g,"\\'")}')">✕</span>`;
-    } else {
-      // Multiple picks in this round — lettered A/B/C, draggable to reorder
-      innerHtml = `<div style="display:flex;flex-direction:column;gap:3px;flex:1">` +
-        assigned.map((p, i) => {
-          const isExp = p.contract === '2026';
-          return `<div class="draft-subpick" draggable="true"
-            ondragstart="subpickDragStart(event,${r},${i})"
-            ondragover="subpickDragOver(event,this)"
-            ondragleave="subpickDragLeave(this)"
-            ondrop="subpickDrop(event,${r},${i})">
-            <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--text-3);width:14px;flex-shrink:0">${String.fromCharCode(65+i)}</span>
-            <span class="round-player" style="flex:1">${p.player}${isExp ? '&nbsp;<span style="font-size:9px;color:var(--red);font-family:var(--mono);font-weight:700">EXP</span>' : ''}</span>
-            <span class="round-meta">${p.mlb_team}&nbsp;·&nbsp;${p.position}</span>
-            <span class="slot-clear" onclick="clearDraftSlot(${r},'${p.player.replace(/'/g,"\\'")}')">✕</span>
-          </div>`;
-        }).join('') + `</div>`;
+        <span class="slot-clear" onclick="clearDraftSlot('${slotKey}','${p.player.replace(/'/g,"\\'")}')">✕</span>`;
     }
 
-    boardHtml += `<div class="draft-round ${takenCls}" id="dround-${r}"
-      ondragover="draftDragOver(event,${r})"
-      ondragleave="draftDragLeave(${r})"
-      ondrop="draftDrop(event,${r})">
-      <span class="round-num">${r}</span>
+    let roundBadge;
+    if (pk != null) {
+      const ovr = plannerCumBefore[r] + pk;
+      roundBadge = `<div style="display:flex;gap:10px;align-items:center;font-family:var(--mono);flex-shrink:0;padding-right:6px">
+          <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
+            <span style="font-size:8px;color:var(--text-3);letter-spacing:.05em">RD</span>
+            <span style="font-size:13px;font-weight:700;color:var(--navy)">${r}</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
+            <span style="font-size:8px;color:var(--text-3);letter-spacing:.05em">PK</span>
+            <span style="font-size:13px;font-weight:700;color:var(--navy)">${pk}</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
+            <span style="font-size:8px;color:var(--text-3);letter-spacing:.05em">OVR</span>
+            <span style="font-size:13px;font-weight:700;color:var(--navy)">${ovr}</span>
+          </div>
+         </div>`;
+    } else {
+      roundBadge = `<div style="display:flex;gap:10px;align-items:center;font-family:var(--mono);flex-shrink:0;padding-right:6px">
+          <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
+            <span style="font-size:8px;color:var(--text-3);letter-spacing:.05em">RD</span>
+            <span style="font-size:13px;font-weight:700;color:var(--navy)">${r}</span>
+          </div>
+         </div>`;
+    }
+
+    const draftDragAttrs = assigned.length
+      ? `draggable="true" ondragstart="draftSlotDragStart(event,'${slotKey}')"` : '';
+    boardHtml += `<div class="draft-round ${takenCls}" id="dround-${slotKey}"
+      ${draftDragAttrs}
+      ondragover="draftDragOver(event,'${slotKey}')"
+      ondragleave="draftDragLeave('${slotKey}')"
+      ondrop="draftDrop(event,'${slotKey}')">
+      ${roundBadge}
       ${innerHtml}
     </div>`;
   }
@@ -2777,93 +2892,59 @@ function buildDraftPlanView(players) {
   boardEl.innerHTML = boardHtml;
 
   // Right panel — unplaced keepers pool
-  const unplaced = keptMlbPlayers.filter(p => !assignedNames.has(p.player));
-  if (keptMlbPlayers.length === 0) {
-    poolEl.innerHTML = '<div style="font-size:12px;color:var(--text-3);padding:8px;line-height:1.7">No keepers selected yet.<br>Go to <strong>Overview</strong> and click ✓ on players to keep them.</div>';
-  } else if (unplaced.length === 0) {
-    poolEl.innerHTML = '<div style="font-size:12px;color:var(--green);padding:8px">✓ All keepers placed on board</div>';
-  } else {
-    poolEl.innerHTML = unplaced.map(p => {
-      const r = parseInt(p.salary);
-      const isExp = p.contract === '2026';
-      return `<div class="pool-card keeper-mlb" draggable="true"
-        data-player="${p.player.replace(/"/g,'&quot;')}"
-        ondragstart="draftDragStart(event,'${p.player.replace(/'/g,"\\'")}')">
-        <span class="round-num" style="background:var(--navy);color:#fff;border-radius:3px;width:22px;text-align:center;flex-shrink:0">${r || '?'}</span>
-        <span style="flex:1;font-weight:500;font-size:12px">${p.player}</span>
-        <span style="font-size:10px;color:${isExp ? 'var(--red)' : 'var(--text-3)'}">${isExp ? 'EXP' : p.mlb_team}</span>
-      </div>`;
-    }).join('');
-  }
 }
 
-function draftDragStart(event, playerName) {
-  const p = (LEAGUE[currentTeam] || []).find(x => x.player === playerName);
-  draggedPlayer = p || null;
-  subpickDragRound = null;
+function draftSlotDragStart(event, slotKey) {
+  draggedPlayer = (draftAssignments[slotKey] || [])[0] || null;
+  if (!draggedPlayer) { event.preventDefault(); return; }
   event.dataTransfer.effectAllowed = 'move';
 }
 
-function draftDragOver(event, round) {
+function draftDragOver(event, slotKey) {
   event.preventDefault();
-  document.getElementById('dround-' + round)?.classList.add('drag-over');
+  const el = document.getElementById('dround-' + slotKey);
+  if (el && draggedPlayer) {
+    const rd = parseInt(slotKey.split('_')[0]) || parseInt(slotKey);
+    const sal = parseInt(draggedPlayer.salary) || 0;
+    // Green = exact SAL match, gold = valid earlier round, amber = later than SAL (blocked)
+    const cls = rd > sal ? 'drag-over-warn' : rd === sal ? 'drag-over-ok' : 'drag-over';
+    el.classList.add(cls);
+  } else {
+    el?.classList.add('drag-over');
+  }
 }
 
-function draftDragLeave(round) {
-  document.getElementById('dround-' + round)?.classList.remove('drag-over');
+function draftDragLeave(slotKey) {
+  document.getElementById('dround-' + slotKey)?.classList.remove('drag-over', 'drag-over-ok', 'drag-over-warn');
 }
 
-function draftDrop(event, round) {
+function draftDrop(event, slotKey) {
   event.preventDefault();
-  document.getElementById('dround-' + round)?.classList.remove('drag-over');
+  document.getElementById('dround-' + slotKey)?.classList.remove('drag-over', 'drag-over-ok', 'drag-over-warn');
   if (!draggedPlayer) return;
-  // Remove from any existing round
-  Object.keys(draftAssignments).forEach(k => {
-    draftAssignments[k] = (draftAssignments[k] || []).filter(p => p.player !== draggedPlayer.player);
-    if (!draftAssignments[k].length) delete draftAssignments[k];
-  });
-  if (!draftAssignments[round]) draftAssignments[round] = [];
-  draftAssignments[round].push(draggedPlayer);
+  // Block: cannot place a keeper in a round later than their salary
+  const targetRd = parseInt(slotKey.split('_')[0]) || parseInt(slotKey);
+  const sal = parseInt(draggedPlayer.salary) || 0;
+  if (sal && targetRd > sal) { draggedPlayer = null; return; }
+  // Swap: if target already has a keeper, move them to the source slot
+  const existing = (draftAssignments[slotKey] || [])[0];
+  const sourceKey = Object.keys(draftAssignments).find(k =>
+    (draftAssignments[k] || [])[0]?.player === draggedPlayer.player
+  );
+  if (existing && sourceKey) {
+    draftAssignments[sourceKey] = [existing];
+  } else if (sourceKey) {
+    delete draftAssignments[sourceKey];
+  }
+  draftAssignments[slotKey] = [draggedPlayer];
   draggedPlayer = null;
   buildDraftPlanView(LEAGUE[currentTeam] || []);
 }
 
-function clearDraftSlot(round, playerName) {
-  if (!draftAssignments[round]) return;
-  draftAssignments[round] = draftAssignments[round].filter(p => p.player !== playerName);
-  if (!draftAssignments[round].length) delete draftAssignments[round];
-  buildDraftPlanView(LEAGUE[currentTeam] || []);
-}
-
-// Reorder picks within a round by dragging A/B/C sub-rows
-function subpickDragStart(event, round, idx) {
-  subpickDragRound = round;
-  subpickDragIdx = idx;
-  draggedPlayer = null; // not a pool drag
-  event.dataTransfer.effectAllowed = 'move';
-  event.stopPropagation();
-}
-
-function subpickDragOver(event, el) {
-  event.preventDefault();
-  event.stopPropagation();
-  el.style.borderTop = '2px solid var(--gold)';
-}
-
-function subpickDragLeave(el) {
-  el.style.borderTop = '';
-}
-
-function subpickDrop(event, round, targetIdx) {
-  event.preventDefault();
-  event.stopPropagation();
-  if (subpickDragRound !== round || subpickDragIdx === null) return;
-  const arr = draftAssignments[round];
-  if (!arr) return;
-  const [moved] = arr.splice(subpickDragIdx, 1);
-  arr.splice(targetIdx, 0, moved);
-  subpickDragRound = null;
-  subpickDragIdx = null;
+function clearDraftSlot(slotKey, playerName) {
+  if (!draftAssignments[slotKey]) return;
+  draftAssignments[slotKey] = draftAssignments[slotKey].filter(p => p.player !== playerName);
+  if (!draftAssignments[slotKey].length) delete draftAssignments[slotKey];
   buildDraftPlanView(LEAGUE[currentTeam] || []);
 }
 
@@ -2948,24 +3029,66 @@ function buildDraftBoard() {
       if (!sal || sal > 30) continue;
       keepers.push({ player: playerName, mlb_team: p.mlb_team, position: p.position, manager: team, contract: p.contract, sal });
     }
-    // Group by SAL
-    const bySal = {};
-    keepers.forEach(k => { if (!bySal[k.sal]) bySal[k.sal] = []; bySal[k.sal].push(k); });
-    // Assign rounds: first keeper in group gets sal, next gets sal-1, etc. Sort by player name.
-    for (const [sal, group] of Object.entries(bySal)) {
-      group.sort((a,b) => a.player.localeCompare(b.player));
-      group.forEach((k, i) => {
-        const assignedRd = parseInt(sal) - i;
-        if (assignedRd >= 1) keeperAssignments.push({ ...k, rd: assignedRd });
-      });
+    if (hasPickOrder) {
+      // Build this team's picks per round, sorted ascending by pick number
+      const teamPicksByRd = {};
+      for (const [key, assignedTeam] of Object.entries(pickOrder)) {
+        if (assignedTeam !== team) continue;
+        const [rdStr, pkStr] = key.split('_');
+        const rd = parseInt(rdStr), pk = parseInt(pkStr);
+        if (!teamPicksByRd[rd]) teamPicksByRd[rd] = [];
+        teamPicksByRd[rd].push(pk);
+      }
+      for (const rd of Object.keys(teamPicksByRd)) teamPicksByRd[rd].sort((a,b) => a-b);
+
+      // Process highest-SAL keepers first; within a SAL group sort by player name.
+      // Each keeper claims the latest available pick in its SAL round, then climbs
+      // up (SAL-1, SAL-2…) if that round is full or the team has no pick there.
+      const occupiedSlots = new Set();
+      keepers.sort((a,b) => b.sal - a.sal || a.player.localeCompare(b.player));
+      for (const k of keepers) {
+        for (let tryRd = k.sal; tryRd >= 1; tryRd--) {
+          const pks = teamPicksByRd[tryRd];
+          if (!pks) continue;
+          // Take the latest unoccupied pick in this round
+          let placed = false;
+          for (let i = pks.length - 1; i >= 0; i--) {
+            const slotKey = `${tryRd}_${pks[i]}`;
+            if (!occupiedSlots.has(slotKey)) {
+              occupiedSlots.add(slotKey);
+              keeperAssignments.push({ ...k, rd: tryRd, pk: pks[i] });
+              placed = true;
+              break;
+            }
+          }
+          if (placed) break;
+        }
+      }
+    } else {
+      // No pick order — bump duplicates alphabetically (existing behavior)
+      const bySal = {};
+      keepers.forEach(k => { if (!bySal[k.sal]) bySal[k.sal] = []; bySal[k.sal].push(k); });
+      for (const [sal, group] of Object.entries(bySal)) {
+        group.sort((a,b) => a.player.localeCompare(b.player));
+        group.forEach((k, i) => {
+          const assignedRd = parseInt(sal) - i;
+          if (assignedRd >= 1) keeperAssignments.push({ ...k, rd: assignedRd });
+        });
+      }
     }
   }
 
-  // Index by round for quick lookup: roundKeepers[rd] = [keeperAssignment, ...]
+  // Index by round for round-header counts and no-pick-order path
   const roundKeepers = {};
   keeperAssignments.forEach(k => {
     if (!roundKeepers[k.rd]) roundKeepers[k.rd] = [];
     roundKeepers[k.rd].push(k);
+  });
+
+  // Index by exact pick slot for the pick-order render path: `${rd}_${pk}` → keeper
+  const keeperBySlot = {};
+  keeperAssignments.forEach(k => {
+    if (k.pk != null) keeperBySlot[`${k.rd}_${k.pk}`] = k;
   });
 
   // Index all draft results by round+pick for direct lookup
@@ -2989,6 +3112,14 @@ function buildDraftBoard() {
     }
   }
 
+  // Cumulative picks before each round (for OVR calculation)
+  const cumPicksBefore = {};
+  let cumPicks = 0;
+  for (let r = 1; r <= 30; r++) {
+    cumPicksBefore[r] = cumPicks;
+    cumPicks += picksPerRound[r] || (hasPickOrder ? 0 : teams.length);
+  }
+
   let html = '';
 
   for (let rd = 1; rd <= 30; rd++) {
@@ -2999,7 +3130,7 @@ function buildDraftBoard() {
     if (hasPickOrder && numPicks > 0) {
       for (let pk = 1; pk <= numPicks; pk++) {
         const assignedTeam = pickOrder[pickKey(rd, pk)] || '';
-        const keeper = keepersThisRound.find(k => k.manager === assignedTeam);
+        const keeper = keeperBySlot[`${rd}_${pk}`];
         const drafted = draftByRoundPick[`${rd}_${pk}`];
         if (keeper) {
           rows.push({ rd, pk, type: 'keeper', ...keeper, team: assignedTeam });
@@ -3031,7 +3162,7 @@ function buildDraftBoard() {
     const totalOpen = rows.filter(r => r.type === 'open').length;
 
     html += `<tr style="background:var(--bg)">
-      <td colspan="6" style="padding:4px 12px;font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);border-bottom:1px solid var(--border);border-top:2px solid var(--border)">
+      <td colspan="7" style="padding:4px 12px;font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);border-bottom:1px solid var(--border);border-top:2px solid var(--border)">
         Round ${rd}
         <span style="font-weight:400;color:var(--text-3);margin-left:6px">${totalKept > 0 ? `${totalKept} keeper${totalKept!==1?'s':''} &middot; ` : ''}${totalOpen} open pick${totalOpen!==1?'s':''}</span>
       </td>
@@ -3071,9 +3202,13 @@ function buildDraftBoard() {
       const salBump = isKeeper && sal && parseInt(sal) !== rd;
       const salStyle = salBump ? 'color:var(--amber);font-weight:700' : 'color:var(--text-2)';
 
+      const pkNum = parseInt(row.pk);
+      const ovr = !isNaN(pkNum) ? cumPicksBefore[rd] + pkNum : '—';
+
       html += `<tr style="${rowBg}">
         <td style="padding:7px 12px;text-align:center;font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text-3);border-bottom:1px solid var(--border)">${rd}</td>
         <td style="padding:7px 8px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--text-3);border-bottom:1px solid var(--border)">${row.pk}</td>
+        <td style="padding:7px 8px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--text-3);border-bottom:1px solid var(--border)">${ovr}</td>
         ${managerCell}
         ${playerCell}
         <td style="padding:5px 8px;text-align:center;border-bottom:1px solid var(--border)">${isOpen ? '' : rdTile(sal, false, salBump)}</td>
