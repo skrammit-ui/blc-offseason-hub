@@ -1324,8 +1324,8 @@ function playerRow(p, status, editable, isHitter) {
   const stag = `<span class="stag ${m.cls}"${toggleAttr}>${m.label}</span>`;
 
   // Stats columns
-  const stats = STATS[p.player] || {};
-  const proj  = PROJECTIONS[p.player] || {};
+  const stats = STATS[p.id] || STATS[p.player] || {};
+  const proj  = PROJECTIONS[p.id] || PROJECTIONS[p.player] || {};
 
   let statCols = '';
   if (isHitter) {
@@ -1455,13 +1455,13 @@ function handleDrop(event, type) {
 function processCSV(text, type, filename) {
   const rows = parseCSV(text);
   if (type === 'stats') {
-    rows.forEach(r => { if (r.Player) STATS[r.Player] = r; });
+    rows.forEach(r => { const key = r['Player ID'] || r['ID'] || r.id || r.Player; if (key) STATS[key] = r; });
     document.getElementById('stats-status').textContent = `✓ Loaded ${rows.length} players from ${filename}`;
     toast(`Stats loaded: ${rows.length} players`);
     loadTeam(currentTeam);
     remotePost({ action: 'saveStats', stats: STATS });
   } else if (type === 'proj') {
-    rows.forEach(r => { if (r.Player) PROJECTIONS[r.Player] = r; });
+    rows.forEach(r => { const key = r['Player ID'] || r['ID'] || r.id || r.Player; if (key) PROJECTIONS[key] = r; });
     document.getElementById('proj-status').textContent = `✓ Loaded ${rows.length} projections from ${filename}`;
     toast(`Projections loaded: ${rows.length} players`);
     loadTeam(currentTeam);
@@ -2055,8 +2055,8 @@ function renderOverview(players, keptPlayers = {}) {
     const keepBtn = isExpiring ? '' : `<span class="keep-btn" onclick="toggleKeeper(this)" title="Mark as keeper">✓</span>`;
     const editAttr = editable ? ' onclick="openEdit(this)"' : '';
     const isHitter = !isPitcher(p.position);
-    const stats = STATS[p.player] || {};
-    const proj  = PROJECTIONS[p.player] || {};
+    const stats = STATS[p.id] || STATS[p.player] || {};
+    const proj  = PROJECTIONS[p.id] || PROJECTIONS[p.player] || {};
 
     const statCols = ALL_STATS.map(k => {
       const relevant = isHitter ? HIT_STATS.includes(k) : PIT_STATS.includes(k);
