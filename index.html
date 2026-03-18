@@ -2333,17 +2333,19 @@ function renderOverview(players, keptPlayers = {}) {
     const statCols = ALL_STATS.map(k => {
       const relevant = isHitter ? HIT_STATS.includes(k) : PIT_STATS.includes(k);
       if (!relevant) return `<td class="col-stat col-stat-irrel c" style="color:var(--border)">—</td>`;
-      // H/AB — combined column
+      // H/AB — check combined column first, then separate H / AB
       if (k === 'H/AB') {
-        const h = stats['H'] || '—', ab = stats['AB'] || '—';
-        return `<td class="col-stat c">${h === '—' ? '—' : `${h}/${ab}`}</td>`;
+        const v = stats['H/AB'] || (stats['H'] && stats['AB'] ? `${stats['H']}/${stats['AB']}` : '—');
+        const mob = v !== '—' ? `${v} H/AB` : '';
+        return `<td class="col-stat c" data-mob="${mob}"><span class="stat-val">${v}</span></td>`;
       }
       const dataKey = k === 'K/9' ? (stats['K/9'] !== undefined ? 'K/9' : 'K9') : k;
       const v = stats[dataKey] || '—';
       const pv = proj[dataKey];
       const lowerBetter = ['ERA','WHIP'].includes(k);
       const projStr = pv ? `<div class="stat-proj ${lowerBetter ? (parseFloat(pv) <= parseFloat(v) ? 'up':'down') : (parseFloat(pv) >= parseFloat(v) ? 'up':'down')}">${pv}</div>` : '';
-      return `<td class="col-stat c">${v}${projStr}</td>`;
+      const mob = v !== '—' ? `${v} ${k}` : '';
+      return `<td class="col-stat c" data-mob="${mob}"><span class="stat-val">${v}</span>${projStr}</td>`;
     }).join('');
 
     return `<tr data-player="${p.player.replace(/"/g,'&quot;')}" data-manager="${currentTeam.replace(/"/g,'&quot;')}" data-status-norm="${normStatus}">
