@@ -2138,7 +2138,7 @@ function applyEdit(tile, type, val) {
 }
 
 // Toggle keeper status — highlights row green (MLB) or blue (MiLB)
-function toggleKeeper(btn) {
+async function toggleKeeper(btn) {
   const row = btn.closest('tr');
   const isKept = [...btn.classList].some(c => c.startsWith('kept-'));
   const normStatus = row.dataset.statusNorm || 'MLB';
@@ -2180,11 +2180,13 @@ function toggleKeeper(btn) {
     const keeperType = nowNorm === 'MiLB' ? 'milb' : nowNorm === 'Rule 5' ? 'rule5' : nowNorm === 'Trade' ? 'trade' : 'mlb';
     keeperStore[manager][player] = keeperType;
     // ── Sync to Google Sheet ──────────────────────────────────────────────
-    remotePost({ action: 'setKeeper', teamKey: ownerKeyFor(manager), player, keeperType, playerId: playerIdFor(manager, player) });
+    const res = await remotePost({ action: 'setKeeper', teamKey: ownerKeyFor(manager), player, keeperType, playerId: playerIdFor(manager, player) });
+    if (!res.ok) toast(`⚠ Sheet sync failed for ${player} — try again`);
   } else {
     delete keeperStore[manager][player];
     // ── Sync to Google Sheet ──────────────────────────────────────────────
-    remotePost({ action: 'removeKeeper', teamKey: ownerKeyFor(manager), player, playerId: playerIdFor(manager, player) });
+    const res = await remotePost({ action: 'removeKeeper', teamKey: ownerKeyFor(manager), player, playerId: playerIdFor(manager, player) });
+    if (!res.ok) toast(`⚠ Sheet sync failed removing ${player} — try again`);
   }
 
   // Rebuild builder and draft views to reflect the change
