@@ -678,17 +678,18 @@ input[type=file] { display: none; }
 
   /* Draft round — two-row layout on mobile: player info + stats */
   .draft-round { min-height: 32px; flex-wrap: wrap; gap: 0 6px; padding: 3px 8px; margin-bottom: 1px; align-items: center; }
-  /* Compact badge: hide labels, show numbers inline */
-  .draft-round-badge { flex-shrink: 0; gap: 5px !important; padding-right: 4px !important; }
-  .rd-col { flex-direction: row !important; align-items: baseline; }
+  /* Compact badge: hide labels, show numbers inline, vertically centered */
+  .draft-round-badge { align-self: center; flex-shrink: 0; gap: 5px !important; padding-right: 4px !important; }
+  .rd-col { flex-direction: row !important; align-items: center; line-height: 1 !important; }
   .rd-label { display: none; }
   .rd-num { font-size: 10px !important; }
-  /* Player content: single row — Player, Team·Pos, SAL all inline */
+  /* Player content: single row — Player · Team·Pos · SAL all inline */
   .draft-exp-badge { display: none; }
   .draft-player-content { flex-direction: row !important; align-items: center !important; gap: 0 5px !important; flex-wrap: nowrap !important; overflow: hidden; }
+  .draft-meta-row { flex-wrap: nowrap !important; gap: 4px !important; }
   .draft-compact-stat { display: none; }
   /* Stats sub-line: second row, full width */
-  .draft-stat-mob { display: block !important; flex: 0 0 100%; font-family: var(--mono); font-size: 7px; color: var(--text-2); white-space: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-top: 1px; }
+  .draft-stat-mob { display: block !important; flex: 0 0 100%; font-family: var(--mono); font-size: 9px; color: var(--text-2); white-space: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-top: 1px; }
 
   /* Trade grid: single column */
   .tp-grid { grid-template-columns: 1fr !important; }
@@ -3310,13 +3311,13 @@ function buildDraftPlanView(players) {
       innerHtml = `
         <div class="draft-player-content" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span style="display:inline-flex;align-items:center;gap:6px;flex-shrink:0">
-              <span class="round-player" style="cursor:grab">${p.player}${isExp ? '&nbsp;<span class="draft-exp-badge" style="font-size:9px;color:var(--red);font-family:var(--mono);font-weight:700">EXP</span>' : ''}</span>
-              ${bumpBadge}
-            </span>
+            <span class="round-player" style="cursor:grab">${p.player}${isExp ? '&nbsp;<span class="draft-exp-badge" style="font-size:9px;color:var(--red);font-family:var(--mono);font-weight:700">EXP</span>' : ''}</span>
             <span class="draft-compact-stat" style="margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--text-2)">${draftMobParts.join(' · ')}</span>
           </div>
-          <span class="round-meta">${p.mlb_team}&nbsp;·&nbsp;${p.position}</span>
+          <div class="draft-meta-row" style="display:flex;align-items:center;gap:5px;flex-wrap:nowrap">
+            <span class="round-meta">${p.mlb_team}&nbsp;·&nbsp;${p.position}</span>
+            ${bumpBadge}
+          </div>
         </div>
         <span class="slot-clear" onclick="clearDraftSlot('${slotKey}','${p.player.replace(/'/g,"\\'")}')">✕</span>
         <div class="draft-stat-mob">${draftMobParts.join(' · ')}</div>`;
