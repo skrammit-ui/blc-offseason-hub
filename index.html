@@ -3757,6 +3757,11 @@ function buildDraftBoard() {
       const rowBg    = isKeeper ? 'background:#edf7f1' : '';
       const conColor = row.contract === '2026' ? 'color:var(--red);font-weight:700' : 'color:var(--text-2)';
 
+      // SAL — show original salary, highlight if different from rd (bump)
+      const sal = row.sal || row.salary || (isKeeper ? row.sal : '');
+      const salBump = isKeeper && sal && parseInt(sal) !== rd;
+      const salStyle = salBump ? 'color:var(--amber);font-weight:700' : 'color:var(--text-2)';
+
       // Manager cell — editable dropdown for open slots
       let managerCell;
       if (isOpen && hasPickOrder) {
@@ -3779,11 +3784,6 @@ function buildDraftBoard() {
             ${isKeeper ? `<span style="font-size:9px;background:var(--green-lt);color:var(--green);border:1px solid #a8d5bc;border-radius:3px;padding:1px 4px;margin-left:4px;font-family:var(--mono);font-weight:600">K</span>` : ''}
             <div style="font-size:11px;color:var(--text-3);margin-top:1px">${row.mlb_team||''} &middot; ${row.position||''}${sal ? ` &middot; Rd&nbsp;${sal}` : ''}${row.contract ? ` &middot; ${row.contract}` : ''}</div>
            </td>`;
-
-      // SAL — show original salary, highlight if different from rd (bump)
-      const sal = row.sal || row.salary || (isKeeper ? row.sal : '');
-      const salBump = isKeeper && sal && parseInt(sal) !== rd;
-      const salStyle = salBump ? 'color:var(--amber);font-weight:700' : 'color:var(--text-2)';
 
       const pkNum = parseInt(row.pk);
       const ovr = !isNaN(pkNum) ? cumPicksBefore[rd] + pkNum : '—';
