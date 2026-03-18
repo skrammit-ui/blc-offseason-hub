@@ -655,19 +655,23 @@ input[type=file] { display: none; }
   /* Pool cards */
   .pool-card { padding: 5px 10px; min-height: 34px; }
 
-  /* Builder slot rows — two-row layout matching Roster view */
-  .slot-row { flex-wrap: wrap; overflow-x: visible; gap: 3px 10px; padding: 3px 8px; min-height: 32px; margin-bottom: 2px; }
+  /* Builder slot rows — two-row layout: player info + stats */
+  .slot-row { flex-wrap: wrap; overflow-x: visible; gap: 0 10px; padding: 3px 8px; min-height: 32px; margin-bottom: 2px; align-items: center; }
   .slot-stat, .slot-stat-hdr, .slot-hdr-row { display: none; }
+  /* Player content: single row — Player · Team · Pos */
+  .slot-player-content { flex-direction: row !important; align-items: center !important; gap: 0 5px !important; flex-wrap: nowrap !important; overflow: hidden; }
+  .slot-compact-stat { display: none; }
+  /* Stats sub-line: second row, full width */
   .slot-stat-mob {
     display: block;
     flex: 0 0 100%;
     font-family: var(--mono);
-    font-size: 8px;
+    font-size: 9px;
     color: var(--text-2);
     white-space: nowrap;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    padding-top: 2px;
+    padding-top: 1px;
   }
 
   /* Slot clear button */
@@ -1529,7 +1533,7 @@ function compactStatLine(p) {
     : [['ERA', stats.ERA], ['WHIP', stats.WHIP], ['K', stats.K], ['IP', stats.IP]];
   const parts = pairs.filter(([,v]) => v != null && v !== '').map(([k,v]) => `${v} ${k}`);
   if (!parts.length) return '';
-  return `<span style="font-size:10px;font-family:var(--mono);color:var(--text-3);white-space:nowrap;flex-shrink:0">${parts.join(' &middot; ')}</span>`;
+  return `<span class="slot-compact-stat" style="font-size:10px;font-family:var(--mono);color:var(--text-3);white-space:nowrap;flex-shrink:0">${parts.join(' &middot; ')}</span>`;
 }
 
 const HIT_STAT_COLS = ['H/AB','R','HR','RBI','SB','OBP'];
@@ -3047,7 +3051,7 @@ function buildBuilderView(players) {
         mobStatLine = `<div class="slot-stat-mob">${mobParts.join(' · ')}</div>`;
       }
       playerHtml = filled
-        ? `<div style="flex:1;min-width:0">
+        ? `<div class="slot-player-content" style="flex:1;min-width:0">
              <div style="font-size:13px;font-weight:500">${filled.player}</div>
              <span class="slot-meta">${filled.mlb_team} · ${filled.position}</span>
            </div>
@@ -3075,7 +3079,7 @@ function buildBuilderView(players) {
         if (mobParts.length) elseStatLine = `<div class="slot-stat-mob">${mobParts.join(' · ')}</div>`;
       }
       playerHtml = filled
-        ? `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+        ? `<div class="slot-player-content" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                <span class="slot-player">${filled.player}</span>
                ${compactStatLine(filled)}
