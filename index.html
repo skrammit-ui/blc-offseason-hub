@@ -699,6 +699,13 @@ input[type=file] { display: none; }
   /* Card header: allow wrapping */
   .card-header { flex-wrap: wrap; gap: 6px; }
 
+  /* ── Draft Board controls + legend ── */
+  .draft-controls { margin-bottom: 8px !important; gap: 8px !important; }
+  .draft-upload-hint { display: none; }
+  .draft-legend { margin-bottom: 8px !important; gap: 8px !important; font-size: 10px !important; }
+  /* Team filter and open-slot selects: override the 16px iOS zoom rule */
+  #draft-team-filter, .db-mgr-select { font-size: 12px !important; padding: 3px 6px !important; }
+
   /* ── Draft Board: condense for mobile ── */
   /* Remove horizontal scroll — table fits in single column */
   .db-scroll { overflow-x: visible !important; }
@@ -1373,7 +1380,7 @@ input[type=file] { display: none; }
   <div class="page-sub">Keepers highlighted in green &middot; Upload results CSV post-draft to fill remaining picks</div>
 
   <!-- Controls bar -->
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+  <div class="draft-controls" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
     <div style="display:flex;align-items:center;gap:8px">
       <label style="font-size:12px;font-weight:600;color:var(--text-2)">Filter by team</label>
       <select id="draft-team-filter" onchange="buildDraftBoard()" style="font-family:var(--body);font-size:12px;padding:5px 10px;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
@@ -1381,7 +1388,7 @@ input[type=file] { display: none; }
       </select>
     </div>
     <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-      <span style="font-size:11px;color:var(--text-3)">Post-draft: upload results CSV</span>
+      <span class="draft-upload-hint" style="font-size:11px;color:var(--text-3)">Post-draft: upload results CSV</span>
       <button class="btn btn-secondary" style="font-size:11px;padding:5px 10px" onclick="document.getElementById('draft-results-file').click()">&#x1F4C2; Upload Draft CSV</button>
       <input type="file" id="draft-results-file" accept=".csv" style="display:none" onchange="handleDraftResultsUpload(event)">
       <button class="btn btn-danger" style="font-size:11px;padding:5px 10px" onclick="confirmResetToKeepers()">&#x21BA; Reset to Keepers</button>
@@ -1390,7 +1397,7 @@ input[type=file] { display: none; }
   <div id="draft-upload-status" style="font-size:12px;color:var(--text-3);margin-bottom:10px;display:none"></div>
 
   <!-- Legend -->
-  <div style="display:flex;gap:16px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+  <div class="draft-legend" style="display:flex;gap:16px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
     <span style="font-size:11px;display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:2px;background:var(--green-lt);border:1px solid #a8d5bc;display:inline-block"></span> Keeper (K)</span>
     <span style="font-size:11px;display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:2px;background:var(--surface);border:1px solid var(--border);display:inline-block"></span> Draft Pick</span>
     <span style="font-size:11px;display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:2px;background:var(--bg);border:1px dashed var(--border);display:inline-block"></span> Open Pick</span>
@@ -3802,7 +3809,7 @@ function buildDraftBoard() {
       let managerCell;
       if (isOpen && hasPickOrder) {
         managerCell = `<td class="db-mgr" style="padding:4px 8px;border-bottom:1px solid var(--border)">
-          <select onchange="updatePickOrder(${rd},${row.pk},this.value)"
+          <select class="db-mgr-select" onchange="updatePickOrder(${rd},${row.pk},this.value)"
             style="font-family:var(--body);font-size:11px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--text);width:100%">
             <option value="">— unassigned —</option>
             ${teams.map(t => `<option value="${t.replace(/"/g,'&quot;')}"${t===row.team?' selected':''}>${t}</option>`).join('')}
