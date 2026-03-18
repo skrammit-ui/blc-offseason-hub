@@ -402,7 +402,9 @@ tr.keeper-trade:hover  td { background: #ffe4cc !important; }
   border: 1.5px dashed var(--border); min-height: 40px;
   transition: all .12s;
 }
-.draft-round.taken        { border-style: solid; border-color: var(--green); background: #edf7f1; }
+.draft-round.taken        { border-style: solid; border-color: var(--green);  background: #edf7f1; }
+.draft-round.taken-rule5  { border-style: solid; border-color: var(--purple); background: #f0ebff; }
+.draft-round.taken-trade  { border-style: solid; border-color: var(--orange); background: #fff0e6; }
 .draft-round.drag-over      { border-color: var(--gold);  background: #fffdf0; }
 .draft-round.drag-over-ok   { border-color: var(--green); background: #edf7f1; }
 .draft-round.drag-over-warn { border-color: #d97706;      background: #fff8e6; }
@@ -2549,7 +2551,7 @@ function applyOwner(key) {
 //  Replace APPS_SCRIPT_URL with your deployed Web App URL.
 //  Format: https://script.google.com/macros/s/YOUR_DEPLOY_ID/exec
 // ════════════════════════════════════════════════════════════════════════════
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxD-mf9ZkJ9IPEBBpTHejWm3Z51hpydERdOinfwhSZaMI1n3mqd4anXnl31RXjkDzaX/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwxtxKK3FIR83z2YSywXyIWckYiB0pS7JSYp7Xi3hvJ3DQ0P5zCRQ5_Xqevp_i9uC_-/exec';
 
 // ── Remote data fetch ─────────────────────────────────────────────────────
 async function fetchLeagueData() {
@@ -2726,7 +2728,7 @@ function switchView(view, btn) {
   if (view === 'builder') {
     legend.innerHTML = `<span style="font-size:12px;color:var(--text-3)">Auto-populated by position from keeper selections. Drag keepers between slots to reassign — <span style="color:var(--green);font-weight:600">green highlight</span> = eligible position, <span style="color:#d97706;font-weight:600">amber</span> = ineligible.</span>`;
   } else if (view === 'draft') {
-    legend.innerHTML = `<span style="font-size:12px;color:var(--text-3)">Auto-populated using keeper salary rounds. Drag keepers between pick slots to reassign — <span style="color:var(--green);font-weight:600">green</span> = exact SAL match, gold = valid bump, <span style="color:#d97706;font-weight:600">amber</span> = later than SAL.</span>`;
+    legend.innerHTML = `<span style="font-size:12px;color:var(--text-3)">Auto-populated using keeper salary rounds. Drag keepers between pick slots to reassign — <span style="color:var(--green);font-weight:600">green</span> = exact SAL match, <span style="color:#92400e;font-weight:600">gold</span> = valid bump.</span>`;
   } else {
     legend.innerHTML = `
       <span class="stag stag-active" style="cursor:default">MLB</span>
@@ -3213,7 +3215,8 @@ function buildDraftPlanView(players) {
 
   for (const {r, pk, slotKey} of pickSlots) {
     const assigned = draftAssignments[slotKey] || [];
-    const takenCls = assigned.length ? 'taken' : '';
+    const takenType = assigned.length ? (keptMap[assigned[0].player] === 'rule5' ? 'taken-rule5' : keptMap[assigned[0].player] === 'trade' ? 'taken-trade' : 'taken') : '';
+    const takenCls = takenType;
 
     let innerHtml = '';
     if (assigned.length === 0) {
