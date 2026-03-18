@@ -3531,7 +3531,9 @@ function handleDraftResultsUpload(event) {
     buildDraftBoard();
     toast(`Draft results loaded — ${draftResults.length} picks`);
     // Save to Google Sheets
-    remotePost({ action: 'importDraftResults', results: draftResults }).then(r => {
+    // Apps Script expects owner keys (not team names) — same pattern as importRosters
+    const resultsForSheet = draftResults.map(d => ({ ...d, manager: ownerKeyFor(d.manager) || d.manager }));
+    remotePost({ action: 'importDraftResults', results: resultsForSheet }).then(r => {
       if (r && r.ok) statusEl.innerHTML += ' · saved to sheet ✓';
       else statusEl.innerHTML += ' · ⚠ sheet save failed';
     });
