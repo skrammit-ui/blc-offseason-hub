@@ -95,6 +95,19 @@ function doPost(e) {
 // ════════════════════════════════════════════════════════════════════════════
 //  READERS
 // ════════════════════════════════════════════════════════════════════════════
+
+// Legacy owner-key aliases: old misspelled key → current correct key.
+// Add entries here whenever a key is renamed so old sheet rows still resolve.
+const LEGACY_OWNER_KEYS = {
+  'defered':  'deferred',
+  'loveable': 'lovable',
+};
+
+function resolveOwnerKey(raw, ownerMap) {
+  const normalized = LEGACY_OWNER_KEYS[raw] || raw;
+  return ownerMap[normalized] || ownerMap[raw] || null;
+}
+
 function getRosters(ss) {
   const ownerMap = getOwnerMap(ss);          // key → teamName
   const validNames = new Set(Object.values(ownerMap));
@@ -109,8 +122,8 @@ function getRosters(ss) {
     headers.forEach((h, i) => obj[h] = String(row[i] ?? ''));
     const raw = obj[teamHeader];
     if (!raw) return;
-    // Resolve: try as ownerKey first, then treat as teamName (backward compat)
-    const teamName = ownerMap[raw] || raw;
+    // Resolve: try as ownerKey (with legacy alias support), then treat as teamName
+    const teamName = resolveOwnerKey(raw, ownerMap) || raw;
     if (!validNames.has(teamName)) return; // skip unknown teams
     if (!league[teamName]) league[teamName] = [];
     const { team: _t, teamKey: _tk, ...player } = obj;
@@ -131,12 +144,55 @@ function getKeepers(ss) {
     const player = String(data[i][1] || '').trim();
     const type   = typeIdx >= 0 ? String(data[i][typeIdx] || '').trim() : String(data[i][2] || '').trim();
     if (!raw || !player || !type) continue;
-    // Resolve teamKey → teamName (with backward compat for old teamName rows)
-    const teamName = ownerMap[raw] || raw;
+    // Resolve teamKey → teamName (with legacy alias + backward compat for old teamName rows)
+    const teamName = resolveOwnerKey(raw, ownerMap) || raw;
     if (!keepers[teamName]) keepers[teamName] = {};
     keepers[teamName][player] = type;
   }
   return keepers;
+}
+
+// ── One-time migration: update old owner keys in Rosters + Keepers sheets ────
+// Run this once from the Apps Script editor after deploying, then it's safe to
+// leave in place (it's a no-op once all rows have been updated).
+function migrateOwnerKeys() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+
+  // ── Rosters ──────────────────────────────────────────────────────────────
+  const rostersSheet = ss.getSheetByName('Rosters');
+  if (rostersSheet && rostersSheet.getLastRow() > 1) {
+    const headers = rostersSheet.getRange(1, 1, 1, rostersSheet.getLastColumn()).getValues()[0];
+    const teamCol = (headers.indexOf('teamKey') >= 0 ? headers.indexOf('teamKey') : headers.indexOf('team')) + 1;
+    const data    = rostersSheet.getDataRange().getValues();
+    let updated   = 0;
+    for (let i = 1; i < data.length; i++) {
+      const raw = String(data[i][teamCol - 1] || '').trim();
+      const newKey = LEGACY_OWNER_KEYS[raw];
+      if (newKey) {
+        rostersSheet.getRange(i + 1, teamCol).setValue(newKey);
+        updated++;
+      }
+    }
+    Logger.log('Rosters: updated ' + updated + ' rows');
+  }
+
+  // ── Keepers ──────────────────────────────────────────────────────────────
+  const keepersSheet = ss.getSheetByName('Keepers');
+  if (keepersSheet && keepersSheet.getLastRow() > 1) {
+    const data  = keepersSheet.getDataRange().getValues();
+    let updated = 0;
+    for (let i = 1; i < data.length; i++) {
+      const raw = String(data[i][0] || '').trim();
+      const newKey = LEGACY_OWNER_KEYS[raw];
+      if (newKey) {
+        keepersSheet.getRange(i + 1, 1).setValue(newKey);
+        updated++;
+      }
+    }
+    Logger.log('Keepers: updated ' + updated + ' rows');
+  }
+
+  Logger.log('✓ migrateOwnerKeys complete.');
 }
 function getOwnerMap(ss) {
   const sheet = ss.getSheetByName('Settings');
