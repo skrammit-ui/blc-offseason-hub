@@ -3213,29 +3213,46 @@ function handlePickOrderUpload(event) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    const lines = e.target.result.split('\n').filter(l => l.trim());
-    if (lines.length < 2) return;
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-    const rdIdx   = headers.findIndex(h => h.includes('round') || h === 'rd');
-    const pkIdx   = headers.findIndex(h => h.includes('pick') || h === 'pk');
-    const tmIdx   = headers.findIndex(h => h.includes('team') || h.includes('manager') || h.includes('owner'));
+    const rows = parseCSV(e.target.result);
+    if (!rows.length) return;
+
+    const hdrs = Object.keys(rows[0]);
+    const find = (...terms) => hdrs.find(h => terms.some(t => h.toLowerCase().includes(t))) || null;
+    const rdCol  = find('round', 'rd');
+    const pkCol  = find('pick', 'pk');
+    // Prefer exact 'ownerkey' column to avoid matching 'Fantasy Team' via 'team'
+    const keyCol = hdrs.find(h => h.toLowerCase() === 'ownerkey') || null;
+    const tmCol  = keyCol ? null : find('manager', 'owner', 'team');
+
     pickOrder = {};
     let count = 0;
-    for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g,''));
-      const rd = cols[rdIdx]; const pk = cols[pkIdx]; const tm = cols[tmIdx];
-      if (!rd || !pk || !tm) continue;
-      pickOrder[pickKey(rd, pk)] = tm;
+    for (const r of rows) {
+      const rd = rdCol ? (r[rdCol] || '').trim() : '';
+      const pk = pkCol ? (r[pkCol] || '').trim() : '';
+      if (!rd || !pk) continue;
+      let teamName;
+      if (keyCol) {
+        const ownerKey = (r[keyCol] || '').trim();
+        teamName = OWNER_MAP[ownerKey] || ownerKey;
+      } else {
+        const raw = tmCol ? (r[tmCol] || '').trim() : '';
+        // Try case-insensitive match against both keys and names
+        const norm = {};
+        Object.entries(OWNER_MAP).forEach(([k, v]) => { norm[k.toLowerCase()] = v; norm[v.toLowerCase()] = v; });
+        teamName = norm[raw.toLowerCase()] || raw;
+      }
+      if (!teamName) continue;
+      pickOrder[pickKey(rd, pk)] = teamName;
       count++;
     }
     const statusEl = document.getElementById('pickorder-status');
     statusEl.textContent = `✓ Loaded ${count} pick assignments`;
     statusEl.style.color = 'var(--green)';
     toast(`Draft pick order loaded — ${count} picks`);
-    // Save to Google Sheets
+    // Save to Google Sheets — send owner keys for consistency
     const slots = Object.entries(pickOrder).map(([key, team]) => {
       const [round, pick] = key.split('_');
-      return { round, pick, team };
+      return { round, pick, team: ownerKeyFor(team) || team };
     });
     remotePost({ action: 'importPickOrder', slots }).then(r => {
       if (r && r.ok) statusEl.textContent += ' · saved to sheet';
