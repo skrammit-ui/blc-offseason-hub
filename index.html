@@ -3982,60 +3982,45 @@ function buildKeepersPage() {
     const keptMap = keeperStore[team] || {};
     const keptPlayers = Object.keys(keptMap);
 
-    // Build player rows from LEAGUE data
-    const rows = keptPlayers.map(playerName => {
-      const p = (LEAGUE[team] || []).find(x => x.player === playerName);
-      if (!p) return null;
-      const type = keptMap[playerName]; // mlb | milb | rule5 | trade
-      const isMilb = type === 'milb';
-      const isRule5 = type === 'rule5';
-      const isTrade = type === 'trade';
-      const rd = p.salary || '—';
-      const con = p.contract || '—';
-      const isExpiring = con === '2026';
-      const rdColor = isMilb ? 'var(--blue)' : isRule5 ? 'var(--purple)' : isTrade ? 'var(--orange)' : 'var(--green)';
-      const conColor = isExpiring ? 'var(--red)' : 'var(--text-3)';
-      const tagBg = isMilb ? 'var(--blue-lt)' : isRule5 ? 'var(--purple-lt)' : isTrade ? 'var(--orange-lt)' : 'var(--green-lt)';
-      return `<tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:5px 8px;font-size:12px;font-weight:500;color:var(--text)">${p.player}
-          <span style="font-size:10px;color:var(--text-3);margin-left:4px">${p.position}</span>
-        </td>
-        <td style="padding:5px 8px;text-align:center">
-          <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:${rdColor};background:${tagBg};padding:2px 6px;border-radius:4px">${rd}</span>
-        </td>
-        <td style="padding:5px 8px;text-align:center">
-          <span style="font-family:var(--mono);font-size:11px;color:${conColor}">${con}</span>
-        </td>
-      </tr>`;
-    }).filter(Boolean);
-
     // Sort by round ascending
     const playersSorted = keptPlayers
       .map(name => ({ name, p: (LEAGUE[team] || []).find(x => x.player === name), type: keptMap[name] }))
       .filter(x => x.p)
       .sort((a, b) => (parseInt(a.p.salary) || 999) - (parseInt(b.p.salary) || 999));
 
+    const thStyle = `font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:4px 8px;border-bottom:1px solid var(--border)`;
+
     const rowsHtml = playersSorted.map(({ name, p, type }) => {
-      const isMilb = type === 'milb';
-      const isRule5 = type === 'rule5';
-      const isTrade = type === 'trade';
       const rd = p.salary || '—';
       const con = p.contract || '—';
-      const isExpiring = con === '2026';
-      const rdColor = isMilb ? 'var(--blue)' : isRule5 ? 'var(--purple)' : isTrade ? 'var(--orange)' : 'var(--green)';
-      const conColor = isExpiring ? 'var(--red)' : 'var(--text-2)';
-      const tagBg = isMilb ? 'var(--blue-lt)' : isRule5 ? 'var(--purple-lt)' : isTrade ? 'var(--orange-lt)' : 'var(--green-lt)';
+      const mlbTeam = p.mlb_team || '';
+      const pos = p.position || '';
+
+      // Status tile
+      const normStatus = STATUS_MAP[p.status] || 'MLB';
+      const sm = STATUS_META[normStatus] || STATUS_META['MLB'];
+      const stagHtml = `<span class="stag ${sm.cls}" style="cursor:default;white-space:nowrap">${sm.label}</span>`;
+
+      // RD tile — fixed width via td, span fills it
+      const rdHtml = `<span class="rd-tile" style="display:inline-block;width:32px;text-align:center;font-weight:700">${rd}</span>`;
+
+      // CON tile using ctag classes
+      const conCls = con === '2026' ? 'ctag-exp'
+                   : con === '2027' ? 'ctag-2027'
+                   : con === '2028' ? 'ctag-2028'
+                   : con === '2029' ? 'ctag-ok'
+                   : con === '—' || con === '' ? 'ctag-na'
+                   : 'ctag-teal';
+      const conHtml = `<span class="ctag ${conCls}" style="cursor:default">${con || '—'}</span>`;
+
       return `<tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:5px 10px;font-size:12px;font-weight:500;color:var(--text);max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+        <td style="padding:5px 10px;font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">
           ${p.player}
-          <span style="font-size:10px;color:var(--text-3);margin-left:3px">${p.position}</span>
+          <div style="font-size:10px;color:var(--text-3);margin-top:1px">${mlbTeam}${mlbTeam && pos ? ' · ' : ''}${pos}</div>
         </td>
-        <td style="padding:5px 8px;text-align:center;width:44px">
-          <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:${rdColor};background:${tagBg};padding:2px 5px;border-radius:3px">${rd}</span>
-        </td>
-        <td style="padding:5px 8px;text-align:center;width:44px">
-          <span style="font-family:var(--mono);font-size:11px;font-weight:600;color:${conColor}">${con}</span>
-        </td>
+        <td style="padding:4px 6px;text-align:center;white-space:nowrap">${stagHtml}</td>
+        <td style="padding:4px 6px;text-align:center;width:44px">${rdHtml}</td>
+        <td style="padding:4px 6px;text-align:center;white-space:nowrap">${conHtml}</td>
       </tr>`;
     }).join('');
 
@@ -4051,9 +4036,10 @@ function buildKeepersPage() {
         ? `<div style="padding:16px 12px;font-size:12px;color:var(--text-3);font-style:italic">No keepers marked yet</div>`
         : `<table style="width:100%;border-collapse:collapse">
             <thead><tr style="background:var(--bg)">
-              <th style="font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:5px 10px;text-align:left;border-bottom:1px solid var(--border)">Player</th>
-              <th style="font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:4px 8px;text-align:center;border-bottom:1px solid var(--border)">Rd</th>
-              <th style="font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:4px 8px;text-align:center;border-bottom:1px solid var(--border)">Con</th>
+              <th style="${thStyle};text-align:left;padding-left:10px">Player / Team / Pos</th>
+              <th style="${thStyle};text-align:center">Status</th>
+              <th style="${thStyle};text-align:center;width:44px">Rd</th>
+              <th style="${thStyle};text-align:center">Con</th>
             </tr></thead>
             <tbody>${rowsHtml}</tbody>
           </table>`
