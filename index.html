@@ -4011,7 +4011,7 @@ function buildKeepersPage() {
   const grid = document.getElementById('keepers-grid');
   if (!grid) return;
 
-  const teams = Object.keys(LEAGUE);
+  const teams = Object.keys(LEAGUE).sort();
   grid.innerHTML = teams.map(team => {
     const keptMap = keeperStore[team] || {};
     const keptPlayers = Object.keys(keptMap);
