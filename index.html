@@ -3348,14 +3348,14 @@ function buildDraftPlanView(players) {
       }).filter(Boolean);
 
       innerHtml = `
-        <div class="draft-player-content" style="flex:1;min-width:0;display:flex;align-items:center;gap:5px;overflow:hidden">
+        <div class="draft-player-content" style="flex:0 1 auto;min-width:0;display:flex;align-items:center;gap:5px;overflow:hidden">
           <span class="round-player" style="cursor:grab;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1">${p.player}${isExp ? '&nbsp;<span style="font-size:9px;color:var(--red);font-family:var(--mono);font-weight:700">EXP</span>' : ''}</span>
           <span class="round-meta" style="flex-shrink:0">${p.mlb_team}&nbsp;·&nbsp;${p.position}</span>
           ${bumpBadge}
           ${p.contract ? conTag(p.contract) : ''}
-          <span class="draft-compact-stat" style="font-family:var(--mono);font-size:10px;color:var(--text-2);white-space:nowrap;flex-shrink:0">${draftMobParts.join(' · ')}</span>
         </div>
-        <span class="slot-clear" onclick="clearDraftSlot('${slotKey}','${p.player.replace(/'/g,"\\'")}')">✕</span>
+        <span class="draft-compact-stat" style="flex:1 1 0;min-width:0;font-family:var(--mono);font-size:10px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${draftMobParts.join(' · ')}</span>
+        <span class="slot-clear" style="margin-left:auto;flex-shrink:0" onclick="clearDraftSlot('${slotKey}','${p.player.replace(/'/g,"\\'")}')">✕</span>
         <div class="draft-stat-mob">${draftMobParts.join(' · ')}</div>`;
     }
 
