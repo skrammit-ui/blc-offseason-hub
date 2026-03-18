@@ -152,6 +152,7 @@ table.roster-tbl {
 .roster-tbl .col-stat    { width: 52px; text-align: center; font-size: 11px; font-family: var(--mono); }
 .col-stat-mob { display: none; }
 .slot-stat-mob { display: none; }
+.draft-stat-mob { display: none; }
 .roster-tbl .col-rd      { width: 52px; text-align: center; }
 .roster-tbl .col-con     { width: 58px; text-align: center; }
 
@@ -672,8 +673,20 @@ input[type=file] { display: none; }
   /* Keep button — larger touch target */
   .keep-btn { width: 22px; height: 22px; font-size: 11px; margin-left: 6px; }
 
-  /* Draft round — min height for touch */
-  .draft-round { min-height: 44px; }
+  /* Draft round — mobile two-row layout */
+  .draft-round { min-height: 44px; flex-wrap: wrap; }
+  .draft-compact-stat { display: none; }
+  .draft-stat-mob {
+    display: block;
+    flex: 0 0 100%;
+    font-family: var(--mono);
+    font-size: 8px;
+    color: var(--text-2);
+    white-space: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-top: 2px;
+  }
 
   /* Trade grid: single column */
   .tp-grid { grid-template-columns: 1fr !important; }
@@ -3181,16 +3194,31 @@ function buildDraftPlanView(players) {
       // SAL badge — always shown; colour indicates placement vs salary
       const salColor = !sal ? '' : r === sal ? 'color:var(--text-3);background:var(--surface);border:1px solid var(--border)' : r < sal ? 'color:#92400e;background:#fef3c7' : 'color:var(--red);background:var(--red-lt)';
       const bumpBadge = sal ? `<span style="font-size:9px;font-family:var(--mono);font-weight:700;padding:1px 5px;border-radius:3px;flex-shrink:0;${salColor}">SAL ${sal}</span>` : '';
+      // Build mobile full-stats line (same format as Roster/Builder)
+      const draftStats = STATS[p.id] || STATS[p.player] || {};
+      const draftIsHit = !isPitcher(p.position);
+      const draftMobCols = draftIsHit ? HIT_STAT_COLS : PIT_STAT_COLS;
+      const draftMobParts = draftMobCols.map(k => {
+        if (k === 'H/AB') {
+          const v = draftStats['H/AB'] || (draftStats['H'] && draftStats['AB'] ? `${draftStats['H']}/${draftStats['AB']}` : null);
+          return v || null;
+        }
+        const dataKey = k === 'K/9' ? (draftStats['K/9'] !== undefined ? 'K/9' : 'K9') : k;
+        const v = draftStats[dataKey] || draftStats[k];
+        return v ? `${v} ${k}` : null;
+      }).filter(Boolean);
+
       innerHtml = `
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <span class="round-player" style="cursor:grab">${p.player}${isExp ? '&nbsp;<span style="font-size:9px;color:var(--red);font-family:var(--mono);font-weight:700">EXP</span>' : ''}</span>
             ${bumpBadge}
-            ${compactStatLine(p)}
+            <span class="draft-compact-stat">${compactStatLine(p)}</span>
           </div>
           <span class="round-meta">${p.mlb_team}&nbsp;·&nbsp;${p.position}</span>
         </div>
-        <span class="slot-clear" onclick="clearDraftSlot('${slotKey}','${p.player.replace(/'/g,"\\'")}')">✕</span>`;
+        <span class="slot-clear" onclick="clearDraftSlot('${slotKey}','${p.player.replace(/'/g,"\\'")}')">✕</span>
+        <div class="draft-stat-mob">${draftMobParts.join(' · ')}</div>`;
     }
 
     let roundBadge;
