@@ -1389,10 +1389,12 @@ input[type=file] { display: none; }
       </select>
     </div>
     <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-      <span class="draft-upload-hint" style="font-size:11px;color:var(--text-3)">Post-draft: upload results CSV</span>
-      <button class="btn btn-secondary" style="font-size:11px;padding:5px 10px" onclick="document.getElementById('draft-results-file').click()">&#x1F4C2; Upload Draft CSV</button>
-      <input type="file" id="draft-results-file" accept=".csv" style="display:none" onchange="handleDraftResultsUpload(event)">
-      <button class="btn btn-danger" style="font-size:11px;padding:5px 10px" onclick="confirmResetToKeepers()">&#x21BA; Reset to Keepers</button>
+      <div id="commish-draft-controls" style="display:flex;gap:8px;align-items:center">
+        <span class="draft-upload-hint" style="font-size:11px;color:var(--text-3)">Post-draft: upload results CSV</span>
+        <button class="btn btn-secondary" style="font-size:11px;padding:5px 10px" onclick="document.getElementById('draft-results-file').click()">&#x1F4C2; Upload Draft CSV</button>
+        <input type="file" id="draft-results-file" accept=".csv" style="display:none" onchange="handleDraftResultsUpload(event)">
+        <button class="btn btn-danger" style="font-size:11px;padding:5px 10px" onclick="confirmResetToKeepers()">&#x21BA; Reset to Keepers</button>
+      </div>
     </div>
   </div>
   <div id="draft-upload-status" style="font-size:12px;color:var(--text-3);margin-bottom:10px;display:none"></div>
@@ -2572,13 +2574,12 @@ function applyOwner(key) {
     teamSel.value = yourTeam;
   }
 
-  // Update view badge behaviour: non-commish managers can edit their own team only
-  const _origLoadTeam = window.loadTeam;
-  window.loadTeam = function(name) {
-    IS_COMMISH = (key === COMMISH_KEY) || (name === yourTeam);
-    _origLoadTeam(name);
-    IS_COMMISH = (key === COMMISH_KEY);
-  };
+  // Only the commissioner can edit STATUS, RD, and CON
+  // Non-commish managers get read-only views even for their own team
+
+  // Show/hide commissioner-only draft controls
+  const commishDraftControls = document.getElementById('commish-draft-controls');
+  if (commishDraftControls) commishDraftControls.style.display = isCommish ? 'flex' : 'none';
 
 
   // Boot app
