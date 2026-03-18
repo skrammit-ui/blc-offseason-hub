@@ -779,66 +779,55 @@ function saveHistoricalStandings(ss, year, standings) {
   Logger.log('saveHistoricalStandings: wrote ' + newRows.length + ' rows for year ' + year);
 }
 
-// ── Playoffs sheet: year | round | matchupIndex | team1 | team2 | wins1 | wins2 ──
+// ── Playoffs sheet: year | matchupId | team1 | team2 | winner | loser ──────────
 function getPlayoffsData(ss) {
   const sheet = ss.getSheetByName('Playoffs');
   if (!sheet || sheet.getLastRow() < 2) return {};
   const [headers, ...rows] = sheet.getDataRange().getValues();
   const idx = h => headers.indexOf(h);
-  const byYear = {};
-  rows.forEach(row => {
-    const year       = String(row[idx('year')]         || '').trim();
-    const round      = String(row[idx('round')]        || '').trim();
-    const matchupIdx = Number(row[idx('matchupIndex')] || 0);
-    const team1      = String(row[idx('team1')]        || '').trim();
-    const team2      = String(row[idx('team2')]        || '').trim();
-    const wins1      = row[idx('wins1')] !== '' ? Number(row[idx('wins1')]) : undefined;
-    const wins2      = row[idx('wins2')] !== '' ? Number(row[idx('wins2')]) : undefined;
-    if (!year || !round) return;
-    if (!byYear[year]) byYear[year] = {};
-    if (!byYear[year][round]) byYear[year][round] = { round, matchups: [] };
-    byYear[year][round].matchups[matchupIdx] = { team1, team2, wins1, wins2 };
-  });
-  // Convert to array of rounds in insertion order
   const result = {};
-  Object.keys(byYear).forEach(year => {
-    result[year] = Object.values(byYear[year]);
+  rows.forEach(row => {
+    const year      = String(row[idx('year')]      || '').trim();
+    const matchupId = String(row[idx('matchupId')] || '').trim();
+    const team1     = String(row[idx('team1')]     || '').trim();
+    const team2     = String(row[idx('team2')]     || '').trim();
+    const winner    = String(row[idx('winner')]    || '').trim();
+    const loser     = String(row[idx('loser')]     || '').trim();
+    if (!year || !matchupId) return;
+    if (!result[year]) result[year] = {};
+    result[year][matchupId] = { team1, team2, winner, loser };
   });
   return result;
 }
 
 function savePlayoffs(ss, year, playoffs) {
-  // playoffs = [ { round, matchups: [{team1,team2,wins1,wins2}] } ]
+  // playoffs = { matchupId: { team1, team2, winner, loser } }
   let sheet = ss.getSheetByName('Playoffs');
   if (!sheet) {
     sheet = ss.insertSheet('Playoffs');
-    sheet.getRange(1, 1, 1, 7).setValues([['year','round','matchupIndex','team1','team2','wins1','wins2']]);
+    sheet.getRange(1, 1, 1, 6).setValues([['year','matchupId','team1','team2','winner','loser']]);
+  }
+  // Ensure header is correct (migrate old format)
+  const firstRow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  if (!firstRow.includes('matchupId')) {
+    sheet.clearContents();
+    sheet.getRange(1, 1, 1, 6).setValues([['year','matchupId','team1','team2','winner','loser']]);
   }
   const data = sheet.getDataRange().getValues();
   const headers = data[0];
   const yearIdx = headers.indexOf('year');
   const keepRows = data.slice(1).filter(r => String(r[yearIdx] || '').trim() !== String(year));
-  const newRows = [];
-  (playoffs || []).forEach(roundObj => {
-    (roundObj.matchups || []).forEach((m, mi) => {
-      newRows.push([
-        String(year),
-        roundObj.round || '',
-        mi,
-        m.team1 || '',
-        m.team2 || '',
-        m.wins1 !== undefined ? m.wins1 : '',
-        m.wins2 !== undefined ? m.wins2 : '',
-      ]);
-    });
-  });
+  const newRows = Object.entries(playoffs || {}).map(([id, m]) => [
+    String(year), id,
+    m.team1 || '', m.team2 || '', m.winner || '', m.loser || ''
+  ]);
   const allRows = [...keepRows, ...newRows];
   sheet.clearContents();
-  sheet.getRange(1, 1, 1, 7).setValues([['year','round','matchupIndex','team1','team2','wins1','wins2']]);
+  sheet.getRange(1, 1, 1, 6).setValues([['year','matchupId','team1','team2','winner','loser']]);
   if (allRows.length > 0) {
-    sheet.getRange(2, 1, allRows.length, 7).setValues(allRows);
+    sheet.getRange(2, 1, allRows.length, 6).setValues(allRows);
   }
-  Logger.log('savePlayoffs: wrote ' + newRows.length + ' rows for year ' + year);
+  Logger.log('savePlayoffs: wrote ' + newRows.length + ' matchups for year ' + year);
 }
 
 // ── One-time setup: create Divisions, HistoricalStandings, and Playoffs sheets ─
@@ -861,36 +850,35 @@ function setupStandingsSheets() {
   }
 
   ensureSheet('Divisions',           ['year','division','teamKey']);
-  ensureSheet('HistoricalStandings', ['year','teamKey','W','L','RS','RA']);
-  ensureSheet('Playoffs',            ['year','round','matchupIndex','team1','team2','wins1','wins2']);
+  ensureSheet('Playoffs',            ['year','matchupId','team1','team2','winner','loser']);
 
-  // Seed 2025 division assignments
+  // Seed 2026 division assignments
   const divSheet = ss.getSheetByName('Divisions');
   if (divSheet.getLastRow() < 2) {
-    const seed2025 = [
-      ['2025','Dairy Daddies','deferred'],
-      ['2025','Dairy Daddies','holliday'],
-      ['2025','Dairy Daddies','ironfists'],
-      ['2025','Dairy Daddies','reid'],
-      ['2025','Dairy Daddies','tortured'],
-      ['2025','Thunder Chickens','wetherholt'],
-      ['2025','Thunder Chickens','jardians'],
-      ['2025','Thunder Chickens','domingo'],
-      ['2025','Thunder Chickens','kurtz'],
-      ['2025','Thunder Chickens','perdomo'],
-      ['2025','Iron Pigs','brew'],
-      ['2025','Iron Pigs','danr'],
-      ['2025','Iron Pigs','lovable'],
-      ['2025','Iron Pigs','gunnar'],
-      ['2025','Iron Pigs','parker'],
-      ['2025','Flying Mummies','gelof'],
-      ['2025','Flying Mummies','kiners'],
-      ['2025','Flying Mummies','rally'],
-      ['2025','Flying Mummies','platoon'],
-      ['2025','Flying Mummies','prayers'],
+    const seed2026 = [
+      ['2026','Dairy Daddies','deferred'],
+      ['2026','Dairy Daddies','holliday'],
+      ['2026','Dairy Daddies','ironfists'],
+      ['2026','Dairy Daddies','reid'],
+      ['2026','Dairy Daddies','tortured'],
+      ['2026','Thunder Chickens','wetherholt'],
+      ['2026','Thunder Chickens','jardians'],
+      ['2026','Thunder Chickens','domingo'],
+      ['2026','Thunder Chickens','kurtz'],
+      ['2026','Thunder Chickens','perdomo'],
+      ['2026','Iron Pigs','brew'],
+      ['2026','Iron Pigs','danr'],
+      ['2026','Iron Pigs','lovable'],
+      ['2026','Iron Pigs','gunnar'],
+      ['2026','Iron Pigs','parker'],
+      ['2026','Flying Mummies','gelof'],
+      ['2026','Flying Mummies','kiners'],
+      ['2026','Flying Mummies','rally'],
+      ['2026','Flying Mummies','platoon'],
+      ['2026','Flying Mummies','prayers'],
     ];
-    divSheet.getRange(2, 1, seed2025.length, 3).setValues(seed2025);
-    Logger.log('Seeded 2025 division data: ' + seed2025.length + ' rows.');
+    divSheet.getRange(2, 1, seed2026.length, 3).setValues(seed2026);
+    Logger.log('Seeded 2026 division data: ' + seed2026.length + ' rows.');
   }
 
   Logger.log('✓ setupStandingsSheets complete.');
