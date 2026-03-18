@@ -150,6 +150,7 @@ table.roster-tbl {
 .roster-tbl .col-player  { width: 220px; }
 .player-meta { display: block; font-size: 11px; color: var(--text-3); margin-top: 1px; font-weight: 400; }
 .roster-tbl .col-stat    { width: 52px; text-align: center; font-size: 11px; font-family: var(--mono); }
+.col-stat-mob { display: none; }
 .roster-tbl .col-rd      { width: 52px; text-align: center; }
 .roster-tbl .col-con     { width: 58px; text-align: center; }
 
@@ -617,27 +618,25 @@ input[type=file] { display: none; }
     margin-left: 5px;
   }
 
-  /* Row 3: Stats — labeled "value label" format, hide empty cells */
-  table.roster-tbl .col-stat {
-    order: 3;
-    flex: 0 0 auto;
-    padding-top: 3px;
-  }
-  /* Tighter column gap for the stats row so all fit on one line */
-  table.roster-tbl tr { gap: 4px 2px; }
-  /* Hide cells with no value (data-mob="") */
-  table.roster-tbl .col-stat[data-mob=""] { display: none; }
-  /* Hide the raw value span and projection; show labeled ::before instead */
-  table.roster-tbl .col-stat .stat-val,
-  table.roster-tbl .col-stat .stat-proj { display: none; }
-  table.roster-tbl .col-stat::before {
-    content: attr(data-mob);
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--text-2);
-  }
-  /* Hide irrelevant "—" stat cols (hitter cols on pitcher rows and vice versa) */
+  /* Row 2: smaller player name on mobile */
+  table.roster-tbl .col-player { font-size: 12px; }
+
+  /* Row 3: hide individual stat tds, show single scrollable stats line */
+  table.roster-tbl .col-stat,
   table.roster-tbl .col-stat-irrel { display: none; }
+  table.roster-tbl .col-stat-mob {
+    display: block;
+    order: 3;
+    flex: 0 0 100%;
+    width: 100%;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-2);
+    padding-top: 3px;
+    white-space: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 
   /* Section header rows (Active / Bench / MiLB dividers) */
   table.roster-tbl .tbl-section-hdr { display: block; }
@@ -2335,20 +2334,33 @@ function renderOverview(players, keptPlayers = {}) {
     const statCols = ALL_STATS.map(k => {
       const relevant = isHitter ? HIT_STATS.includes(k) : PIT_STATS.includes(k);
       if (!relevant) return `<td class="col-stat col-stat-irrel c" style="color:var(--border)">—</td>`;
-      // H/AB — check combined column first, then separate H / AB
       if (k === 'H/AB') {
         const v = stats['H/AB'] || (stats['H'] && stats['AB'] ? `${stats['H']}/${stats['AB']}` : '—');
-        const mob = v !== '—' ? v : '';  // fraction is self-evident, no label needed
-        return `<td class="col-stat c" data-mob="${mob}"><span class="stat-val">${v}</span></td>`;
+        return `<td class="col-stat c">${v}</td>`;
       }
       const dataKey = k === 'K/9' ? (stats['K/9'] !== undefined ? 'K/9' : 'K9') : k;
       const v = stats[dataKey] || '—';
       const pv = proj[dataKey];
       const lowerBetter = ['ERA','WHIP'].includes(k);
       const projStr = pv ? `<div class="stat-proj ${lowerBetter ? (parseFloat(pv) <= parseFloat(v) ? 'up':'down') : (parseFloat(pv) >= parseFloat(v) ? 'up':'down')}">${pv}</div>` : '';
-      const mob = v !== '—' ? `${v} ${k}` : '';
-      return `<td class="col-stat c" data-mob="${mob}"><span class="stat-val">${v}</span>${projStr}</td>`;
+      return `<td class="col-stat c">${v}${projStr}</td>`;
     }).join('');
+
+    // Mobile: single scrollable stats line
+    const mobParts = isHitter
+      ? (() => {
+          const parts = [];
+          const hab = stats['H/AB'] || (stats['H'] && stats['AB'] ? `${stats['H']}/${stats['AB']}` : null);
+          if (hab) parts.push(hab);
+          ['R','HR','RBI','SB','OBP'].forEach(k => { const v = stats[k]; if (v) parts.push(`${v} ${k}`); });
+          return parts;
+        })()
+      : ['IP','K','K/9','QA','SVH','ERA','WHIP'].map(k => {
+          const dataKey = k === 'K/9' ? (stats['K/9'] !== undefined ? 'K/9' : 'K9') : k;
+          const v = stats[dataKey] || stats[k];
+          return v ? `${v} ${k}` : null;
+        }).filter(Boolean);
+    const mobStatCell = `<td class="col-stat-mob">${mobParts.join(' · ')}</td>`;
 
     return `<tr data-player="${p.player.replace(/"/g,'&quot;')}" data-manager="${currentTeam.replace(/"/g,'&quot;')}" data-status-norm="${normStatus}">
       <td class="col-status">${stag}</td>
@@ -2356,6 +2368,7 @@ function renderOverview(players, keptPlayers = {}) {
       <td class="col-con c"${editAttr}>${conTag(p.contract, editable)}</td>
       <td class="col-player"><strong>${p.player}</strong>${keepBtn}<span class="player-meta">${p.mlb_team} · ${p.position}</span></td>
       ${statCols}
+      ${mobStatCell}
     </tr>`;
   }).join('');
 
