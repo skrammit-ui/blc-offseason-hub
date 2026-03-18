@@ -617,14 +617,22 @@ input[type=file] { display: none; }
     margin-left: 5px;
   }
 
-  /* Row 3: Stats */
+  /* Row 3: Stats — labeled "value label" format, hide empty cells */
   table.roster-tbl .col-stat {
     order: 3;
     flex: 0 0 auto;
-    text-align: center;
-    min-width: 30px;
-    font-size: 11px;
     padding-top: 3px;
+  }
+  /* Hide cells with no value (data-mob="") */
+  table.roster-tbl .col-stat[data-mob=""] { display: none; }
+  /* Hide the raw value span and projection; show labeled ::before instead */
+  table.roster-tbl .col-stat .stat-val,
+  table.roster-tbl .col-stat .stat-proj { display: none; }
+  table.roster-tbl .col-stat::before {
+    content: attr(data-mob);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-2);
   }
   /* Hide irrelevant "—" stat cols (hitter cols on pitcher rows and vice versa) */
   table.roster-tbl .col-stat-irrel { display: none; }
@@ -1457,8 +1465,7 @@ function slotStatCells(p, sectionType) {
   return cols.map(k => {
     let v;
     if (k === 'H/AB') {
-      const h = stats['H'], ab = stats['AB'];
-      v = (h && ab) ? `${h}/${ab}` : '—';
+      v = stats['H/AB'] || (stats['H'] && stats['AB'] ? `${stats['H']}/${stats['AB']}` : '—');
     } else {
       v = stats[k === 'K/9' ? 'K9' : k] || stats[k] || '—';
     }
@@ -1526,16 +1533,19 @@ function playerRow(p, status, editable, isHitter) {
 
   let statCols = '';
   if (isHitter) {
-    // H/AB combined column
-    const h = stats['H'] || '—', ab = stats['AB'] || '—';
+    // H/AB: check combined column first, then separate H / AB
+    const habRaw = stats['H/AB'] || (stats['H'] && stats['AB'] ? `${stats['H']}/${stats['AB']}` : null);
+    const habVal = habRaw || '—';
     const ph = proj['H'], pab = proj['AB'];
     const habProj = (ph && pab) ? `<div class="stat-proj up" style="font-size:8px">${ph}/${pab}</div>` : '';
-    statCols += `<td class="col-stat c">${h === '—' ? '—' : `${h}/${ab}`}${habProj}</td>`;
+    const habMob = habVal !== '—' ? `${habVal} H/AB` : '';
+    statCols += `<td class="col-stat c" data-mob="${habMob}"><span class="stat-val">${habVal}</span>${habProj}</td>`;
     ['R','HR','RBI','SB','OBP'].forEach(k => {
       const v = stats[k] || '—';
       const pv = proj[k];
       const projStr = pv ? `<div class="stat-proj ${parseFloat(pv) >= parseFloat(v) ? 'up' : 'down'}">${pv}</div>` : '';
-      statCols += `<td class="col-stat c">${v}${projStr}</td>`;
+      const mob = v !== '—' ? `${v} ${k}` : '';
+      statCols += `<td class="col-stat c" data-mob="${mob}"><span class="stat-val">${v}</span>${projStr}</td>`;
     });
   } else {
     ['IP','K','K/9','QA','SVH','ERA','WHIP'].forEach(k => {
@@ -1543,7 +1553,8 @@ function playerRow(p, status, editable, isHitter) {
       const pv = proj[k] || proj[k === 'K/9' ? 'K9' : k];
       const lowerBetter = ['ERA','WHIP'].includes(k);
       const projStr = pv ? `<div class="stat-proj ${lowerBetter ? (parseFloat(pv) <= parseFloat(v) ? 'up' : 'down') : (parseFloat(pv) >= parseFloat(v) ? 'up' : 'down')}">${pv}</div>` : '';
-      statCols += `<td class="col-stat c">${v}${projStr}</td>`;
+      const mob = v !== '—' ? `${v} ${k}` : '';
+      statCols += `<td class="col-stat c" data-mob="${mob}"><span class="stat-val">${v}</span>${projStr}</td>`;
     });
   }
 
