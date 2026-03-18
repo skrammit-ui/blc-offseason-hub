@@ -807,24 +807,26 @@ input[type=file] { display: none; }
   width: 100%; border-collapse: collapse; font-size: 12px;
 }
 .div-standings-tbl thead tr {
-  background: var(--bg); border-bottom: 1px solid var(--border);
+  background: var(--navy); border-bottom: 2px solid var(--gold);
 }
 .div-standings-tbl th {
-  padding: 5px 8px; text-align: right;
-  font-family: var(--mono); font-size: 10px; font-weight: 500;
-  color: var(--text-3); white-space: nowrap;
+  padding: 5px 12px; text-align: left;
+  font-family: var(--head); font-size: 10px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase; color: var(--gold);
+  white-space: nowrap;
 }
-.div-standings-tbl th:first-child,
-.div-standings-tbl th:nth-child(2) { text-align: left; }
 .div-standings-tbl td {
-  padding: 7px 8px; text-align: right;
-  font-family: var(--mono); font-size: 12px; color: var(--text-2);
-  border-bottom: 1px solid var(--border);
+  padding: 5px 8px; border-bottom: 1px solid var(--border);
 }
-.div-standings-tbl td:first-child { text-align: left; color: var(--text-3); font-size: 11px; }
-.div-standings-tbl td:nth-child(2) { text-align: left; font-family: var(--body); font-weight: 600; color: var(--text); }
+.div-standings-tbl td:first-child {
+  font-family: var(--mono); font-weight: 700; color: var(--gold);
+  min-width: 36px; text-align: right; padding-right: 10px; font-size: 11px;
+}
+.div-standings-tbl td:nth-child(2) {
+  font-family: var(--body); font-size: 12px; color: var(--text);
+}
 .div-standings-tbl tr:last-child td { border-bottom: none; }
-.div-standings-tbl tr.div-leader td:nth-child(2) { color: var(--gold); }
+.div-standings-tbl tr.div-leader td:nth-child(2) { font-weight: 700; color: var(--gold); }
 .div-standings-tbl .no-data-row td {
   text-align: center; color: var(--text-3); font-family: var(--body);
   font-size: 12px; padding: 16px;
@@ -2253,7 +2255,7 @@ function renderDivisionCard(divName, year, ownerKeys) {
       <span class="division-card-year">${year}</span>
     </div>
     <table class="div-standings-tbl">
-      <thead><tr><th>#</th><th>Final Standing</th></tr></thead>
+      <thead><tr><th>Rank</th><th>Team</th></tr></thead>
       <tbody>${tbody}</tbody>
     </table>
   </div>`;
