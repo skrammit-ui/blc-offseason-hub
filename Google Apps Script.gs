@@ -23,6 +23,7 @@ function doGet(e) {
       stats:       getStats(ss),
       projections: getProjections(ss),
       r5Status:    getR5Status(ss),
+      draftPlan:   getDraftPlans(ss),
     };
     return corsResponse({ ok: true, data });
   } catch(err) {
@@ -79,6 +80,9 @@ function doPost(e) {
         break;
       case 'importDraftResults':
         importDraftResults(ss, payload.results);
+        break;
+      case 'saveDraftPlan':
+        saveDraftPlan(ss, payload.teamKey, payload.plan);
         break;
       default:
         return corsResponse({ ok: false, error: 'Unknown action: ' + payload.action });
@@ -188,6 +192,21 @@ function getPicks(ss) {
     headers.forEach((h, i) => obj[h] = String(row[i] ?? ''));
     return obj;
   }).filter(r => r.round);
+}
+function getDraftPlans(ss) {
+  const sheet = ss.getSheetByName('DraftPlans');
+  if (!sheet || sheet.getLastRow() < 2) return {};
+  const [headers, ...rows] = sheet.getDataRange().getValues();
+  const plans = {};
+  rows.forEach(row => {
+    const teamKey = String(row[0] || '').trim();
+    const player  = String(row[1] || '').trim();
+    const slotKey = String(row[2] || '').trim();
+    if (!teamKey || !player || !slotKey) return;
+    if (!plans[teamKey]) plans[teamKey] = {};
+    plans[teamKey][player] = slotKey;
+  });
+  return plans;
 }
 function getStats(ss) {
   return _readStatsSheet(ss.getSheetByName('Stats'));
@@ -457,6 +476,27 @@ function r5MovePlayer(ss, playerId, player, fromTeamKey, toTeamKey, newStatus) {
   }
   Logger.log('r5MovePlayer ERROR: could not find player "' + (idNorm || nameNorm) + '" in Rosters sheet');
 }
+// ── Save draft plan to sheet ──────────────────────────────────────────────────
+function saveDraftPlan(ss, teamKey, plan) {
+  const sheet = ss.getSheetByName('DraftPlans') || ss.insertSheet('DraftPlans');
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(['teamKey', 'player', 'slotKey']);
+    sheet.getRange(1, 1, 1, 3)
+      .setFontWeight('bold')
+      .setBackground('#0d1b2a')
+      .setFontColor('#c9a84c');
+  }
+  // Remove existing rows for this team (iterate in reverse to preserve row indices)
+  const data = sheet.getDataRange().getValues();
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][0]).trim() === teamKey) sheet.deleteRow(i + 1);
+  }
+  // Write new plan rows
+  const rows = Object.entries(plan || {}).map(([player, slotKey]) => [teamKey, player, slotKey]);
+  if (rows.length > 0) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 3).setValues(rows);
+  }
+}
 // ── Save stats to sheet ───────────────────────────────────────────────────────
 function saveStats(ss, stats) {
   writeStatsSheet(ss.getSheetByName('Stats') || ss.insertSheet('Stats'), stats);
@@ -512,6 +552,7 @@ function setupSheets() {
     'Picks':       ['round','pick','team','player','mlb_team','position','salary','contract','key'],
     'Stats':       ['Player'],
     'Projections': ['Player'],
+    'DraftPlans':  ['teamKey', 'player', 'slotKey'],
   };
   Object.entries(sheets).forEach(([name, headers]) => {
     let sheet = ss.getSheetByName(name);
