@@ -1503,7 +1503,7 @@ function playerRow(p, status, editable, isHitter) {
   const m = STATUS_META[normStatus] || STATUS_META['MLB'];
   const isMilb = normStatus === 'MiLB';
   const mTile = '';
-  const toggleAttr = editable ? ` onclick="toggleStatus(this)" title="Click to toggle MLB / MiLB" style="cursor:pointer"` : '';
+  const toggleAttr = editable ? ` onclick="openStatusPicker(this)" title="Click to change status" style="cursor:pointer"` : '';
   const stag = `<span class="stag ${m.cls}"${toggleAttr}>${m.label}</span>`;
 
   // Stats columns
@@ -2166,31 +2166,62 @@ function toggleKeeper(btn) {
   buildDraftPlanView(players);
 }
 
-// Toggle MLB ↔ MiLB status on click
-function toggleStatus(el) {
+// Status picker popover — all 5 options
+const STATUS_PICKER_OPTIONS = ['MLB','MiLB','Trade','Rule 5','Expired'];
+const STATUS_RAW = { 'MLB': 'Active', 'MiLB': 'Minors', 'Trade': 'Trade', 'Rule 5': 'Rule 5', 'Expired': 'Expired' };
+
+function openStatusPicker(el) {
+  event && event.stopPropagation && event.stopPropagation();
+  const cur = el.textContent.trim();
+  const label = document.getElementById('pop-label');
+  const grid  = document.getElementById('pop-grid');
+
+  label.textContent = 'Status';
+  grid.className = 'pop-grid cols2';
+  grid.innerHTML = '';
+  STATUS_PICKER_OPTIONS.forEach(s => {
+    const m = STATUS_META[s];
+    const btn = document.createElement('button');
+    btn.className = 'pop-opt' + (s === cur ? ' selected' : '') + (s === 'Expired' ? ' full' : '');
+    btn.style.cssText = `background:${s === cur ? '' : 'var(--bg)'}`;
+    btn.textContent = m.label;
+    btn.onclick = (ev) => { ev.stopPropagation(); applyStatus(el, s); closePop(); };
+    grid.appendChild(btn);
+  });
+
+  const rect = el.getBoundingClientRect();
+  pop.classList.add('open');
+  const pw = pop.offsetWidth || 180;
+  const ph = pop.offsetHeight || 120;
+  let left = rect.left;
+  let top  = rect.bottom + 6;
+  if (left + pw > window.innerWidth - 8)  left = window.innerWidth - pw - 8;
+  if (top  + ph > window.innerHeight - 8) top  = rect.top - ph - 6;
+  pop.style.left = left + 'px';
+  pop.style.top  = top  + 'px';
+}
+
+function applyStatus(el, newStatus) {
   const row     = el.closest('tr');
   const player  = row.dataset.player;
   const manager = row.dataset.manager || currentTeam;
-  const isMLB   = el.textContent.trim() === 'MLB';
-  const newStatus = isMLB ? 'MiLB' : 'MLB';
 
   // Capture current keeper state before re-render
   const keepBtn = row.querySelector('.keep-btn');
-  const wasKept = keepBtn && (keepBtn.classList.contains('kept-mlb') || keepBtn.classList.contains('kept-milb'));
+  const wasKept = keepBtn && (keepBtn.classList.contains('kept-mlb') || keepBtn.classList.contains('kept-milb') || keepBtn.classList.contains('kept-rule5') || keepBtn.classList.contains('kept-trade'));
 
   // Update LEAGUE data
   const team = LEAGUE[manager];
   if (team) {
     const p = team.find(x => x.player === player);
-    if (p) p.status = newStatus === 'MiLB' ? 'Minors' : 'Active';
+    if (p) p.status = STATUS_RAW[newStatus] || newStatus;
   }
 
-  // Re-render overview to move row into correct section
-  // Preserve all existing keeper selections
+  // Re-render overview
   const keptPlayers = getKeptPlayers();
   renderOverview(LEAGUE[manager] || [], keptPlayers);
 
-  // Re-apply keeper state for this player if it was kept
+  // Re-apply keeper state if player was kept
   if (wasKept) {
     const newRow = document.querySelector(`#view-overview tr[data-player="${player.replace(/"/g,'&quot;')}"]`);
     if (newRow) {
@@ -2206,8 +2237,6 @@ function toggleStatus(el) {
   }
 
   initEditable();
-
-  // Rebuild builder + draft
   prefillFromKeepers(LEAGUE[manager] || []);
   buildBuilderView(LEAGUE[manager] || []);
   buildDraftPlanView(LEAGUE[manager] || []);
@@ -2256,7 +2285,7 @@ function renderOverview(players, keptPlayers = {}) {
   const tbody = sorted.map(p => {
     const normStatus = STATUS_MAP[p.status] || 'MLB';
     const m = STATUS_META[normStatus] || STATUS_META['MLB'];
-    const toggleAttr = editable ? ` onclick="toggleStatus(this)" title="Click to toggle MLB / MiLB" style="cursor:pointer"` : '';
+    const toggleAttr = editable ? ` onclick="openStatusPicker(this)" title="Click to change status" style="cursor:pointer"` : '';
     const stag = `<span class="stag ${m.cls}"${toggleAttr}>${m.label}</span>`;
     const isExpiring = p.contract && p.contract.trim() === '2026';
     const keepBtn = isExpiring ? '' : `<span class="keep-btn" onclick="toggleKeeper(this)" title="Mark as keeper">✓</span>`;
