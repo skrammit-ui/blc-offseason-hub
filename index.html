@@ -3499,8 +3499,11 @@ function handleDraftResultsUpload(event) {
     const rdCol  = find('round', 'rd');
     const pkCol  = find('pick', 'pk');
     const plCol  = find('player');
-    const tmCol  = find('mlb', 'team');
-    const mgrCol = find('manager', 'owner');
+    // Avoid matching 'Fantasy Team' for mlb_team — require 'mlb' specifically
+    const tmCol  = find('mlb_team', 'mlbteam', 'mlb');
+    // Prefer an exact 'ownerkey' column; fall back to fuzzy manager/owner match
+    const keyCol = hdrs.find(h => h.toLowerCase() === 'ownerkey') || null;
+    const mgrCol = keyCol ? null : find('manager', 'owner');
     const posCol = find('pos');
     const conCol = find('contract', 'con');
 
@@ -3508,9 +3511,15 @@ function handleDraftResultsUpload(event) {
     for (const r of rows) {
       const playerName = plCol ? (r[plCol] || '').trim() : '';
       if (!playerName) continue;
-      const mgrRaw = mgrCol ? (r[mgrCol] || '').trim() : '';
-      // Normalize to canonical team name; fall back to raw value if unknown
-      const manager = nameToTeam[mgrRaw.toLowerCase()] || mgrRaw;
+      // Use ownerKey column directly if present — map straight to canonical team name
+      let manager;
+      if (keyCol) {
+        const ownerKey = (r[keyCol] || '').trim();
+        manager = OWNER_MAP[ownerKey] || ownerKey;
+      } else {
+        const mgrRaw = mgrCol ? (r[mgrCol] || '').trim() : '';
+        manager = nameToTeam[mgrRaw.toLowerCase()] || mgrRaw;
+      }
       draftResults.push({
         round:    rdCol  ? (r[rdCol]  || '') : '',
         pick:     pkCol  ? (r[pkCol]  || '') : '',
