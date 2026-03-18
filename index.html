@@ -706,13 +706,13 @@ input[type=file] { display: none; }
   /* Drop SAL and CON columns — info is already in the player sub-line */
   .db-th-sal, .db-sal, .db-th-con, .db-con { display: none !important; }
   /* Tight number columns */
-  .db-th-rd,  .db-rd  { padding: 6px 5px !important; width: 26px !important; }
-  .db-th-pk,  .db-pk  { padding: 6px 4px !important; width: 24px !important; }
-  .db-th-ovr, .db-ovr { padding: 6px 4px !important; width: 30px !important; }
+  .db-th-rd,  .db-rd  { padding: 4px 5px !important; width: 26px !important; }
+  .db-th-pk,  .db-pk  { padding: 4px 4px !important; width: 24px !important; }
+  .db-th-ovr, .db-ovr { padding: 4px 4px !important; width: 30px !important; }
   /* Manager: truncate long names */
-  .db-mgr { padding: 6px 6px !important; max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap !important; }
+  .db-mgr { padding: 4px 6px !important; max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap !important; }
   /* Player: tighten padding */
-  .db-player { padding: 6px 6px !important; }
+  .db-player { padding: 4px 6px !important; }
   /* Round header: full-width strip */
   .db-round-hdr { padding: 4px 8px !important; }
 
@@ -724,7 +724,7 @@ input[type=file] { display: none; }
   /* Tighten pool list height */
   #r5-pool { max-height: 340px; }
   /* Board rows: two-line layout */
-  .r5-board-row { flex-wrap: wrap; gap: 4px 8px !important; padding: 8px 10px !important; }
+  .r5-board-row { flex-wrap: wrap; gap: 4px 8px !important; padding: 4px 10px !important; }
   /* Team label: flex-grow to fill line 1, drop fixed min-width */
   .r5-team-label { min-width: 0 !important; flex: 1 !important; }
   /* Player details: full-width second line, indented to align under team name */
@@ -3809,13 +3809,13 @@ function buildDraftBoard() {
           </select>
         </td>`;
       } else {
-        managerCell = `<td class="db-mgr" style="padding:7px 10px;font-size:11px;font-weight:500;color:var(--text-2);border-bottom:1px solid var(--border);white-space:nowrap">${row.manager || row.team || '—'}</td>`;
+        managerCell = `<td class="db-mgr" style="padding:4px 10px;font-size:11px;font-weight:500;color:var(--text-2);border-bottom:1px solid var(--border);white-space:nowrap">${row.manager || row.team || '—'}</td>`;
       }
 
       // Player cell: name + mlb team + position (+ SAL/CON shown on mobile only)
       const playerCell = isOpen
-        ? `<td class="db-player" style="padding:7px 10px;font-size:11px;color:var(--text-3);font-style:italic;border-bottom:1px solid var(--border)">Open pick</td>`
-        : `<td class="db-player" style="padding:7px 10px;border-bottom:1px solid var(--border)">
+        ? `<td class="db-player" style="padding:4px 10px;font-size:11px;color:var(--text-3);font-style:italic;border-bottom:1px solid var(--border)">Open pick</td>`
+        : `<td class="db-player" style="padding:4px 10px;border-bottom:1px solid var(--border)">
             <span style="font-size:12px;font-weight:600;color:var(--text)">${row.player || '—'}</span>
             ${isKeeper ? `<span style="font-size:9px;background:var(--green-lt);color:var(--green);border:1px solid #a8d5bc;border-radius:3px;padding:1px 4px;margin-left:4px;font-family:var(--mono);font-weight:600">K</span>` : ''}
             <div style="font-size:11px;color:var(--text-3);margin-top:1px">${row.mlb_team||''} &middot; ${row.position||''}${sal ? ` &middot; Rd&nbsp;${sal}` : ''}${row.contract ? ` &middot; ${row.contract}` : ''}</div>
@@ -3825,13 +3825,13 @@ function buildDraftBoard() {
       const ovr = !isNaN(pkNum) ? cumPicksBefore[rd] + pkNum : '—';
 
       html += `<tr style="${rowBg}">
-        <td class="db-rd"  style="padding:7px 8px;text-align:center;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text-3);border-bottom:1px solid var(--border)">${rd}</td>
-        <td class="db-pk"  style="padding:7px 6px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--text-3);border-bottom:1px solid var(--border)">${row.pk}</td>
-        <td class="db-ovr" style="padding:7px 6px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--text-3);border-bottom:1px solid var(--border)">${ovr}</td>
+        <td class="db-rd"  style="padding:4px 8px;text-align:center;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text-3);border-bottom:1px solid var(--border)">${rd}</td>
+        <td class="db-pk"  style="padding:4px 6px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--text-3);border-bottom:1px solid var(--border)">${row.pk}</td>
+        <td class="db-ovr" style="padding:4px 6px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--text-3);border-bottom:1px solid var(--border)">${ovr}</td>
         ${managerCell}
         ${playerCell}
-        <td class="db-sal" style="padding:5px 8px;text-align:center;border-bottom:1px solid var(--border)">${isOpen ? '' : rdTile(sal, false, salBump)}</td>
-        <td class="db-con" style="padding:5px 8px;text-align:center;border-bottom:1px solid var(--border)">${isOpen ? '' : conTag(row.contract || '', false)}</td>
+        <td class="db-sal" style="padding:4px 8px;text-align:center;border-bottom:1px solid var(--border)">${isOpen ? '' : rdTile(sal, false, salBump)}</td>
+        <td class="db-con" style="padding:4px 8px;text-align:center;border-bottom:1px solid var(--border)">${isOpen ? '' : conTag(row.contract || '', false)}</td>
       </tr>`;
     });
   }
@@ -4043,8 +4043,8 @@ function buildKeepersPage() {
         : `<table style="width:100%;border-collapse:collapse">
             <thead><tr style="background:var(--bg)">
               <th style="font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:5px 10px;text-align:left;border-bottom:1px solid var(--border)">Player</th>
-              <th style="font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:5px 8px;text-align:center;border-bottom:1px solid var(--border)">Rd</th>
-              <th style="font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:5px 8px;text-align:center;border-bottom:1px solid var(--border)">Con</th>
+              <th style="font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:4px 8px;text-align:center;border-bottom:1px solid var(--border)">Rd</th>
+              <th style="font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:4px 8px;text-align:center;border-bottom:1px solid var(--border)">Con</th>
             </tr></thead>
             <tbody>${rowsHtml}</tbody>
           </table>`
@@ -4326,7 +4326,7 @@ function r5RenderBoard() {
       pickContent = `<span class="r5-pick-pending" style="font-size:12px;color:var(--text-3);font-style:italic">Pending</span>`;
     }
 
-    html += `<div class="r5-board-row" style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);${rowStyle}">
+    html += `<div class="r5-board-row" style="display:flex;align-items:center;gap:10px;padding:4px 14px;border-bottom:1px solid var(--border);${rowStyle}">
       ${pickNumBadge}
       ${teamLabel}
       ${pickContent}
@@ -4385,7 +4385,7 @@ function r5RenderPool() {
     const safePlayer = p.player.replace(/'/g, "\'");
     const safeTeam   = p.fromTeam.replace(/'/g, "\'");
     const clickable  = canPick;
-    return `<div style="display:flex;align-items:center;gap:6px;padding:7px 8px;border-radius:5px;border:1px solid var(--border);background:var(--surface);${clickable ? 'cursor:pointer' : 'opacity:.5;cursor:not-allowed'};transition:background .1s"
+    return `<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:5px;border:1px solid var(--border);background:var(--surface);${clickable ? 'cursor:pointer' : 'opacity:.5;cursor:not-allowed'};transition:background .1s"
       ${clickable ? `onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='var(--surface)'"` : ''}
       ${clickable ? `onclick="r5SelectPlayer('${safePlayer}','${safeTeam}')"` : ''}>
       <div style="flex:1;min-width:0">
