@@ -1034,11 +1034,18 @@ input[type=file] { display: none; }
   overflow: hidden; background: var(--surface); margin: 0 6px 4px;
 }
 .smatchup-label {
+  display: flex; align-items: center; justify-content: space-between;
   background: var(--bg); border-bottom: 1px solid var(--border);
   font-size: 9px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .06em; color: var(--text-3);
   padding: 2px 8px;
 }
+.smatchup-reset {
+  background: none; border: none; cursor: pointer; padding: 0 2px;
+  font-size: 13px; color: var(--text-3); line-height: 1;
+  opacity: .6; transition: opacity .15s;
+}
+.smatchup-reset:hover { opacity: 1; color: var(--red); }
 .smatchup-team {
   display: flex; align-items: center; gap: 6px;
   padding: 4px 10px; border-bottom: 1px solid var(--border);
@@ -1059,22 +1066,18 @@ input[type=file] { display: none; }
   font-size: 11px; color: var(--text-3); text-align: center;
   background: var(--bg);
 }
-/* Final standings inline column — styled as a tall matchup card */
+/* Final standings inline column — pairs rendered as smatchup cards */
 .bfs-col { min-width: 280px; }
-.bfs-col .bracket-round-matchups {
-  border: 1px solid var(--border); border-radius: var(--r);
-  overflow: hidden; background: var(--surface); margin: 0 6px;
-}
 .bfs-col-header {
   display: flex; align-items: center; gap: 0;
-  background: var(--bg); border-bottom: 1px solid var(--border);
-  padding: 2px 10px;
+  border: 1px solid var(--border); border-radius: var(--r);
+  background: var(--bg); padding: 3px 10px; margin: 0 6px 4px;
   font-family: var(--head); font-size: 9px; font-weight: 700;
   letter-spacing: .06em; text-transform: uppercase;
 }
 .bfs-col-header .bfs-rank,
 .bfs-col-header .bfs-team,
-.bfs-col-header .bfs-pick { color: var(--text-3); font-family: var(--head); }
+.bfs-col-header .bfs-pick { color: var(--text-3); font-family: var(--head); font-weight: 700; }
 .bfs-row {
   display: flex; align-items: center; gap: 0;
   padding: 4px 10px; font-size: 12px;
@@ -1091,9 +1094,14 @@ input[type=file] { display: none; }
   min-width: 44px; text-align: center;
   color: var(--text-2); font-family: var(--mono); font-size: 11px;
 }
-.bfs-col-header .bfs-rank { color: var(--text-3); font-family: var(--head); font-weight: 700; }
 .bfs-tbd .bfs-team { color: var(--text-3); font-style: italic; }
 .bfs-tbd .bfs-pick { color: var(--text-3); }
+/* Rank highlights */
+.bfs-rank-1  { background: var(--green-lt); } .bfs-rank-1  .bfs-rank { color: var(--green); }
+.bfs-rank-2  { background: rgba(255,215,0,.18); } .bfs-rank-2  .bfs-rank { color: #8a6f00; }
+.bfs-rank-3  { background: rgba(255,120,0,.13); } .bfs-rank-3  .bfs-rank { color: #b85c00; }
+.bfs-rank-4  { background: rgba(150,30,220,.11); } .bfs-rank-4  .bfs-rank { color: #7b20b0; }
+.bfs-rank-9  { background: var(--blue-lt); } .bfs-rank-9  .bfs-rank { color: var(--blue); }
 </style>
 </head>
 <body>
@@ -2312,8 +2320,15 @@ function renderPlayoffBracket(year) {
       </div>`;
     }
 
+    const resetBtn = (canEdit && w)
+      ? `<button class="smatchup-reset" onclick="clearBracketMatchup('${year}','${matchupId}')" title="Reset result">↺</button>`
+      : '';
+    const labelHtml = lbl
+      ? `<div class="smatchup-label"><span>${lbl}</span>${resetBtn}</div>`
+      : (resetBtn ? `<div class="smatchup-label"><span></span>${resetBtn}</div>` : '');
+
     return `<div class="smatchup">
-      ${lbl ? `<div class="smatchup-label">${lbl}</div>` : ''}
+      ${labelHtml}
       ${teamRow(s.team1, n1, 'team1')}
       ${teamRow(s.team2, n2, 'team2')}
     </div>`;
@@ -2350,35 +2365,47 @@ function renderPlayoffBracket(year) {
 
   function renderStandingsColumn(bracketType) {
     const entries = FINALS_MAP[bracketType] || [];
-    const rows = [];
+    const pairs = [];
     entries.forEach(({ id, w, l }) => {
       const s = state[id] || {};
-      rows.push({ place: w, rank: parseInt(w), key: s.winner || null });
-      rows.push({ place: l, rank: parseInt(l), key: s.loser  || null });
+      pairs.push([
+        { place: w, rank: parseInt(w), key: s.winner || null },
+        { place: l, rank: parseInt(l), key: s.loser  || null },
+      ]);
     });
-    if (rows.every(r => !r.key)) return '';
-    const items = rows.map(({ place, rank, key }) => {
+    if (pairs.every(([a,b]) => !a.key && !b.key)) return '';
+
+    function rowHtml({ place, rank, key }) {
       const name  = key ? (OWNER_MAP[key] || key) : 'TBD';
       const draft = key ? draftPick(rank) : '—';
       const r5    = key ? r5Pick(rank)    : '—';
-      return `<div class="bfs-row${key ? '' : ' bfs-tbd'}">
+      const rnkCls = [1,2,3,4,9].includes(rank) ? ` bfs-rank-${rank}` : '';
+      return `<div class="bfs-row${key ? '' : ' bfs-tbd'}${rnkCls}">
         <span class="bfs-rank">${place}</span>
         <span class="bfs-team">${name}</span>
         <span class="bfs-pick">${draft}</span>
         <span class="bfs-pick">${r5}</span>
       </div>`;
-    }).join('');
+    }
+
+    const cards = pairs.map(([top, bot]) =>
+      `<div class="smatchup">
+        <div class="smatchup-label">${top.place} / ${bot.place}</div>
+        ${rowHtml(top)}${rowHtml(bot)}
+      </div>`
+    ).join('');
+
     return `<div class="bracket-connector-col"></div>
     <div class="bracket-round-col bfs-col">
       <div class="bracket-col-label">Final<br>Standings</div>
       <div class="bracket-round-matchups">
-        <div class="bfs-row bfs-col-header">
+        <div class="bfs-col-header">
           <span class="bfs-rank">Rank</span>
           <span class="bfs-team">Team</span>
           <span class="bfs-pick">Draft</span>
           <span class="bfs-pick">Rule 5</span>
         </div>
-        ${items}
+        ${cards}
       </div>
     </div>`;
   }
@@ -2504,6 +2531,54 @@ function setBracketWinner(year, matchupId, winnerKey) {
 function saveBracketToSheet(year) {
   remotePost({ action: 'savePlayoffs', year, playoffs: PLAYOFFS_DATA[year] })
     .then(r => { if (!r?.ok) toast('⚠ Playoffs sync failed'); });
+}
+
+// ── Clear a matchup result and cascade downstream ─────────────────────────────
+function clearBracketMatchup(year, matchupId) {
+  if (!IS_COMMISH) return;
+  if (!PLAYOFFS_DATA[year]) return;
+  const state = PLAYOFFS_DATA[year];
+  const m = state[matchupId];
+  if (!m || !m.winner) return;
+
+  const prevWinner = m.winner;
+  const prevLoser  = m.loser;
+  m.winner = ''; m.loser = '';
+
+  const tmpl = BRACKET_TEMPLATE[matchupId];
+  if (tmpl.winnerTo && prevWinner) {
+    const [nextId, slot] = tmpl.winnerTo;
+    removeCascade(state, nextId, slot, prevWinner);
+  }
+  if (tmpl.loserTo && prevLoser) {
+    const [nextId, slot] = tmpl.loserTo;
+    removeCascade(state, nextId, slot, prevLoser);
+  }
+
+  renderPlayoffBracket(year);
+  saveBracketToSheet(year);
+}
+
+function removeCascade(state, matchupId, slot, teamKey) {
+  const m = state[matchupId];
+  if (!m || m[slot] !== teamKey) return;
+  m[slot] = '';
+  // If this team was the winner or loser, clear result and cascade further
+  if (m.winner === teamKey) {
+    m.winner = ''; m.loser = '';
+    const tmpl = BRACKET_TEMPLATE[matchupId];
+    if (tmpl && tmpl.winnerTo) {
+      const [nextId, nextSlot] = tmpl.winnerTo;
+      if (state[nextId]) removeCascade(state, nextId, nextSlot, teamKey);
+    }
+  } else if (m.loser === teamKey) {
+    m.winner = ''; m.loser = '';
+    const tmpl = BRACKET_TEMPLATE[matchupId];
+    if (tmpl && tmpl.loserTo) {
+      const [nextId, nextSlot] = tmpl.loserTo;
+      if (state[nextId]) removeCascade(state, nextId, nextSlot, teamKey);
+    }
+  }
 }
 
 // ── Division drag-and-drop ordering ──────────────────────────────────────────
