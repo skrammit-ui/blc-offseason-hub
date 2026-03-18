@@ -1055,7 +1055,7 @@ input[type=file] { display: none; }
   font-size: 11px; color: var(--text-3); text-align: center;
   background: var(--bg);
 }
-/* Final standings strip */
+/* Final standings table */
 .bracket-final-standings {
   margin: 16px 0 4px;
   border-top: 1px solid var(--border);
@@ -1066,19 +1066,23 @@ input[type=file] { display: none; }
   letter-spacing: .07em; text-transform: uppercase; color: var(--text-3);
   margin-bottom: 8px;
 }
-.bfs-grid {
-  display: flex; flex-wrap: wrap; gap: 6px 12px;
+.bfs-table {
+  border-collapse: collapse; font-size: 12px; width: auto; min-width: 320px;
 }
-.bfs-row {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 12px; min-width: 180px;
+.bfs-table thead tr { background: var(--navy); }
+.bfs-table th {
+  padding: 5px 12px; text-align: left; font-family: var(--head);
+  font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--gold); white-space: nowrap;
 }
-.bfs-place {
-  font-family: var(--mono); font-size: 11px; font-weight: 700;
-  color: var(--gold); min-width: 28px; text-align: right;
+.bfs-table td { padding: 5px 12px; border-bottom: 1px solid var(--border); }
+.bfs-rank {
+  font-family: var(--mono); font-weight: 700; color: var(--gold);
+  text-align: right; white-space: nowrap;
 }
-.bfs-name { color: var(--text); }
-.bfs-tbd .bfs-name { color: var(--text-3); font-style: italic; }
+.bfs-team { color: var(--text); white-space: nowrap; }
+.bfs-pick { text-align: center; color: var(--text-2); font-family: var(--mono); }
+.bfs-tbd td { color: var(--text-3); font-style: italic; }
 </style>
 </head>
 <body>
@@ -2323,25 +2327,42 @@ function renderPlayoffBracket(year) {
     ],
   };
 
+  function draftPick(rank) {
+    if (rank >= 9)  return rank - 8;   // 9th→1 … 20th→12
+    if (rank >= 5)  return rank + 8;   // 5th→13 … 8th→16
+    return 21 - rank;                  // 4th→17 … 1st→20
+  }
+  function r5Pick(rank) {
+    if (rank >= 17) return rank - 16;  // 17th→1 … 20th→4
+    return 21 - rank;                  // 16th→5 … 1st→20
+  }
+
   function renderFinalStandings(bracketType) {
     const entries = FINALS_MAP[bracketType] || [];
     const rows = [];
     entries.forEach(({ id, w, l }) => {
       const s = state[id] || {};
-      rows.push({ place: w, key: s.winner || null });
-      rows.push({ place: l, key: s.loser  || null });
+      rows.push({ place: w, rank: parseInt(w), key: s.winner || null });
+      rows.push({ place: l, rank: parseInt(l), key: s.loser  || null });
     });
     if (rows.every(r => !r.key)) return '';
-    const items = rows.map(({ place, key }) => {
-      const name = key ? (OWNER_MAP[key] || key) : '—';
-      return `<div class="bfs-row${key ? '' : ' bfs-tbd'}">
-        <span class="bfs-place">${place}</span>
-        <span class="bfs-name">${name}</span>
-      </div>`;
+    const trs = rows.map(({ place, rank, key }) => {
+      const name  = key ? (OWNER_MAP[key] || key) : '—';
+      const draft = key ? draftPick(rank) : '—';
+      const r5    = key ? r5Pick(rank)    : '—';
+      return `<tr class="${key ? '' : 'bfs-tbd'}">
+        <td class="bfs-rank">${place}</td>
+        <td class="bfs-team">${name}</td>
+        <td class="bfs-pick">${draft}</td>
+        <td class="bfs-pick">${r5}</td>
+      </tr>`;
     }).join('');
     return `<div class="bracket-final-standings">
       <div class="bfs-header">Final Standings</div>
-      <div class="bfs-grid">${items}</div>
+      <table class="bfs-table">
+        <thead><tr><th>Rank</th><th>Team</th><th>Draft</th><th>Rule 5</th></tr></thead>
+        <tbody>${trs}</tbody>
+      </table>
     </div>`;
   }
 
