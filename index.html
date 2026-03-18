@@ -3332,7 +3332,101 @@ function buildDraftPlanView(players) {
 
   boardEl.innerHTML = boardHtml;
 
+  // Attach touch drag listeners once — event delegation on the container
+  if (!boardEl._touchDrag) {
+    boardEl._touchDrag = true;
+    boardEl.addEventListener('touchstart', _draftTouchStart, {passive:false});
+    boardEl.addEventListener('touchmove',  _draftTouchMove,  {passive:false});
+    boardEl.addEventListener('touchend',   _draftTouchEnd,   {passive:false});
+  }
+
   // Right panel — unplaced keepers pool
+}
+
+// ── Touch drag for Draft Planner ─────────────────────────────────────────────
+// Implements finger drag-and-drop since the HTML DnD API is unsupported on mobile.
+// Reuses the same draggedPlayer variable and draftDrop() logic as desktop drag.
+let _dpGhost = null, _dpSrc = null, _dpTouchTarget = null;
+
+function _draftTouchStart(e) {
+  const row = e.target.closest('.draft-round[draggable]');
+  if (!row) return;
+  const slotKey = row.id.slice('dround-'.length);
+  const p = (draftAssignments[slotKey] || [])[0];
+  if (!p) return;
+  e.preventDefault();
+  draggedPlayer = p;
+  _dpSrc = slotKey;
+
+  // Build a ghost clone that follows the finger
+  const t = e.touches[0];
+  _dpGhost = row.cloneNode(true);
+  Object.assign(_dpGhost.style, {
+    position: 'fixed',
+    pointerEvents: 'none',
+    zIndex: '9999',
+    opacity: '.88',
+    width: row.offsetWidth + 'px',
+    left: (t.clientX - row.offsetWidth / 2) + 'px',
+    top:  (t.clientY - 36) + 'px',
+    transform: 'scale(1.03)',
+    boxShadow: '0 8px 24px rgba(0,0,0,.22)',
+    borderRadius: '6px',
+    transition: 'none',
+  });
+  document.body.appendChild(_dpGhost);
+  row.style.opacity = '.35';
+}
+
+function _draftTouchMove(e) {
+  if (!_dpGhost) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  _dpGhost.style.left = (t.clientX - _dpGhost.offsetWidth / 2) + 'px';
+  _dpGhost.style.top  = (t.clientY - 36) + 'px';
+
+  // Detect which draft-round row is under the finger
+  _dpGhost.style.display = 'none';
+  const under = document.elementFromPoint(t.clientX, t.clientY);
+  _dpGhost.style.display = '';
+  const targetRow = under?.closest('.draft-round');
+
+  // Clear previous highlight
+  if (_dpTouchTarget && _dpTouchTarget !== targetRow) {
+    _dpTouchTarget.classList.remove('drag-over', 'drag-over-ok', 'drag-over-warn');
+  }
+  if (targetRow && targetRow.id && draggedPlayer) {
+    const sk  = targetRow.id.slice('dround-'.length);
+    const rd  = parseInt(sk.split('_')[0]) || parseInt(sk);
+    const sal = parseInt(draggedPlayer.salary) || 0;
+    targetRow.classList.add(rd > sal ? 'drag-over-warn' : rd === sal ? 'drag-over-ok' : 'drag-over');
+    _dpTouchTarget = targetRow;
+  } else {
+    _dpTouchTarget = null;
+  }
+}
+
+function _draftTouchEnd(e) {
+  if (!_dpGhost) return;
+  e.preventDefault();
+  const t = e.changedTouches[0];
+
+  // Remove ghost and restore source opacity
+  _dpGhost.remove(); _dpGhost = null;
+  const srcEl = document.getElementById('dround-' + _dpSrc);
+  if (srcEl) srcEl.style.opacity = '';
+  if (_dpTouchTarget) _dpTouchTarget.classList.remove('drag-over', 'drag-over-ok', 'drag-over-warn');
+
+  // Find drop target and execute
+  const under = document.elementFromPoint(t.clientX, t.clientY);
+  const targetRow = under?.closest('.draft-round');
+  if (targetRow && targetRow.id) {
+    draftDrop({ preventDefault: () => {} }, targetRow.id.slice('dround-'.length));
+  } else {
+    draggedPlayer = null;
+  }
+  _dpSrc = null;
+  _dpTouchTarget = null;
 }
 
 function draftSlotDragStart(event, slotKey) {
