@@ -4318,6 +4318,11 @@ function r5Reset() {
   if (!IS_COMMISH) return;
   if (r5Picks.length > 0 && !confirm('Reset the entire Rule 5 draft? This will undo all picks and move players back to their original teams.')) return;
   while (r5Picks.length > 0) r5UndoLastPick();
+  r5Status = 'pending';
+  remotePost({ action: 'setR5Status', status: 'pending' });
+  r5RenderPageControls();
+  r5RenderBoard();
+  r5RenderPool();
 }
 
 function r5Start() {
