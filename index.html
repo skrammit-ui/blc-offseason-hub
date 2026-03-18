@@ -2241,6 +2241,10 @@ function applyStatus(el, newStatus) {
   buildBuilderView(LEAGUE[manager] || []);
   buildDraftPlanView(LEAGUE[manager] || []);
 
+  // Persist to Google Sheet
+  const rawStatus = STATUS_RAW[newStatus] || newStatus;
+  remotePost({ action: 'editPlayer', teamKey: ownerKeyFor(manager) || manager, playerId: playerIdFor(manager, player), fields: { status: rawStatus } });
+
   toast(`${player} → ${newStatus}`);
 }
 
