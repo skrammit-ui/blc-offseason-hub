@@ -153,6 +153,7 @@ table.roster-tbl {
 .roster-tbl .col-stat    { width: 52px; text-align: center; font-size: 11px; font-family: var(--mono); }
 .col-stat-mob { display: none; }
 .slot-stat-mob { display: none; }
+.slot-rd-mob   { display: none; }
 .draft-stat-mob { display: none; }
 .roster-tbl .col-rd      { width: 52px; text-align: center; }
 .roster-tbl .col-con     { width: 58px; text-align: center; }
@@ -661,6 +662,7 @@ input[type=file] { display: none; }
   /* Player content: single row — Player · Team · Pos */
   .slot-player-content { display: flex !important; flex-direction: row !important; align-items: center !important; gap: 0 5px !important; flex-wrap: nowrap !important; overflow: hidden; }
   .slot-compact-stat { display: none; }
+  .slot-rd-mob { display: inline-flex; align-items: center; flex-shrink: 0; margin-left: auto; }
   /* Stats sub-line: second row, full width */
   .slot-stat-mob {
     display: block;
@@ -3056,6 +3058,7 @@ function buildBuilderView(players) {
              <span class="slot-meta">${filled.mlb_team} · ${filled.position}</span>
            </div>
            ${slotStatCells(filled, slot.type)}
+           <span class="slot-rd-mob">${rdTile(filled.salary)}</span>
            <span class="slot-clear" onclick="clearSlot('${slot.id}')">✕</span>
            ${mobStatLine}`
         : `<span style="flex:1;font-size:11px;color:var(--text-3);font-style:italic">Empty — drag a player here</span>
@@ -3086,6 +3089,7 @@ function buildBuilderView(players) {
              </div>
              <span class="slot-meta">${filled.mlb_team} · ${filled.position}</span>
            </div>
+           <span class="slot-rd-mob">${rdTile(filled.salary)}</span>
            <span class="slot-clear" onclick="clearSlot('${slot.id}')">✕</span>
            ${elseStatLine}`
         : `<span style="font-size:11px;color:var(--text-3);font-style:italic">Empty — drag a player here</span>`;
