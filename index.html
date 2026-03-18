@@ -1055,6 +1055,30 @@ input[type=file] { display: none; }
   font-size: 11px; color: var(--text-3); text-align: center;
   background: var(--bg);
 }
+/* Final standings strip */
+.bracket-final-standings {
+  margin: 16px 0 4px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+.bfs-header {
+  font-family: var(--head); font-size: 11px; font-weight: 700;
+  letter-spacing: .07em; text-transform: uppercase; color: var(--text-3);
+  margin-bottom: 8px;
+}
+.bfs-grid {
+  display: flex; flex-wrap: wrap; gap: 6px 12px;
+}
+.bfs-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; min-width: 180px;
+}
+.bfs-place {
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  color: var(--gold); min-width: 28px; text-align: right;
+}
+.bfs-name { color: var(--text); }
+.bfs-tbd .bfs-name { color: var(--text-3); font-style: italic; }
 </style>
 </head>
 <body>
@@ -2280,6 +2304,47 @@ function renderPlayoffBracket(year) {
     </div>`;
   }
 
+  const FINALS_MAP = {
+    champ:  [
+      { id:'ws',      w:'1st',  l:'2nd'  },
+      { id:'ch_3rd',  w:'3rd',  l:'4th'  },
+      { id:'ch_5th',  w:'5th',  l:'6th'  },
+      { id:'ch_7th',  w:'7th',  l:'8th'  },
+    ],
+    consol: [
+      { id:'co_9th',  w:'9th',  l:'10th' },
+      { id:'co_11th', w:'11th', l:'12th' },
+      { id:'co_13th', w:'13th', l:'14th' },
+      { id:'co_15th', w:'15th', l:'16th' },
+    ],
+    r5: [
+      { id:'r5_22_w', w:'17th', l:'18th' },
+      { id:'r5_22_l', w:'19th', l:'20th' },
+    ],
+  };
+
+  function renderFinalStandings(bracketType) {
+    const entries = FINALS_MAP[bracketType] || [];
+    const rows = [];
+    entries.forEach(({ id, w, l }) => {
+      const s = state[id] || {};
+      rows.push({ place: w, key: s.winner || null });
+      rows.push({ place: l, key: s.loser  || null });
+    });
+    if (rows.every(r => !r.key)) return '';
+    const items = rows.map(({ place, key }) => {
+      const name = key ? (OWNER_MAP[key] || key) : '—';
+      return `<div class="bfs-row${key ? '' : ' bfs-tbd'}">
+        <span class="bfs-place">${place}</span>
+        <span class="bfs-name">${name}</span>
+      </div>`;
+    }).join('');
+    return `<div class="bracket-final-standings">
+      <div class="bfs-header">Final Standings</div>
+      <div class="bfs-grid">${items}</div>
+    </div>`;
+  }
+
   function renderSection(bracketType, title, emoji) {
     const layout = BRACKET_LAYOUT[bracketType];
     const cols = layout.map(col => {
@@ -2293,6 +2358,7 @@ function renderPlayoffBracket(year) {
     return `<div class="bracket-section">
       <div class="bracket-section-title">${emoji} ${title}<span class="bracket-section-sub">${canEdit ? 'Click a team to advance them' : ''}</span></div>
       <div class="bracket-outer"><div class="bracket-wrap">${cols}</div></div>
+      ${renderFinalStandings(bracketType)}
     </div>`;
   }
 
