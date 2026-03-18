@@ -1002,9 +1002,9 @@ input[type=file] { display: none; }
 
     <!-- Legend bar -->
     <div id="view-legend" style="padding:8px 18px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;font-size:12px;color:var(--text-3)">
-      <span class="stag stag-active" style="cursor:default">MLB</span> uses a draft slot &nbsp;
-      <span class="stag stag-milb" style="cursor:default">MiLB</span> no slot needed &nbsp;
-      <span class="ctag ctag-exp"  style="cursor:default">2026</span>
+      <span class="stag stag-active" style="cursor:default">MLB</span>
+      <span class="stag stag-milb" style="cursor:default">MiLB</span>
+      <span style="margin-left:8px"></span><span class="ctag ctag-exp"  style="cursor:default">2026</span>
       <span class="ctag ctag-2027" style="cursor:default">2027</span>
       <span class="ctag ctag-2028" style="cursor:default">2028</span>
       <span class="ctag ctag-ok"   style="cursor:default">2029</span>
@@ -2655,9 +2655,9 @@ function switchView(view, btn) {
     legend.innerHTML = `<span style="font-size:12px;color:var(--text-3)">Auto-populated using keeper salary rounds. Drag keepers between pick slots to reassign — <span style="color:var(--green);font-weight:600">green</span> = exact SAL match, gold = valid bump, <span style="color:#d97706;font-weight:600">amber</span> = later than SAL.</span>`;
   } else {
     legend.innerHTML = `
-      <span class="stag stag-active" style="cursor:default">MLB</span> uses a draft slot &nbsp;
-      <span class="stag stag-milb" style="cursor:default">MiLB</span> no slot needed &nbsp;
-      <span class="ctag ctag-exp" style="cursor:default">2026</span> expiring &nbsp;&nbsp;
+      <span class="stag stag-active" style="cursor:default">MLB</span>
+      <span class="stag stag-milb" style="cursor:default">MiLB</span>
+      <span style="margin-left:8px"></span><span class="ctag ctag-exp" style="cursor:default">2026</span> expiring &nbsp;&nbsp;
       <span style="margin-left:auto;font-size:11px">Click <strong>✓</strong> on any player to mark as keeper</span>`;
   }
 }
