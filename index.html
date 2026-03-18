@@ -744,6 +744,224 @@ input[type=file] { display: none; }
   .brand-name { font-size: 13px; }
   .page-title { font-size: 18px; }
 }
+
+/* ══ STANDINGS PAGE ══════════════════════════════════════════════════════════ */
+
+/* Year tabs */
+.year-tabs {
+  display: flex; gap: 4px; margin-bottom: 20px;
+}
+.year-tab {
+  font-family: var(--head); font-size: 14px; font-weight: 700;
+  padding: 6px 20px; border-radius: 20px; border: 1.5px solid var(--border);
+  background: var(--surface); color: var(--text-2); cursor: pointer;
+  transition: all .12s;
+}
+.year-tab:hover { border-color: var(--gold); color: var(--text); }
+.year-tab.active {
+  background: var(--navy); color: #fff; border-color: var(--navy);
+}
+
+/* Section label */
+.standings-section-label {
+  font-family: var(--head); font-size: 13px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text-3); margin-bottom: 12px;
+}
+
+/* Division grid — 4 columns desktop, 2 tablet, 1 mobile */
+.division-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 8px;
+}
+@media (max-width: 1100px) {
+  .division-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+  .division-grid { grid-template-columns: 1fr; }
+}
+
+/* Division card */
+.division-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); overflow: hidden;
+}
+.division-card-header {
+  background: var(--navy); color: #fff;
+  padding: 10px 14px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.division-card-name {
+  font-family: var(--head); font-size: 15px; font-weight: 800;
+  letter-spacing: .02em;
+}
+.division-card-year {
+  font-size: 10px; color: var(--gold); font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+
+/* Division standings table */
+.div-standings-tbl {
+  width: 100%; border-collapse: collapse; font-size: 12px;
+}
+.div-standings-tbl thead tr {
+  background: var(--bg); border-bottom: 1px solid var(--border);
+}
+.div-standings-tbl th {
+  padding: 5px 8px; text-align: right;
+  font-family: var(--mono); font-size: 10px; font-weight: 500;
+  color: var(--text-3); white-space: nowrap;
+}
+.div-standings-tbl th:first-child,
+.div-standings-tbl th:nth-child(2) { text-align: left; }
+.div-standings-tbl td {
+  padding: 7px 8px; text-align: right;
+  font-family: var(--mono); font-size: 12px; color: var(--text-2);
+  border-bottom: 1px solid var(--border);
+}
+.div-standings-tbl td:first-child { text-align: left; color: var(--text-3); font-size: 11px; }
+.div-standings-tbl td:nth-child(2) { text-align: left; font-family: var(--body); font-weight: 600; color: var(--text); }
+.div-standings-tbl tr:last-child td { border-bottom: none; }
+.div-standings-tbl tr.div-leader td:nth-child(2) { color: var(--gold); }
+.div-standings-tbl .no-data-row td {
+  text-align: center; color: var(--text-3); font-family: var(--body);
+  font-size: 12px; padding: 16px;
+}
+
+/* Playoff bracket */
+.bracket-outer {
+  overflow-x: auto; padding-bottom: 8px;
+}
+.bracket-wrap {
+  display: flex; gap: 0; align-items: flex-start;
+  min-width: fit-content;
+}
+.bracket-round-col {
+  display: flex; flex-direction: column;
+  min-width: 200px;
+}
+.bracket-round-label {
+  font-family: var(--head); font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text-3); text-align: center;
+  padding: 0 16px 10px;
+}
+.bracket-round-matchups {
+  display: flex; flex-direction: column;
+  flex: 1;
+}
+
+/* Connector column between rounds */
+.bracket-connector-col {
+  display: flex; flex-direction: column;
+  width: 28px; flex-shrink: 0;
+  justify-content: space-around;
+}
+.bracket-connector-pair {
+  display: flex; flex-direction: column;
+  align-items: center; flex: 1;
+}
+.bracket-connector-line {
+  width: 100%; height: 1px; background: var(--border);
+  flex-shrink: 0;
+}
+.bracket-connector-v {
+  width: 1px; flex: 1; background: var(--border);
+  margin: 0 auto;
+}
+
+/* Matchup block */
+.bracket-matchup-wrap {
+  flex: 1; display: flex; flex-direction: column;
+  justify-content: center; padding: 6px 10px;
+}
+.bracket-matchup {
+  border: 1px solid var(--border); border-radius: var(--r);
+  overflow: hidden; background: var(--surface);
+}
+.bracket-team-row {
+  display: flex; align-items: center; gap: 0;
+  padding: 7px 10px; border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.bracket-team-row:last-child { border-bottom: none; }
+.bracket-team-row.winner {
+  background: var(--green-lt);
+}
+.bracket-team-row.winner .bt-name { font-weight: 700; color: var(--green); }
+.bracket-seed {
+  font-family: var(--mono); font-size: 10px; color: var(--text-3);
+  min-width: 18px; margin-right: 6px;
+}
+.bt-name { flex: 1; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bt-record { font-family: var(--mono); font-size: 11px; color: var(--text-3); margin-left: 6px; }
+.bracket-tbd { color: var(--text-3); font-style: italic; font-size: 11px; }
+.bracket-empty-state {
+  padding: 32px; text-align: center;
+  color: var(--text-3); font-size: 13px;
+  border: 1.5px dashed var(--border); border-radius: var(--r);
+}
+
+/* Standings entry table in commish panel */
+#standings-entry-table td input[type=number] {
+  width: 52px; font-family: var(--mono); font-size: 12px;
+  padding: 3px 6px; border: 1px solid var(--border);
+  border-radius: 4px; background: var(--bg); color: var(--text);
+  text-align: right;
+}
+#standings-entry-table td input[type=number]:focus {
+  outline: none; border-color: var(--gold);
+}
+
+/* Bracket editor in commish panel */
+.bracket-editor-round {
+  border: 1px solid var(--border); border-radius: var(--r);
+  margin-bottom: 12px; overflow: hidden;
+}
+.bracket-editor-round-header {
+  background: var(--bg); padding: 8px 12px;
+  display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.bracket-editor-round-name {
+  font-weight: 700; font-size: 12px; flex: 1;
+  font-family: var(--head); letter-spacing: .02em;
+}
+.bracket-editor-round-name input {
+  font-family: var(--head); font-size: 13px; font-weight: 700;
+  border: 1px solid var(--border); border-radius: 4px;
+  padding: 3px 8px; background: var(--surface); color: var(--text);
+  width: 180px;
+}
+.bracket-editor-round-name input:focus { outline: none; border-color: var(--gold); }
+.bracket-editor-matchups { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.bracket-editor-matchup {
+  display: grid;
+  grid-template-columns: 1fr auto auto 1fr auto auto;
+  gap: 6px; align-items: center;
+  background: var(--bg); border-radius: 4px; padding: 6px 8px;
+}
+.bracket-editor-matchup input[type=text] {
+  font-family: var(--body); font-size: 12px; padding: 4px 8px;
+  border: 1px solid var(--border); border-radius: 4px;
+  background: var(--surface); color: var(--text); width: 100%;
+}
+.bracket-editor-matchup input[type=text]:focus { outline: none; border-color: var(--gold); }
+.bracket-editor-matchup input[type=number] {
+  width: 44px; font-family: var(--mono); font-size: 12px;
+  padding: 4px 6px; border: 1px solid var(--border);
+  border-radius: 4px; background: var(--surface); color: var(--text);
+  text-align: center;
+}
+.bracket-editor-matchup input[type=number]:focus { outline: none; border-color: var(--gold); }
+.bracket-editor-matchup .vs-label {
+  font-size: 11px; color: var(--text-3); font-weight: 600; padding: 0 2px;
+}
+.bracket-editor-matchup .score-dash {
+  font-size: 11px; color: var(--text-3); font-weight: 600;
+}
 </style>
 </head>
 <body>
@@ -773,6 +991,9 @@ input[type=file] { display: none; }
   <div class="nav-group nav-group-2">
     <div class="nav-item" onclick="nav('draft',this)">
       <span class="nav-icon">🎯</span> Draft
+    </div>
+    <div class="nav-item" onclick="nav('standings',this)">
+      <span class="nav-icon">🏆</span> Standings
     </div>
     <div class="nav-item" onclick="nav('rules',this)">
       <span class="nav-icon">📖</span> Rules
@@ -1136,20 +1357,92 @@ input[type=file] { display: none; }
      STANDINGS PAGE
 ════════════════════════════════════════ -->
 <div class="page" id="page-standings">
-  <div class="page-title">League Standings</div>
-  <div class="page-sub">2025 Final Season Results</div>
-  <div class="card">
-    <div class="card-header"><span class="card-title">All Teams</span></div>
-    <table class="data-table" id="standings-table">
-      <thead>
-        <tr>
-          <th>#</th><th>Team</th>
-          <th>MLB</th><th>MiLB</th><th>Total</th>
-          <th>Expiring '26</th>
-        </tr>
-      </thead>
-      <tbody id="standings-tbody"></tbody>
-    </table>
+  <div class="page-title">🏆 League Standings</div>
+  <div class="page-sub">Final regular season standings by division &amp; playoff results</div>
+
+  <!-- Year tabs -->
+  <div class="year-tabs">
+    <button class="year-tab active" id="ytab-2025" onclick="switchStandingsYear('2025',this)">2025</button>
+    <button class="year-tab" id="ytab-2026" onclick="switchStandingsYear('2026',this)">2026</button>
+  </div>
+
+  <!-- Regular season section -->
+  <div class="standings-section-label" id="standings-season-label">2025 &mdash; Final Regular Season Standings</div>
+  <div class="division-grid" id="division-grid">
+    <!-- rendered by JS -->
+  </div>
+
+  <!-- Playoffs section -->
+  <div class="standings-section-label" id="standings-playoffs-label" style="margin-top:28px">2025 &mdash; Playoffs</div>
+  <div id="bracket-container" class="bracket-outer">
+    <!-- rendered by JS -->
+  </div>
+
+  <!-- Commissioner: division + standings editor -->
+  <div id="standings-commish-panel" style="display:none;margin-top:32px">
+    <div class="standings-section-label">Commissioner &mdash; Edit Standings &amp; Bracket</div>
+
+    <!-- Division assignment -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <span class="card-title">Division Assignments</span>
+        <span style="font-size:11px;color:var(--text-3)" id="div-assign-year-label"></span>
+      </div>
+      <div style="padding:16px">
+        <p style="font-size:12px;color:var(--text-2);margin-bottom:14px">Assign each team to a division. Changes are saved to the Divisions sheet.</p>
+        <div id="div-assign-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px"></div>
+        <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
+          <button class="btn btn-primary" style="font-size:11px;padding:5px 14px" onclick="saveDivisionAssignments()">Save Divisions</button>
+          <span id="div-assign-status" style="font-size:11px;color:var(--text-3)"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Standings entry -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <span class="card-title">Season Standings Entry</span>
+        <span style="font-size:11px;color:var(--text-3)" id="standings-entry-year-label"></span>
+      </div>
+      <div style="padding:16px">
+        <p style="font-size:12px;color:var(--text-2);margin-bottom:14px">Enter each team's final regular season record. Fill in W, L, RS, RA for each team.</p>
+        <div style="overflow-x:auto">
+          <table class="data-table" id="standings-entry-table">
+            <thead>
+              <tr>
+                <th>Team</th>
+                <th style="width:60px">W</th>
+                <th style="width:60px">L</th>
+                <th style="width:70px">RS</th>
+                <th style="width:70px">RA</th>
+              </tr>
+            </thead>
+            <tbody id="standings-entry-tbody"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
+          <button class="btn btn-primary" style="font-size:11px;padding:5px 14px" onclick="saveHistoricalStandings()">Save Standings</button>
+          <span id="standings-entry-status" style="font-size:11px;color:var(--text-3)"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Playoff bracket builder -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Playoff Bracket</span>
+        <span style="font-size:11px;color:var(--text-3)" id="bracket-entry-year-label"></span>
+      </div>
+      <div style="padding:16px">
+        <p style="font-size:12px;color:var(--text-2);margin-bottom:14px">Build the playoff bracket by adding rounds and matchups. Each matchup shows team keys and the final result (e.g. 3-1).</p>
+        <div id="bracket-editor"></div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="addBracketRound()">+ Add Round</button>
+          <button class="btn btn-primary" style="font-size:11px;padding:5px 14px" onclick="savePlayoffBracket()">Save Bracket</button>
+          <span id="bracket-save-status" style="font-size:11px;color:var(--text-3)"></span>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1498,7 +1791,7 @@ function nav(page, el) {
   document.getElementById('page-' + page).classList.add('active');
   el.classList.add('active');
   if (page === 'rosters') loadTeam(currentTeam);
-  if (page === 'standings') buildStandings();
+  if (page === 'standings') buildStandingsPage();
   if (page === 'rule5') r5InitPage();
   if (page === 'keepers') buildKeepersPage();
   if (page === 'allrosters') buildAllRostersPage();
@@ -1711,22 +2004,345 @@ function viewTeamOverview(teamName) {
 }
 
 // ── Standings ─────────────────────────────────────────────────────────────────
-function buildStandings() {
-  const tbody = document.getElementById('standings-tbody');
-  const rows = Object.entries(LEAGUE).sort((a,b) => a[0].localeCompare(b[0]));
-  tbody.innerHTML = rows.map(([name, players], i) => {
-    const mlbCount  = players.filter(p => STATUS_MAP[p.status] !== 'MiLB').length;
-    const milbCount = players.filter(p => STATUS_MAP[p.status] === 'MiLB').length;
-    const expiring  = players.filter(p => p.contract === '2026').length;
+
+// Division assignments: { year: { divisionName: [ownerKey, ...] } }
+let DIVISIONS = {
+  '2025': {
+    'Dairy Daddies':    ['deferred','holliday','ironfists','reid','tortured'],
+    'Thunder Chickens': ['wetherholt','jardians','domingo','kurtz','perdomo'],
+    'Iron Pigs':        ['brew','danr','lovable','gunnar','parker'],
+    'Flying Mummies':   ['gelof','kiners','rally','platoon','prayers'],
+  },
+  '2026': {
+    'Dairy Daddies':    [],
+    'Thunder Chickens': [],
+    'Iron Pigs':        [],
+    'Flying Mummies':   [],
+  },
+};
+
+// Historical season standings: { year: { ownerKey: { W, L, RS, RA } } }
+let HISTORICAL_STANDINGS = {
+  '2025': {},
+  '2026': {},
+};
+
+// Playoff bracket: { year: [ { round, matchups: [{team1,team2,wins1,wins2}] } ] }
+let PLAYOFFS_DATA = {
+  '2025': [],
+  '2026': [],
+};
+
+let currentStandingsYear = '2025';
+
+function buildStandingsPage() {
+  renderDivisionGrid(currentStandingsYear);
+  renderPlayoffBracket(currentStandingsYear);
+  const panel = document.getElementById('standings-commish-panel');
+  if (panel) panel.style.display = IS_COMMISH ? '' : 'none';
+  if (IS_COMMISH) buildStandingsCommishPanel(currentStandingsYear);
+}
+
+function switchStandingsYear(year, el) {
+  currentStandingsYear = year;
+  document.querySelectorAll('.year-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  const sl = document.getElementById('standings-season-label');
+  const pl = document.getElementById('standings-playoffs-label');
+  if (sl) sl.textContent = year + ' \u2014 Final Regular Season Standings';
+  if (pl) pl.textContent = year + ' \u2014 Playoffs';
+  renderDivisionGrid(year);
+  renderPlayoffBracket(year);
+  if (IS_COMMISH) buildStandingsCommishPanel(year);
+}
+
+function renderDivisionGrid(year) {
+  const grid = document.getElementById('division-grid');
+  if (!grid) return;
+  const divs = DIVISIONS[year] || {};
+  const standings = HISTORICAL_STANDINGS[year] || {};
+  const divNames = ['Dairy Daddies','Thunder Chickens','Iron Pigs','Flying Mummies'];
+  grid.innerHTML = divNames.map(divName =>
+    renderDivisionCard(divName, year, divs[divName] || [], standings)
+  ).join('');
+}
+
+function renderDivisionCard(divName, year, ownerKeys, standings) {
+  const rows = ownerKeys.map(key => {
+    const rec = standings[key] || {};
+    return { key, teamName: OWNER_MAP[key] || key, W: rec.W ?? null, L: rec.L ?? null, RS: rec.RS ?? null, RA: rec.RA ?? null };
+  });
+
+  rows.sort((a, b) => {
+    const aHas = a.W !== null, bHas = b.W !== null;
+    if (aHas && bHas) {
+      if (b.W !== a.W) return b.W - a.W;
+      if (a.L !== b.L) return a.L - b.L;
+    }
+    if (aHas && !bHas) return -1;
+    if (!aHas && bHas) return 1;
+    return a.teamName.localeCompare(b.teamName);
+  });
+
+  const hasData = rows.some(r => r.W !== null);
+  const leader = rows[0];
+
+  function pct(r) {
+    if (r.W === null) return '\u2014';
+    const tot = r.W + r.L;
+    return tot === 0 ? '.000' : '.' + String(Math.round(r.W / tot * 1000)).padStart(3, '0');
+  }
+  function gb(r, i) {
+    if (!hasData || r.W === null || i === 0) return '\u2014';
+    const d = ((leader.W - r.W) + (r.L - leader.L)) / 2;
+    return d % 1 === 0 ? String(d) : d.toFixed(1);
+  }
+
+  const tbody = rows.length === 0
+    ? `<tr class="no-data-row"><td colspan="6">No teams assigned</td></tr>`
+    : rows.map((r, i) => `<tr${i === 0 && hasData && r.W !== null ? ' class="div-leader"' : ''}>
+        <td>${i + 1}</td>
+        <td>${r.teamName}</td>
+        <td>${r.W ?? '\u2014'}</td>
+        <td>${r.L ?? '\u2014'}</td>
+        <td>${pct(r)}</td>
+        <td>${gb(r, i)}</td>
+      </tr>`).join('');
+
+  return `<div class="division-card">
+    <div class="division-card-header">
+      <span class="division-card-name">${divName}</span>
+      <span class="division-card-year">${year}</span>
+    </div>
+    <table class="div-standings-tbl">
+      <thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>PCT</th><th>GB</th></tr></thead>
+      <tbody>${tbody}</tbody>
+    </table>
+  </div>`;
+}
+
+function renderPlayoffBracket(year) {
+  const container = document.getElementById('bracket-container');
+  if (!container) return;
+  const rounds = PLAYOFFS_DATA[year];
+  if (!rounds || rounds.length === 0) {
+    container.innerHTML = `<div class="bracket-empty-state">No playoff data yet for ${year}${IS_COMMISH ? ' — use the editor below to build the bracket' : ''}.</div>`;
+    return;
+  }
+  const roundCols = rounds.map((round, ri) => {
+    const matchupsHtml = round.matchups.map(m => {
+      const t1 = OWNER_MAP[m.team1] || m.team1 || 'TBD';
+      const t2 = OWNER_MAP[m.team2] || m.team2 || 'TBD';
+      const hasResult = m.wins1 !== undefined && m.wins2 !== undefined;
+      const t1Won = hasResult && m.wins1 > m.wins2;
+      const t2Won = hasResult && m.wins2 > m.wins1;
+      const tbd = `<span class="bracket-tbd">TBD</span>`;
+      return `<div class="bracket-matchup-wrap">
+        <div class="bracket-matchup">
+          <div class="bracket-team-row${t1Won ? ' winner' : ''}">
+            <span class="bt-name">${m.team1 ? t1 : tbd}</span>
+            ${hasResult ? `<span class="bt-record">${m.wins1}</span>` : ''}
+          </div>
+          <div class="bracket-team-row${t2Won ? ' winner' : ''}">
+            <span class="bt-name">${m.team2 ? t2 : tbd}</span>
+            ${hasResult ? `<span class="bt-record">${m.wins2}</span>` : ''}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    const connector = ri < rounds.length - 1
+      ? `<div class="bracket-connector-col">${
+          round.matchups.map(() => `<div class="bracket-connector-pair">
+            <div class="bracket-connector-line"></div>
+            <div class="bracket-connector-v"></div>
+            <div class="bracket-connector-line"></div>
+          </div>`).join('')
+        }</div>`
+      : '';
+    return `<div class="bracket-round-col">
+      <div class="bracket-round-label">${round.round}</div>
+      <div class="bracket-round-matchups">${matchupsHtml}</div>
+    </div>${connector}`;
+  }).join('');
+  container.innerHTML = `<div class="bracket-wrap">${roundCols}</div>`;
+}
+
+// ── Commissioner: Division & Bracket Editor ────────────────────────────────────
+
+function buildStandingsCommishPanel(year) {
+  ['div-assign-year-label','standings-entry-year-label','bracket-entry-year-label'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = year;
+  });
+  buildDivAssignGrid(year);
+  buildStandingsEntryTable(year);
+  buildBracketEditor(year);
+}
+
+function buildDivAssignGrid(year) {
+  const grid = document.getElementById('div-assign-grid');
+  if (!grid) return;
+  const divs = DIVISIONS[year] || {};
+  const divNames = ['Dairy Daddies','Thunder Chickens','Iron Pigs','Flying Mummies'];
+  const allKeys = Object.keys(OWNER_MAP).sort((a,b) => OWNER_MAP[a].localeCompare(OWNER_MAP[b]));
+  grid.innerHTML = divNames.map(divName => {
+    const assigned = divs[divName] || [];
+    const opts = allKeys.map(k =>
+      `<option value="${k}"${assigned.includes(k) ? ' selected' : ''}>${OWNER_MAP[k]} (${k})</option>`
+    ).join('');
+    return `<div style="border:1px solid var(--border);border-radius:var(--r);padding:12px">
+      <div style="font-weight:700;font-size:12px;font-family:var(--head);letter-spacing:.02em;margin-bottom:8px">${divName}</div>
+      <select multiple data-division="${divName}" style="width:100%;height:110px;font-size:11px;font-family:var(--body);border:1px solid var(--border);border-radius:4px;padding:4px;background:var(--bg)">${opts}</select>
+      <div style="font-size:10px;color:var(--text-3);margin-top:4px">Hold Ctrl/Cmd to multi-select</div>
+    </div>`;
+  }).join('');
+}
+
+function saveDivisionAssignments() {
+  const year = currentStandingsYear;
+  const selects = document.querySelectorAll('#div-assign-grid select[data-division]');
+  const newDivs = {};
+  selects.forEach(sel => {
+    newDivs[sel.dataset.division] = Array.from(sel.selectedOptions).map(o => o.value);
+  });
+  DIVISIONS[year] = newDivs;
+  renderDivisionGrid(year);
+  const st = document.getElementById('div-assign-status');
+  st.textContent = '✓ Saved locally'; st.style.color = 'var(--green)';
+  remotePost({ action: 'saveDivisions', year, divisions: newDivs })
+    .then(r => {
+      st.textContent = r?.ok ? '✓ Saved to sheet' : '⚠ Sheet sync failed';
+      st.style.color = r?.ok ? 'var(--green)' : 'var(--red)';
+    });
+}
+
+function buildStandingsEntryTable(year) {
+  const tbody = document.getElementById('standings-entry-tbody');
+  if (!tbody) return;
+  const standings = HISTORICAL_STANDINGS[year] || {};
+  const allKeys = Object.keys(OWNER_MAP).sort((a,b) => OWNER_MAP[a].localeCompare(OWNER_MAP[b]));
+  tbody.innerHTML = allKeys.map(key => {
+    const rec = standings[key] || {};
     return `<tr>
-      <td style="font-family:var(--mono);color:var(--text-3)">${i+1}</td>
-      <td><strong>${name}</strong>${name === 'Wetherholt 45s' ? ' <span class="stag stag-active" style="font-size:9px">You</span>' : ''}</td>
-      <td>${mlbCount}</td>
-      <td>${milbCount}</td>
-      <td><strong>${players.length}</strong></td>
-      <td>${expiring > 0 ? `<span style="color:var(--red);font-weight:600">${expiring}</span>` : '—'}</td>
+      <td style="font-weight:500">${OWNER_MAP[key]}</td>
+      <td><input type="number" min="0" max="300" data-key="${key}" data-field="W" value="${rec.W ?? ''}" placeholder="W"></td>
+      <td><input type="number" min="0" max="300" data-key="${key}" data-field="L" value="${rec.L ?? ''}" placeholder="L"></td>
+      <td><input type="number" min="0" data-key="${key}" data-field="RS" value="${rec.RS ?? ''}" placeholder="RS"></td>
+      <td><input type="number" min="0" data-key="${key}" data-field="RA" value="${rec.RA ?? ''}" placeholder="RA"></td>
     </tr>`;
   }).join('');
+}
+
+function saveHistoricalStandings() {
+  const year = currentStandingsYear;
+  if (!HISTORICAL_STANDINGS[year]) HISTORICAL_STANDINGS[year] = {};
+  document.querySelectorAll('#standings-entry-tbody input').forEach(inp => {
+    const key = inp.dataset.key, field = inp.dataset.field, val = inp.value.trim();
+    if (!HISTORICAL_STANDINGS[year][key]) HISTORICAL_STANDINGS[year][key] = {};
+    HISTORICAL_STANDINGS[year][key][field] = val === '' ? null : Number(val);
+  });
+  renderDivisionGrid(year);
+  const st = document.getElementById('standings-entry-status');
+  st.textContent = '✓ Saved locally'; st.style.color = 'var(--green)';
+  remotePost({ action: 'saveHistoricalStandings', year, standings: HISTORICAL_STANDINGS[year] })
+    .then(r => {
+      st.textContent = r?.ok ? '✓ Saved to sheet' : '⚠ Sheet sync failed — check Apps Script';
+      st.style.color = r?.ok ? 'var(--green)' : 'var(--orange)';
+    });
+}
+
+// Bracket editor
+let bracketEditorRounds = [];
+
+function buildBracketEditor(year) {
+  bracketEditorRounds = JSON.parse(JSON.stringify(PLAYOFFS_DATA[year] || []));
+  renderBracketEditor();
+}
+
+function renderBracketEditor() {
+  const container = document.getElementById('bracket-editor');
+  if (!container) return;
+  if (bracketEditorRounds.length === 0) {
+    container.innerHTML = `<div style="font-size:12px;color:var(--text-3);font-style:italic;margin-bottom:8px">No rounds yet — click "Add Round" to start building.</div>`;
+    return;
+  }
+  container.innerHTML = bracketEditorRounds.map((round, ri) => {
+    const matchupsHtml = round.matchups.length === 0
+      ? `<div style="font-size:11px;color:var(--text-3);font-style:italic">No matchups yet — click + Matchup</div>`
+      : round.matchups.map((m, mi) => `<div class="bracket-editor-matchup">
+          <input type="text" data-round="${ri}" data-match="${mi}" data-field="team1" value="${m.team1 || ''}" placeholder="Team 1 key">
+          <span class="vs-label">vs</span>
+          <input type="text" data-round="${ri}" data-match="${mi}" data-field="team2" value="${m.team2 || ''}" placeholder="Team 2 key">
+          <input type="number" min="0" data-round="${ri}" data-match="${mi}" data-field="wins1" value="${m.wins1 ?? ''}" placeholder="W">
+          <span class="score-dash">-</span>
+          <input type="number" min="0" data-round="${ri}" data-match="${mi}" data-field="wins2" value="${m.wins2 ?? ''}" placeholder="W">
+          <button onclick="removeMatchup(${ri},${mi})" style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:13px;padding:0 2px" title="Remove">✕</button>
+        </div>`).join('');
+    return `<div class="bracket-editor-round">
+      <div class="bracket-editor-round-header">
+        <span class="bracket-editor-round-name"><input type="text" data-round="${ri}" data-field="roundName" value="${round.round}" placeholder="Round name"></span>
+        <button class="btn btn-secondary" style="font-size:10px;padding:3px 8px" onclick="addMatchupToRound(${ri})">+ Matchup</button>
+        <button onclick="removeRound(${ri})" style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:14px;padding:0 4px;margin-left:4px" title="Remove round">✕</button>
+      </div>
+      <div class="bracket-editor-matchups">${matchupsHtml}</div>
+    </div>`;
+  }).join('');
+  container.querySelectorAll('input').forEach(inp => inp.addEventListener('change', syncBracketEditorState));
+}
+
+function syncBracketEditorState() {
+  const container = document.getElementById('bracket-editor');
+  if (!container) return;
+  container.querySelectorAll('input').forEach(inp => {
+    const ri = parseInt(inp.dataset.round);
+    if (isNaN(ri)) return;
+    const mi = inp.dataset.match !== undefined ? parseInt(inp.dataset.match) : undefined;
+    const field = inp.dataset.field;
+    const val = inp.value.trim();
+    if (field === 'roundName') {
+      bracketEditorRounds[ri].round = val;
+    } else if (mi !== undefined && !isNaN(mi)) {
+      bracketEditorRounds[ri].matchups[mi][field] =
+        (field === 'wins1' || field === 'wins2') ? (val === '' ? undefined : Number(val)) : val;
+    }
+  });
+}
+
+function addBracketRound() {
+  bracketEditorRounds.push({ round: 'Round ' + (bracketEditorRounds.length + 1), matchups: [] });
+  renderBracketEditor();
+}
+
+function addMatchupToRound(ri) {
+  syncBracketEditorState();
+  bracketEditorRounds[ri].matchups.push({ team1: '', team2: '', wins1: undefined, wins2: undefined });
+  renderBracketEditor();
+}
+
+function removeMatchup(ri, mi) {
+  syncBracketEditorState();
+  bracketEditorRounds[ri].matchups.splice(mi, 1);
+  renderBracketEditor();
+}
+
+function removeRound(ri) {
+  syncBracketEditorState();
+  bracketEditorRounds.splice(ri, 1);
+  renderBracketEditor();
+}
+
+function savePlayoffBracket() {
+  syncBracketEditorState();
+  const year = currentStandingsYear;
+  PLAYOFFS_DATA[year] = JSON.parse(JSON.stringify(bracketEditorRounds));
+  renderPlayoffBracket(year);
+  const st = document.getElementById('bracket-save-status');
+  st.textContent = '✓ Saved locally'; st.style.color = 'var(--green)';
+  remotePost({ action: 'savePlayoffs', year, playoffs: PLAYOFFS_DATA[year] })
+    .then(r => {
+      st.textContent = r?.ok ? '✓ Saved to sheet' : '⚠ Sheet sync failed — check Apps Script';
+      st.style.color = r?.ok ? 'var(--green)' : 'var(--orange)';
+    });
 }
 
 // ── CSV parsing ───────────────────────────────────────────────────────────────
@@ -2611,7 +3227,6 @@ function applyOwner(key) {
   // Boot app
   Object.keys(LEAGUE).forEach(team => { if (!keeperStore[team]) keeperStore[team] = {}; });
   loadTeam(yourTeam);
-  buildStandings();
   r5UpdateOrderBar();
   r5RenderPageControls();
 }
@@ -2725,6 +3340,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (data.r5Status) r5Status = data.r5Status;
+
+    // Hydrate Divisions
+    if (data.divisions) {
+      Object.keys(data.divisions).forEach(yr => {
+        if (!DIVISIONS[yr]) DIVISIONS[yr] = {};
+        Object.assign(DIVISIONS[yr], data.divisions[yr]);
+      });
+    }
+
+    // Hydrate Historical Standings
+    if (data.historicalStandings) {
+      Object.keys(data.historicalStandings).forEach(yr => {
+        if (!HISTORICAL_STANDINGS[yr]) HISTORICAL_STANDINGS[yr] = {};
+        Object.assign(HISTORICAL_STANDINGS[yr], data.historicalStandings[yr]);
+      });
+    }
+
+    // Hydrate Playoffs
+    if (data.playoffs) {
+      Object.keys(data.playoffs).forEach(yr => {
+        PLAYOFFS_DATA[yr] = data.playoffs[yr];
+      });
+    }
 
     // Hydrate custom draft plan overrides
     if (data.draftPlan) Object.assign(customDraftSlots, data.draftPlan);
@@ -4808,8 +5446,8 @@ function refreshAllTeamDropdowns() {
     ).join('');
   }
 
-  // Standings re-build
-  buildStandings();
+  // Standings re-build (only if page is active)
+  if (document.getElementById('page-standings')?.classList.contains('active')) buildStandingsPage();
 
   // R5 order bar
   r5UpdateOrderBar();
