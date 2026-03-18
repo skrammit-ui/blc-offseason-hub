@@ -1461,58 +1461,25 @@ input[type=file] { display: none; }
 
   <!-- Regular season section -->
   <div class="standings-section-label" id="standings-season-label">2026 &mdash; Final Regular Season Standings</div>
-  <div class="division-grid" id="division-grid">
+  <div id="division-grid">
     <!-- rendered by JS -->
+  </div>
+
+  <!-- Commissioner: inline actions (shown only for commish) -->
+  <div id="standings-push-actions" style="display:none;margin-top:14px">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-primary" style="font-size:12px;padding:6px 18px" onclick="pushStandingsToPlayoffs()">⬇ Lock Standings &amp; Seed Playoffs</button>
+      <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="saveDivisionAssignments()">💾 Save Standings</button>
+      <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="resetPlayoffBracket()">↺ Reset Bracket</button>
+      <span id="bracket-push-status" style="font-size:11px;color:var(--text-3)"></span>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:var(--text-3)">Drag teams to reorder standings. <strong>Lock &amp; Seed</strong> saves standings and seeds the playoff bracket. Click a team in the bracket to advance them.</div>
   </div>
 
   <!-- Playoffs section -->
   <div class="standings-section-label" id="standings-playoffs-label" style="margin-top:28px">2026 &mdash; Playoffs</div>
   <div id="bracket-container" class="bracket-outer">
     <!-- rendered by JS -->
-  </div>
-
-  <!-- Commissioner: division + standings editor -->
-  <div id="standings-commish-panel" style="display:none;margin-top:32px">
-    <div class="standings-section-label">Commissioner &mdash; Edit Standings &amp; Bracket</div>
-
-    <!-- Division assignment -->
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-header">
-        <span class="card-title">Division Assignments</span>
-        <span style="font-size:11px;color:var(--text-3)" id="div-assign-year-label"></span>
-      </div>
-      <div style="padding:16px">
-        <p style="font-size:12px;color:var(--text-2);margin-bottom:14px">Assign each team to a division. Changes are saved to the Divisions sheet.</p>
-        <div id="div-assign-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px"></div>
-        <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
-          <button class="btn btn-primary" style="font-size:11px;padding:5px 14px" onclick="saveDivisionAssignments()">Save Divisions</button>
-          <span id="div-assign-status" style="font-size:11px;color:var(--text-3)"></span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Playoff bracket: Push to Playoffs -->
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Playoff Bracket</span>
-        <span style="font-size:11px;color:var(--text-3)" id="bracket-entry-year-label"></span>
-      </div>
-      <div style="padding:16px">
-        <p style="font-size:12px;color:var(--text-2);margin-bottom:14px">
-          Seed the playoff bracket from the division standings above. Division winners receive a bye into Week 21.
-          Wild Card (2nd vs 3rd) and Consolation Opener (4th vs 5th) are seeded automatically.
-          Then click each winner in the bracket to advance teams through the rounds.
-        </p>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <button class="btn btn-primary" style="font-size:12px;padding:6px 18px" onclick="pushStandingsToPlayoffs()">⬇ Push Standings to Playoffs</button>
-          <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="resetPlayoffBracket()">↺ Reset Bracket</button>
-          <span id="bracket-push-status" style="font-size:11px;color:var(--text-3)"></span>
-        </div>
-        <div style="margin-top:12px;font-size:11px;color:var(--text-3)">
-          <strong>After seeding:</strong> click any team name in the bracket to mark them as the winner. Losers advance to consolation automatically.
-        </div>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -1585,6 +1552,31 @@ input[type=file] { display: none; }
     </div>
   </div>
 
+
+  <!-- ── DIVISION ASSIGNMENTS (future years) ── -->
+  <div class="card" style="border-left:3px solid var(--blue)">
+    <div class="card-header">
+      <span class="card-title">📋 Division Assignments</span>
+      <span style="font-size:11px;color:var(--text-3)">Set up divisions for a new season year</span>
+    </div>
+    <div style="padding:16px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        <label style="font-size:12px;font-weight:600;color:var(--text-2)">Season year</label>
+        <select id="commish-future-div-year-sel" style="font-family:var(--body);font-size:12px;padding:5px 10px;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--text)" onchange="changeCommishFutureDivYear(this.value)">
+          <option value="2027">2027</option>
+          <option value="2028">2028</option>
+          <option value="2029">2029</option>
+          <option value="2030">2030</option>
+        </select>
+        <span style="font-size:11px;color:var(--text-3)">Drag teams to set order (1st = division winner)</span>
+      </div>
+      <div id="commish-future-div-grid"></div>
+      <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
+        <button class="btn btn-primary" style="font-size:11px;padding:5px 14px" onclick="saveDivisionAssignments(commishFutureDivYear,'commish-future-div-status')">💾 Save Divisions</button>
+        <span id="commish-future-div-status" style="font-size:11px;color:var(--text-3)"></span>
+      </div>
+    </div>
+  </div>
 
   <div class="card">
     <div class="card-header"><span class="card-title">&#x1F501; Execute Trade</span></div>
@@ -2124,16 +2116,17 @@ const BRACKET_TEMPLATE = {
   'co21_2': { round:'Week 21', bracket:'consol', group:'Consolation',      divIdx:2, winnerTo:['co22_1','team2'], loserTo:null },
   'co21_3': { round:'Week 21', bracket:'consol', group:'Consolation',      divIdx:3, winnerTo:['co22_0','team2'], loserTo:null },
   // ── Week 21: Rule 5 (losers of CO openers — top vs low, middles)
-  'r5_21_0': { round:'Week 21', bracket:'r5', group:'Rule 5',              divIdx:null, label:'Top vs Low',   winnerTo:['r5_22','team1'], loserTo:null },
-  'r5_21_1': { round:'Week 21', bracket:'r5', group:'Rule 5',              divIdx:null, label:'Middles',      winnerTo:['r5_22','team2'], loserTo:null },
+  'r5_21_0': { round:'Week 21', bracket:'r5', group:'Rule 5',              divIdx:null, label:'Top vs Low',   winnerTo:['r5_22_w','team1'], loserTo:['r5_22_l','team1'] },
+  'r5_21_1': { round:'Week 21', bracket:'r5', group:'Rule 5',              divIdx:null, label:'Middles',      winnerTo:['r5_22_w','team2'], loserTo:['r5_22_l','team2'] },
   // ── Week 22: Championship semis (1v4, 2v3)
   'ch22_0': { round:'Week 22', bracket:'champ', group:'Championship',      divIdx:null, label:'1 vs 4',       winnerTo:['ws','team1'],       loserTo:null },
   'ch22_1': { round:'Week 22', bracket:'champ', group:'Championship',      divIdx:null, label:'2 vs 3',       winnerTo:['ws','team2'],       loserTo:null },
   // ── Week 22: Consolation semis (top vs low, middles)
   'co22_0': { round:'Week 22', bracket:'consol', group:'Consolation',      divIdx:null, label:'Top vs Low',   winnerTo:['co_final','team1'], loserTo:null },
   'co22_1': { round:'Week 22', bracket:'consol', group:'Consolation',      divIdx:null, label:'Middles',      winnerTo:['co_final','team2'], loserTo:null },
-  // ── Week 22: Rule 5 Final
-  'r5_22':   { round:'Week 22', bracket:'r5', group:'Rule 5 Final',        divIdx:null, label:'Rule 5 Final', winnerTo:null, loserTo:null },
+  // ── Week 22: Rule 5 Finals (winners: 17th/18th; losers: 19th/20th)
+  'r5_22_w': { round:'Week 22', bracket:'r5', group:'Rule 5 Final',        divIdx:null, label:'17th/18th',    winnerTo:null, loserTo:null },
+  'r5_22_l': { round:'Week 22', bracket:'r5', group:'Rule 5 Final',        divIdx:null, label:'19th/20th',    winnerTo:null, loserTo:null },
   // ── Weeks 23–24: Finals
   'ws':       { round:'Wks 23–24', bracket:'champ', group:'World Series',  divIdx:null, label:'World Series', winnerTo:null, loserTo:null },
   'co_final': { round:'Wks 23–24', bracket:'consol', group:'Consol. Final',divIdx:null, label:'9th Place',    winnerTo:null, loserTo:null },
@@ -2155,7 +2148,7 @@ const BRACKET_LAYOUT = {
   ],
   r5: [
     { colLabel:'Week 21\nRule 5',              ids:['r5_21_0','r5_21_1'] },
-    { colLabel:'Week 22\nRule 5 Final',        ids:['r5_22'] },
+    { colLabel:'Week 22\nRule 5 Finals',       ids:['r5_22_w','r5_22_l'] },
   ],
 };
 
@@ -2166,9 +2159,8 @@ let currentStandingsYear = '2026';
 function buildStandingsPage() {
   renderDivisionGrid(currentStandingsYear);
   renderPlayoffBracket(currentStandingsYear);
-  const panel = document.getElementById('standings-commish-panel');
-  if (panel) panel.style.display = IS_COMMISH ? '' : 'none';
-  if (IS_COMMISH) buildStandingsCommishPanel(currentStandingsYear);
+  const pa = document.getElementById('standings-push-actions');
+  if (pa) pa.style.display = IS_COMMISH ? 'block' : 'none';
 }
 
 function switchStandingsYear(year, el) {
@@ -2179,19 +2171,24 @@ function switchStandingsYear(year, el) {
   const pl = document.getElementById('standings-playoffs-label');
   if (sl) sl.textContent = year + ' \u2014 Final Regular Season Standings';
   if (pl) pl.textContent = year + ' \u2014 Playoffs';
+  const st = document.getElementById('bracket-push-status');
+  if (st) st.textContent = '';
   renderDivisionGrid(year);
   renderPlayoffBracket(year);
-  if (IS_COMMISH) buildStandingsCommishPanel(year);
 }
 
 function renderDivisionGrid(year) {
   const grid = document.getElementById('division-grid');
   if (!grid) return;
-  const divs = DIVISIONS[year] || {};
-  const divNames = ['Dairy Daddies','Thunder Chickens','Iron Pigs','Flying Mummies'];
-  grid.innerHTML = divNames.map(divName =>
-    renderDivisionCard(divName, year, divs[divName] || [])
-  ).join('');
+  if (IS_COMMISH) {
+    buildDivAssignGrid(year, 'division-grid');
+  } else {
+    const divs = DIVISIONS[year] || {};
+    grid.className = 'division-grid';
+    grid.innerHTML = DIV_NAMES_ORDER.map(divName =>
+      renderDivisionCard(divName, year, divs[divName] || [])
+    ).join('');
+  }
 }
 
 function renderDivisionCard(divName, year, ownerKeys) {
@@ -2293,58 +2290,6 @@ function renderPlayoffBracket(year) {
 
 // ── Commissioner: Division & Bracket Editor ────────────────────────────────────
 
-function buildStandingsCommishPanel(year) {
-  ['div-assign-year-label','bracket-entry-year-label'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = year;
-  });
-  buildDivAssignGrid(year);
-}
-
-// Ordered position selects: commissioner picks which team finished 1st–5th in each division
-function buildDivAssignGrid(year) {
-  const grid = document.getElementById('div-assign-grid');
-  if (!grid) return;
-  const divs = DIVISIONS[year] || {};
-  const divNames = ['Dairy Daddies','Thunder Chickens','Iron Pigs','Flying Mummies'];
-  const allKeys = Object.keys(OWNER_MAP).sort((a,b) => OWNER_MAP[a].localeCompare(OWNER_MAP[b]));
-  const positions = ['1st','2nd','3rd','4th','5th'];
-  grid.innerHTML = divNames.map(divName => {
-    const ordered = divs[divName] || [];
-    const rows = positions.map((pos, i) => {
-      const sel = ordered[i] || '';
-      const opts = `<option value="">— Select —</option>` +
-        allKeys.map(k => `<option value="${k}"${k === sel ? ' selected' : ''}>${OWNER_MAP[k]}</option>`).join('');
-      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <span style="font-family:var(--mono);font-size:10px;color:var(--text-3);min-width:26px;text-align:right">${i+1}</span>
-        <select data-division="${divName}" data-pos="${i}" style="flex:1;font-size:11px;font-family:var(--body);padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)">${opts}</select>
-      </div>`;
-    }).join('');
-    return `<div style="border:1px solid var(--border);border-radius:var(--r);padding:12px">
-      <div style="font-weight:700;font-size:12px;font-family:var(--head);letter-spacing:.02em;margin-bottom:10px">${divName}</div>
-      ${rows}
-    </div>`;
-  }).join('');
-}
-
-function saveDivisionAssignments() {
-  const year = currentStandingsYear;
-  if (!DIVISIONS[year]) DIVISIONS[year] = {};
-  const divNames = ['Dairy Daddies','Thunder Chickens','Iron Pigs','Flying Mummies'];
-  divNames.forEach(divName => {
-    const selects = [...document.querySelectorAll(`#div-assign-grid select[data-division="${divName}"]`)]
-      .sort((a,b) => Number(a.dataset.pos) - Number(b.dataset.pos));
-    DIVISIONS[year][divName] = selects.map(s => s.value).filter(Boolean);
-  });
-  renderDivisionGrid(year);
-  const st = document.getElementById('div-assign-status');
-  st.textContent = '✓ Saved locally'; st.style.color = 'var(--green)';
-  remotePost({ action: 'saveDivisions', year, divisions: DIVISIONS[year] })
-    .then(r => {
-      st.textContent = r?.ok ? '✓ Saved to sheet' : '⚠ Sheet sync failed';
-      st.style.color = r?.ok ? 'var(--green)' : 'var(--red)';
-    });
-}
 
 // ── Push standings to playoff bracket ────────────────────────────────────────
 function pushStandingsToPlayoffs() {
@@ -2377,16 +2322,17 @@ function pushStandingsToPlayoffs() {
 
   // Clear all downstream matchups (Wk21 onwards, except ch21 team1 just set above)
   const downstream = ['co21_0','co21_1','co21_2','co21_3',
-    'r5_21_0','r5_21_1','ch22_0','ch22_1','co22_0','co22_1','r5_22','ws','co_final'];
+    'r5_21_0','r5_21_1','ch22_0','ch22_1','co22_0','co22_1','r5_22_w','r5_22_l','ws','co_final'];
   downstream.forEach(id => {
     state[id] = { team1:'', team2:'', winner:'', loser:'' };
   });
 
   renderPlayoffBracket(year);
+  saveDivisionAssignments(year, 'bracket-push-status');
   saveBracketToSheet(year);
   const st = document.getElementById('bracket-push-status');
-  if (st) { st.textContent = '✓ Week 20 seeded'; st.style.color = 'var(--green)'; }
-  toast('Standings pushed — Week 20 seeded. Click winners to advance.');
+  if (st) { st.textContent = '✓ Standings locked &amp; bracket seeded'; st.style.color = 'var(--green)'; }
+  toast('Standings locked — Week 20 seeded. Click winners to advance.');
 }
 
 function resetPlayoffBracket() {
@@ -2445,16 +2391,17 @@ function saveBracketToSheet(year) {
 let _dndDragKey = null;
 let _dndDragDiv = null;
 let _dndDragIdx = null;
+let _dndContainerId = 'division-grid';
 
-function buildDivAssignGrid(year) {
-  const grid = document.getElementById('div-assign-grid');
-  if (!grid) return;
-  // Switch to DnD layout
-  grid.innerHTML = '';
-  grid.className = ''; // remove previous grid styles
+function buildDivAssignGrid(year, containerId) {
+  if (containerId) _dndContainerId = containerId;
+  const container = document.getElementById(_dndContainerId);
+  if (!container) return;
+  container.innerHTML = '';
+  container.className = ''; // clear any previous grid class
   const wrap = document.createElement('div');
   wrap.className = 'div-dnd-wrap';
-  grid.appendChild(wrap);
+  container.appendChild(wrap);
 
   DIV_NAMES_ORDER.forEach(divName => {
     const assigned = (DIVISIONS[year] || {})[divName] || [];
@@ -2506,7 +2453,6 @@ function buildDndColumn(divName, teamKeys, year) {
     if (!DIVISIONS[year][divName]) DIVISIONS[year][divName] = [];
     DIVISIONS[year][divName].push(this.value);
     buildDivAssignGrid(year);
-    renderDivisionGrid(year);
   });
   addWrap.appendChild(sel);
   col.appendChild(addWrap);
@@ -2556,43 +2502,48 @@ function dndReorder(year, divName, fromIdx, toIdx) {
   const [item] = arr.splice(fromIdx, 1);
   arr.splice(toIdx, 0, item);
   buildDivAssignGrid(year);
-  renderDivisionGrid(year);
 }
 
 function dndMoveTeam(year, toDivName, toIdx) {
   if (!_dndDragKey) return;
   const fromDiv = _dndDragDiv;
   if (fromDiv === toDivName) return;
-  // Remove from source
   if (DIVISIONS[year][fromDiv]) {
     DIVISIONS[year][fromDiv] = DIVISIONS[year][fromDiv].filter(k => k !== _dndDragKey);
   }
-  // Add to target
   if (!DIVISIONS[year][toDivName]) DIVISIONS[year][toDivName] = [];
   if (toIdx < 0) DIVISIONS[year][toDivName].push(_dndDragKey);
   else DIVISIONS[year][toDivName].splice(toIdx, 0, _dndDragKey);
   buildDivAssignGrid(year);
-  renderDivisionGrid(year);
 }
 
 function dndRemoveTeam(event, year, divName, key) {
   event.stopPropagation();
   DIVISIONS[year][divName] = (DIVISIONS[year][divName] || []).filter(k => k !== key);
   buildDivAssignGrid(year);
-  renderDivisionGrid(year);
 }
 
-function saveDivisionAssignments() {
-  const year = currentStandingsYear;
-  // State is already live in DIVISIONS from DnD interactions; just persist
-  renderDivisionGrid(year);
-  const st = document.getElementById('div-assign-status');
-  st.textContent = '✓ Saved locally'; st.style.color = 'var(--green)';
+function saveDivisionAssignments(year, statusId) {
+  year = year || currentStandingsYear;
+  statusId = statusId || 'bracket-push-status';
+  if (!DIVISIONS[year]) DIVISIONS[year] = {};
+  const st = document.getElementById(statusId);
+  if (st) { st.textContent = '✓ Saving…'; st.style.color = 'var(--text-3)'; }
   remotePost({ action: 'saveDivisions', year, divisions: DIVISIONS[year] })
     .then(r => {
-      st.textContent = r?.ok ? '✓ Saved to sheet' : '⚠ Sheet sync failed';
-      st.style.color = r?.ok ? 'var(--green)' : 'var(--red)';
+      if (st) {
+        st.textContent = r?.ok ? '✓ Saved to sheet' : '⚠ Sheet sync failed';
+        st.style.color = r?.ok ? 'var(--green)' : 'var(--red)';
+      }
     });
+}
+
+let commishFutureDivYear = '2027';
+
+function changeCommishFutureDivYear(year) {
+  commishFutureDivYear = year;
+  if (!DIVISIONS[year]) DIVISIONS[year] = { 'Dairy Daddies':[], 'Thunder Chickens':[], 'Iron Pigs':[], 'Flying Mummies':[] };
+  buildDivAssignGrid(year, 'commish-future-div-grid');
 }
 
 // ── CSV parsing ───────────────────────────────────────────────────────────────
@@ -5538,6 +5489,8 @@ function executeTrade() {
 function initCommishPage() {
   buildStandingsInputGrid();
   populateCommishSelects();
+  if (!DIVISIONS[commishFutureDivYear]) DIVISIONS[commishFutureDivYear] = { 'Dairy Daddies':[], 'Thunder Chickens':[], 'Iron Pigs':[], 'Flying Mummies':[] };
+  buildDivAssignGrid(commishFutureDivYear, 'commish-future-div-grid');
 }
 
 function populateCommishSelects() {
