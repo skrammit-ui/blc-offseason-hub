@@ -698,6 +698,24 @@ input[type=file] { display: none; }
 
   /* Card header: allow wrapping */
   .card-header { flex-wrap: wrap; gap: 6px; }
+
+  /* ── Rule 5 Draft: mobile layout ── */
+  /* Stack board + pool vertically */
+  .r5-layout { grid-template-columns: 1fr !important; }
+  /* Pool: no sticky when stacked below board */
+  .r5-pool-card { position: static !important; }
+  /* Tighten pool list height */
+  #r5-pool { max-height: 340px; }
+  /* Board rows: two-line layout */
+  .r5-board-row { flex-wrap: wrap; gap: 4px 8px !important; padding: 8px 10px !important; }
+  /* Team label: flex-grow to fill line 1, drop fixed min-width */
+  .r5-team-label { min-width: 0 !important; flex: 1 !important; }
+  /* Player details: full-width second line, indented to align under team name */
+  .r5-pick-content { order: 3; flex: 0 0 100% !important; padding-left: 36px; }
+  /* PICKED badge + undo: stay on line 1 right side */
+  .r5-pick-status { order: 2; flex-shrink: 0; }
+  /* Pending label: hide on mobile — pick# + team name is enough */
+  .r5-pick-pending { display: none; }
 }
 
 @media (max-width:480px) {
@@ -999,7 +1017,7 @@ input[type=file] { display: none; }
   </div>
   <div id="r5-keeper-notice" style="display:none;background:var(--amber-lt);border:1px solid #f0d080;border-radius:var(--r);padding:8px 14px;margin-bottom:14px;font-size:12px"></div>
 
-  <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start">
+  <div class="r5-layout" style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start">
     <div>
       <div class="card">
         <div class="card-header">
@@ -1014,7 +1032,7 @@ input[type=file] { display: none; }
       </div>
     </div>
     <div>
-      <div class="card" style="position:sticky;top:62px">
+      <div class="card r5-pool-card" style="position:sticky;top:62px">
         <div class="card-header">
           <span class="card-title">&#x26BE; Unprotected Pool</span>
           <span id="r5-pool-count" style="font-size:11px;color:var(--text-3)"></span>
@@ -4137,28 +4155,29 @@ function r5RenderBoard() {
       ? 'background:#f0f8f4;border-left:3px solid var(--green)'
       : 'border-left:3px solid transparent';
 
-    const pickNumBadge = `<span style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text-3);width:28px;text-align:right;flex-shrink:0">#${i+1}</span>`;
+    const pickNumBadge = `<span class="r5-pick-num" style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text-3);width:28px;text-align:right;flex-shrink:0">#${i+1}</span>`;
 
-    const teamLabel = `<span style="font-size:12px;font-weight:600;color:var(--text);min-width:180px;flex-shrink:0">${team}</span>`;
+    const teamLabel = `<span class="r5-team-label" style="font-size:12px;font-weight:600;color:var(--text);min-width:180px;flex-shrink:0">${team}</span>`;
 
     let pickContent;
     if (pick) {
-      pickContent = `<span style="flex:1">
+      let statusSpan = `<span class="r5-pick-status" style="display:flex;align-items:center;gap:6px;flex-shrink:0"><span class="stag stag-active" style="font-size:9px">PICKED</span>`;
+      if (i === currentIdx - 1 && IS_COMMISH && r5Status !== 'ended') {
+        statusSpan += `<button onclick="r5UndoLastPick()" style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;border:1px solid #f5b7b1;background:var(--red-lt);color:var(--red);cursor:pointer">Undo</button>`;
+      }
+      statusSpan += '</span>';
+      pickContent = `<span class="r5-pick-content" style="flex:1;min-width:0">
         <span style="font-size:13px;font-weight:600;color:var(--navy)">${pick.player}</span>
         <span style="font-size:11px;color:var(--text-3);margin-left:6px">${pick.position} &middot; ${pick.mlb_team}</span>
         <span style="font-size:10px;color:var(--text-3);margin-left:6px">from <em>${pick.fromTeam}</em></span>
-      </span>
-      <span class="stag stag-active" style="font-size:9px">PICKED</span>`;
-      if (i === currentIdx - 1 && IS_COMMISH && r5Status !== 'ended') {
-        pickContent += `<button onclick="r5UndoLastPick()" style="margin-left:8px;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;border:1px solid #f5b7b1;background:var(--red-lt);color:var(--red);cursor:pointer">Undo</button>`;
-      }
+      </span>${statusSpan}`;
     } else if (isCurrent) {
-      pickContent = `<span style="font-size:12px;color:var(--amber);font-style:italic;font-weight:600">&#x1F449; On the clock — select a player from the pool</span>`;
+      pickContent = `<span class="r5-pick-content" style="font-size:12px;color:var(--amber);font-style:italic;font-weight:600">&#x1F449; On the clock — select a player from the pool</span>`;
     } else {
-      pickContent = `<span style="font-size:12px;color:var(--text-3);font-style:italic">Pending</span>`;
+      pickContent = `<span class="r5-pick-pending" style="font-size:12px;color:var(--text-3);font-style:italic">Pending</span>`;
     }
 
-    html += `<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);${rowStyle}">
+    html += `<div class="r5-board-row" style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);${rowStyle}">
       ${pickNumBadge}
       ${teamLabel}
       ${pickContent}
