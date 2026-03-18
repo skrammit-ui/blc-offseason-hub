@@ -133,13 +133,13 @@ table.roster-tbl {
   font-family: var(--head); font-size: 11px; font-weight: 700;
   letter-spacing: .07em; text-transform: uppercase;
   color: var(--text-3); background: var(--bg);
-  padding: 9px 10px; border-bottom: 1px solid var(--border);
+  padding: 6px 10px; border-bottom: 1px solid var(--border);
   text-align: left; white-space: nowrap;
 }
 .roster-tbl th.c { text-align: center; }
 .roster-tbl td {
-  padding: 10px 10px; border-bottom: 1px solid var(--border);
-  font-size: 13px; vertical-align: middle;
+  padding: 6px 10px; border-bottom: 1px solid var(--border);
+  font-size: 12px; vertical-align: middle;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .roster-tbl tr:last-child td { border-bottom: none; }
@@ -348,9 +348,9 @@ tr.keeper-trade:hover  td { background: #ffe4cc !important; }
 /* ── Roster slot (builder view) ── */
 .slot-row {
   display: flex; align-items: center; gap: 10px;
-  padding: 7px 10px; border-radius: 6px; margin-bottom: 5px;
+  padding: 5px 8px; border-radius: 6px; margin-bottom: 3px;
   border: 1.5px dashed var(--border); background: var(--surface);
-  min-height: 44px; transition: border-color .12s, background .12s;
+  min-height: 36px; transition: border-color .12s, background .12s;
 }
 .slot-row.filled { border-style: solid; border-color: var(--green); background: #edf7f1; }
 .slot-row.filled.milb-slot  { border-color: var(--blue);  background: #e8f2fd; }
@@ -383,7 +383,7 @@ tr.keeper-trade:hover  td { background: #ffe4cc !important; }
 
 /* ── Pool card (builder + draft) ── */
 .pool-card {
-  padding: 7px 10px; border-radius: 5px; border: 1px solid var(--border);
+  padding: 5px 8px; border-radius: 5px; border: 1px solid var(--border);
   background: var(--surface); cursor: grab; font-size: 12px;
   display: flex; align-items: center; gap: 8px;
   transition: box-shadow .1s; user-select: none;
@@ -398,8 +398,8 @@ tr.keeper-trade:hover  td { background: #ffe4cc !important; }
 /* ── Draft round row ── */
 .draft-round {
   display: flex; align-items: center; gap: 10px;
-  padding: 6px 8px; border-radius: 6px; margin-bottom: 4px;
-  border: 1.5px dashed var(--border); min-height: 40px;
+  padding: 4px 8px; border-radius: 6px; margin-bottom: 2px;
+  border: 1.5px dashed var(--border); min-height: 34px;
   transition: all .12s;
 }
 .draft-round.taken        { border-style: solid; border-color: var(--green);  background: #edf7f1; }
@@ -587,8 +587,8 @@ input[type=file] { display: none; }
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 4px 3px;
-    padding: 8px 10px;
+    gap: 3px 3px;
+    padding: 6px 10px;
     border-bottom: 1px solid var(--border);
     box-sizing: border-box;
     width: 100%;
@@ -652,7 +652,7 @@ input[type=file] { display: none; }
   }
 
   /* Pool cards — better touch target */
-  .pool-card { padding: 10px 12px; min-height: 44px; }
+  .pool-card { padding: 8px 10px; min-height: 40px; }
 
   /* Builder slot rows — two-row layout matching Roster view */
   .slot-row { flex-wrap: wrap; overflow-x: visible; }
@@ -676,7 +676,7 @@ input[type=file] { display: none; }
   .keep-btn { width: 22px; height: 22px; font-size: 11px; margin-left: 6px; }
 
   /* Draft round — mobile two-row layout */
-  .draft-round { min-height: 44px; flex-wrap: wrap; }
+  .draft-round { min-height: 40px; flex-wrap: wrap; }
   .draft-compact-stat { display: none; }
   .draft-stat-mob {
     display: block;
