@@ -2654,6 +2654,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (data.r5Status) r5Status = data.r5Status;
 
+    // Hydrate custom draft plan overrides
+    if (data.draftPlan) Object.assign(customDraftSlots, data.draftPlan);
+
     // Hydrate pickOrder and draftResults from Picks sheet
     if (data.picks && data.picks.length > 0) {
       Object.keys(pickOrder).forEach(k => delete pickOrder[k]);
@@ -2832,6 +2835,21 @@ function prefillFromKeepers(players) {
       const r = parseInt(p.salary);
       if (r >= 1 && r <= 30) draftAssignments[String(r)] = [p];
     });
+  }
+
+  // Apply any saved custom slot overrides (user-moved players) on top of auto-fill
+  const savedPlan = customDraftSlots[ownerKeyFor(currentTeam)] || {};
+  for (const [playerName, savedSlot] of Object.entries(savedPlan)) {
+    const autoSlot = Object.keys(draftAssignments).find(k => draftAssignments[k]?.[0]?.player === playerName);
+    if (!autoSlot || autoSlot === savedSlot) continue;
+    const player = draftAssignments[autoSlot][0];
+    const targetRd = parseInt(savedSlot.split('_')[0]) || parseInt(savedSlot);
+    const sal = parseInt(player.salary) || 0;
+    if (sal && targetRd > sal) continue; // skip invalid placements
+    const displaced = draftAssignments[savedSlot]?.[0];
+    delete draftAssignments[autoSlot];
+    if (displaced) draftAssignments[autoSlot] = [displaced];
+    draftAssignments[savedSlot] = [player];
   }
 }
 
@@ -3115,6 +3133,19 @@ function clearSlot(slotId) {
 // ── VIEW 3: Draft Planner ──────────────────────────────────────────────────────
 // draftAssignments: round (1-30) → player array, ordered by pick A/B/C within that round
 const draftAssignments = {};
+// customDraftSlots: teamKey → { playerName: slotKey } — user-moved overrides
+const customDraftSlots = {};
+
+function saveDraftPlan() {
+  const teamKey = ownerKeyFor(currentTeam);
+  const plan = {};
+  for (const [k, arr] of Object.entries(draftAssignments)) {
+    if (arr?.[0]) plan[arr[0].player] = k;
+  }
+  if (!customDraftSlots[teamKey]) customDraftSlots[teamKey] = {};
+  customDraftSlots[teamKey] = plan;
+  remotePost({ action: 'saveDraftPlan', teamKey, plan });
+}
 function buildDraftPlanView(players) {
   const boardEl = document.getElementById('draft-board');
   if (!boardEl) return;
@@ -3213,7 +3244,7 @@ function buildDraftPlanView(players) {
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <span class="round-player" style="cursor:grab">${p.player}${isExp ? '&nbsp;<span style="font-size:9px;color:var(--red);font-family:var(--mono);font-weight:700">EXP</span>' : ''}</span>
             ${bumpBadge}
-            <span class="draft-compact-stat" style="font-family:var(--mono);font-size:10px;color:var(--text-2)">${draftMobParts.join(' · ')}</span>
+            <span class="draft-compact-stat" style="margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--text-2)">${draftMobParts.join(' · ')}</span>
           </div>
           <span class="round-meta">${p.mlb_team}&nbsp;·&nbsp;${p.position}</span>
         </div>
@@ -3308,6 +3339,7 @@ function draftDrop(event, slotKey) {
   }
   draftAssignments[slotKey] = [draggedPlayer];
   draggedPlayer = null;
+  saveDraftPlan();
   buildDraftPlanView(LEAGUE[currentTeam] || []);
 }
 
@@ -3315,6 +3347,10 @@ function clearDraftSlot(slotKey, playerName) {
   if (!draftAssignments[slotKey]) return;
   draftAssignments[slotKey] = draftAssignments[slotKey].filter(p => p.player !== playerName);
   if (!draftAssignments[slotKey].length) delete draftAssignments[slotKey];
+  // Also clear the custom override so it doesn't get re-applied
+  const teamKey = ownerKeyFor(currentTeam);
+  if (customDraftSlots[teamKey]) delete customDraftSlots[teamKey][playerName];
+  saveDraftPlan();
   buildDraftPlanView(LEAGUE[currentTeam] || []);
 }
 
