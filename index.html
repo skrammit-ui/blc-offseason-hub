@@ -153,8 +153,6 @@ table.roster-tbl {
 .roster-tbl .col-stat    { width: 52px; text-align: center; font-size: 11px; font-family: var(--mono); }
 .col-stat-mob { display: none; }
 .slot-stat-mob { display: none; }
-.slot-rd-mob   { display: none; }
-.slot-con-mob  { display: none; }
 .draft-stat-mob { display: none; }
 .roster-tbl .col-rd      { width: 52px; text-align: center; }
 .roster-tbl .col-con     { width: 58px; text-align: center; }
@@ -654,8 +652,6 @@ input[type=file] { display: none; }
   /* Row 1: Player · Team · Pos · Rd · Con · ✕ */
   .slot-player-content { display: flex !important; flex-direction: row !important; align-items: center !important; gap: 0 5px !important; flex-wrap: nowrap !important; overflow: hidden; }
   .slot-compact-stat { display: none; }
-  .slot-rd-mob  { display: inline-flex; align-items: center; flex-shrink: 0; }
-  .slot-con-mob { display: inline-flex; align-items: center; flex-shrink: 0; }
   /* Row 2: scrollable stats */
   .slot-stat-mob {
     display: block;
@@ -3089,10 +3085,10 @@ function buildBuilderView(players) {
         ? `<div class="slot-player-content" style="flex:1;min-width:0;display:flex;align-items:center;gap:5px;overflow:hidden">
              <span style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${filled.player}</span>
              <span class="slot-meta" style="flex-shrink:0">${filled.mlb_team} · ${filled.position}</span>
+             ${rdTile(filled.salary)}
+             ${filled.contract ? conTag(filled.contract) : ''}
            </div>
            ${slotStatCells(filled, slot.type)}
-           <span class="slot-rd-mob">${rdTile(filled.salary)}</span>
-           <span class="slot-con-mob">${conTag(filled.contract)}</span>
            <span class="slot-clear" onclick="clearSlot('${slot.id}')">✕</span>
            ${mobStatLine}`
         : `<span style="flex:1;font-size:11px;color:var(--text-3);font-style:italic">Empty — drag a player here</span>
@@ -3116,14 +3112,14 @@ function buildBuilderView(players) {
         if (mobParts.length) elseStatLine = `<div class="slot-stat-mob">${mobParts.join(' · ')}</div>`;
       }
       playerHtml = filled
-        ? `<div class="slot-player-content" style="flex:1;min-width:0;display:flex;align-items:center;gap:5px;overflow:hidden">
+        ? `<div class="slot-player-content" style="flex:0 1 auto;min-width:0;display:flex;align-items:center;gap:5px;overflow:hidden">
              <span class="slot-player" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1">${filled.player}</span>
              <span class="slot-meta" style="flex-shrink:0">${filled.mlb_team} · ${filled.position}</span>
-             ${compactStatLine(filled)}
+             ${rdTile(filled.salary)}
+             ${filled.contract ? conTag(filled.contract) : ''}
            </div>
-           <span class="slot-rd-mob">${rdTile(filled.salary)}</span>
-           <span class="slot-con-mob">${conTag(filled.contract)}</span>
-           <span class="slot-clear" onclick="clearSlot('${slot.id}')">✕</span>
+           ${compactStatLine(filled)}
+           <span class="slot-clear" style="margin-left:auto;flex-shrink:0" onclick="clearSlot('${slot.id}')">✕</span>
            ${elseStatLine}`
         : `<span style="font-size:11px;color:var(--text-3);font-style:italic">Empty — drag a player here</span>`;
     }
