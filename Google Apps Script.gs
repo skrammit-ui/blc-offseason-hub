@@ -15,15 +15,18 @@ function doGet(e) {
   try {
     const ss = SpreadsheetApp.openById(SHEET_ID);
     const data = {
-      league:      getRosters(ss),
-      keepers:     getKeepers(ss),
-      ownerMap:    getOwnerMap(ss),
-      standings:   getStandings(ss),
-      picks:       getPicks(ss),
-      stats:       getStats(ss),
-      projections: getProjections(ss),
-      r5Status:    getR5Status(ss),
-      draftPlan:   getDraftPlans(ss),
+      league:             getRosters(ss),
+      keepers:            getKeepers(ss),
+      ownerMap:           getOwnerMap(ss),
+      standings:          getStandings(ss),
+      picks:              getPicks(ss),
+      stats:              getStats(ss),
+      projections:        getProjections(ss),
+      r5Status:           getR5Status(ss),
+      draftPlan:          getDraftPlans(ss),
+      divisions:          getDivisions(ss),
+      historicalStandings: getHistoricalStandings(ss),
+      playoffs:           getPlayoffsData(ss),
     };
     return corsResponse({ ok: true, data });
   } catch(err) {
@@ -83,6 +86,15 @@ function doPost(e) {
         break;
       case 'saveDraftPlan':
         saveDraftPlan(ss, payload.teamKey, payload.plan);
+        break;
+      case 'saveDivisions':
+        saveDivisions(ss, payload.year, payload.divisions);
+        break;
+      case 'saveHistoricalStandings':
+        saveHistoricalStandings(ss, payload.year, payload.standings);
+        break;
+      case 'savePlayoffs':
+        savePlayoffs(ss, payload.year, payload.playoffs);
         break;
       default:
         return corsResponse({ ok: false, error: 'Unknown action: ' + payload.action });
@@ -670,4 +682,220 @@ function seedOwnerMap() {
   const rows = Object.entries(OWNER_MAP).map(([k, v]) => [k, v]);
   sheet.getRange(2, 1, rows.length, 2).setValues(rows);
   Logger.log('✓ Owner map seeded: ' + rows.length + ' teams.');
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  STANDINGS — DIVISIONS, HISTORICAL STANDINGS, PLAYOFFS
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── Divisions sheet: columns → year | division | teamKey ─────────────────────
+function getDivisions(ss) {
+  const sheet = ss.getSheetByName('Divisions');
+  if (!sheet || sheet.getLastRow() < 2) return {};
+  const [headers, ...rows] = sheet.getDataRange().getValues();
+  const yearIdx = headers.indexOf('year');
+  const divIdx  = headers.indexOf('division');
+  const keyIdx  = headers.indexOf('teamKey');
+  if (yearIdx < 0 || divIdx < 0 || keyIdx < 0) return {};
+  const result = {};
+  rows.forEach(row => {
+    const year = String(row[yearIdx] || '').trim();
+    const div  = String(row[divIdx]  || '').trim();
+    const key  = String(row[keyIdx]  || '').trim();
+    if (!year || !div || !key) return;
+    if (!result[year]) result[year] = {};
+    if (!result[year][div]) result[year][div] = [];
+    result[year][div].push(key);
+  });
+  return result;
+}
+
+function saveDivisions(ss, year, divisions) {
+  // divisions = { divisionName: [teamKey, ...] }
+  let sheet = ss.getSheetByName('Divisions');
+  if (!sheet) {
+    sheet = ss.insertSheet('Divisions');
+    sheet.getRange(1, 1, 1, 3).setValues([['year','division','teamKey']]);
+  }
+  // Remove existing rows for this year
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const yearIdx = headers.indexOf('year');
+  // Collect rows to keep (not this year)
+  const keepRows = data.slice(1).filter(r => String(r[yearIdx] || '').trim() !== String(year));
+  // Build new rows for this year
+  const newRows = [];
+  Object.entries(divisions).forEach(([divName, keys]) => {
+    keys.forEach(key => newRows.push([String(year), divName, key]));
+  });
+  const allRows = [...keepRows, ...newRows];
+  // Rewrite sheet
+  sheet.clearContents();
+  sheet.getRange(1, 1, 1, 3).setValues([['year','division','teamKey']]);
+  if (allRows.length > 0) {
+    sheet.getRange(2, 1, allRows.length, 3).setValues(allRows);
+  }
+  Logger.log('saveDivisions: wrote ' + newRows.length + ' rows for year ' + year);
+}
+
+// ── HistoricalStandings sheet: year | teamKey | W | L | RS | RA ──────────────
+function getHistoricalStandings(ss) {
+  const sheet = ss.getSheetByName('HistoricalStandings');
+  if (!sheet || sheet.getLastRow() < 2) return {};
+  const [headers, ...rows] = sheet.getDataRange().getValues();
+  const idx = h => headers.indexOf(h);
+  const result = {};
+  rows.forEach(row => {
+    const year = String(row[idx('year')] || '').trim();
+    const key  = String(row[idx('teamKey')] || '').trim();
+    if (!year || !key) return;
+    if (!result[year]) result[year] = {};
+    result[year][key] = {
+      W:  Number(row[idx('W')]  || 0),
+      L:  Number(row[idx('L')]  || 0),
+      RS: Number(row[idx('RS')] || 0),
+      RA: Number(row[idx('RA')] || 0),
+    };
+  });
+  return result;
+}
+
+function saveHistoricalStandings(ss, year, standings) {
+  // standings = { teamKey: { W, L, RS, RA } }
+  let sheet = ss.getSheetByName('HistoricalStandings');
+  if (!sheet) {
+    sheet = ss.insertSheet('HistoricalStandings');
+    sheet.getRange(1, 1, 1, 6).setValues([['year','teamKey','W','L','RS','RA']]);
+  }
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const yearIdx = headers.indexOf('year');
+  const keepRows = data.slice(1).filter(r => String(r[yearIdx] || '').trim() !== String(year));
+  const newRows = Object.entries(standings)
+    .filter(([, rec]) => rec && rec.W !== null && rec.W !== undefined)
+    .map(([key, rec]) => [String(year), key, rec.W || 0, rec.L || 0, rec.RS || 0, rec.RA || 0]);
+  const allRows = [...keepRows, ...newRows];
+  sheet.clearContents();
+  sheet.getRange(1, 1, 1, 6).setValues([['year','teamKey','W','L','RS','RA']]);
+  if (allRows.length > 0) {
+    sheet.getRange(2, 1, allRows.length, 6).setValues(allRows);
+  }
+  Logger.log('saveHistoricalStandings: wrote ' + newRows.length + ' rows for year ' + year);
+}
+
+// ── Playoffs sheet: year | round | matchupIndex | team1 | team2 | wins1 | wins2 ──
+function getPlayoffsData(ss) {
+  const sheet = ss.getSheetByName('Playoffs');
+  if (!sheet || sheet.getLastRow() < 2) return {};
+  const [headers, ...rows] = sheet.getDataRange().getValues();
+  const idx = h => headers.indexOf(h);
+  const byYear = {};
+  rows.forEach(row => {
+    const year       = String(row[idx('year')]         || '').trim();
+    const round      = String(row[idx('round')]        || '').trim();
+    const matchupIdx = Number(row[idx('matchupIndex')] || 0);
+    const team1      = String(row[idx('team1')]        || '').trim();
+    const team2      = String(row[idx('team2')]        || '').trim();
+    const wins1      = row[idx('wins1')] !== '' ? Number(row[idx('wins1')]) : undefined;
+    const wins2      = row[idx('wins2')] !== '' ? Number(row[idx('wins2')]) : undefined;
+    if (!year || !round) return;
+    if (!byYear[year]) byYear[year] = {};
+    if (!byYear[year][round]) byYear[year][round] = { round, matchups: [] };
+    byYear[year][round].matchups[matchupIdx] = { team1, team2, wins1, wins2 };
+  });
+  // Convert to array of rounds in insertion order
+  const result = {};
+  Object.keys(byYear).forEach(year => {
+    result[year] = Object.values(byYear[year]);
+  });
+  return result;
+}
+
+function savePlayoffs(ss, year, playoffs) {
+  // playoffs = [ { round, matchups: [{team1,team2,wins1,wins2}] } ]
+  let sheet = ss.getSheetByName('Playoffs');
+  if (!sheet) {
+    sheet = ss.insertSheet('Playoffs');
+    sheet.getRange(1, 1, 1, 7).setValues([['year','round','matchupIndex','team1','team2','wins1','wins2']]);
+  }
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const yearIdx = headers.indexOf('year');
+  const keepRows = data.slice(1).filter(r => String(r[yearIdx] || '').trim() !== String(year));
+  const newRows = [];
+  (playoffs || []).forEach(roundObj => {
+    (roundObj.matchups || []).forEach((m, mi) => {
+      newRows.push([
+        String(year),
+        roundObj.round || '',
+        mi,
+        m.team1 || '',
+        m.team2 || '',
+        m.wins1 !== undefined ? m.wins1 : '',
+        m.wins2 !== undefined ? m.wins2 : '',
+      ]);
+    });
+  });
+  const allRows = [...keepRows, ...newRows];
+  sheet.clearContents();
+  sheet.getRange(1, 1, 1, 7).setValues([['year','round','matchupIndex','team1','team2','wins1','wins2']]);
+  if (allRows.length > 0) {
+    sheet.getRange(2, 1, allRows.length, 7).setValues(allRows);
+  }
+  Logger.log('savePlayoffs: wrote ' + newRows.length + ' rows for year ' + year);
+}
+
+// ── One-time setup: create Divisions, HistoricalStandings, and Playoffs sheets ─
+// Run this once from the Apps Script editor to initialize the new sheets.
+function setupStandingsSheets() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+
+  function ensureSheet(name, headers) {
+    let sheet = ss.getSheetByName(name);
+    if (!sheet) {
+      sheet = ss.insertSheet(name);
+      Logger.log('Created sheet: ' + name);
+    } else {
+      Logger.log('Sheet already exists: ' + name);
+    }
+    if (sheet.getLastRow() === 0) {
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    }
+    return sheet;
+  }
+
+  ensureSheet('Divisions',           ['year','division','teamKey']);
+  ensureSheet('HistoricalStandings', ['year','teamKey','W','L','RS','RA']);
+  ensureSheet('Playoffs',            ['year','round','matchupIndex','team1','team2','wins1','wins2']);
+
+  // Seed 2025 division assignments
+  const divSheet = ss.getSheetByName('Divisions');
+  if (divSheet.getLastRow() < 2) {
+    const seed2025 = [
+      ['2025','Dairy Daddies','deferred'],
+      ['2025','Dairy Daddies','holliday'],
+      ['2025','Dairy Daddies','ironfists'],
+      ['2025','Dairy Daddies','reid'],
+      ['2025','Dairy Daddies','tortured'],
+      ['2025','Thunder Chickens','wetherholt'],
+      ['2025','Thunder Chickens','jardians'],
+      ['2025','Thunder Chickens','domingo'],
+      ['2025','Thunder Chickens','kurtz'],
+      ['2025','Thunder Chickens','perdomo'],
+      ['2025','Iron Pigs','brew'],
+      ['2025','Iron Pigs','danr'],
+      ['2025','Iron Pigs','lovable'],
+      ['2025','Iron Pigs','gunnar'],
+      ['2025','Iron Pigs','parker'],
+      ['2025','Flying Mummies','gelof'],
+      ['2025','Flying Mummies','kiners'],
+      ['2025','Flying Mummies','rally'],
+      ['2025','Flying Mummies','platoon'],
+      ['2025','Flying Mummies','prayers'],
+    ];
+    divSheet.getRange(2, 1, seed2025.length, 3).setValues(seed2025);
+    Logger.log('Seeded 2025 division data: ' + seed2025.length + ' rows.');
+  }
+
+  Logger.log('✓ setupStandingsSheets complete.');
 }
