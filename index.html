@@ -139,7 +139,7 @@ table.roster-tbl {
 }
 .roster-tbl th.c { text-align: center; }
 .roster-tbl td {
-  padding: 4px 10px; border-bottom: 1px solid var(--border);
+  padding: 2px 10px; border-bottom: 1px solid var(--border);
   font-size: 12px; vertical-align: middle;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
@@ -353,7 +353,7 @@ tr.keeper-trade:hover  td { background: #ffe4cc !important; }
   display: flex; align-items: center; gap: 10px;
   padding: 4px 8px; border-radius: 6px; margin-bottom: 3px;
   border: 1.5px dashed var(--border); background: var(--surface);
-  min-height: 36px; transition: border-color .12s, background .12s;
+  min-height: 30px; transition: border-color .12s, background .12s;
 }
 .slot-row.filled { border-style: solid; border-color: var(--green); background: #edf7f1; }
 .slot-row.filled.milb-slot  { border-color: var(--blue);  background: #e8f2fd; }
@@ -388,7 +388,7 @@ tr.keeper-trade:hover  td { background: #ffe4cc !important; }
 .pool-card {
   padding: 4px 8px; border-radius: 5px; border: 1px solid var(--border);
   background: var(--surface); cursor: grab; font-size: 12px;
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 8px; min-height: 30px;
   transition: box-shadow .1s; user-select: none;
 }
 .pool-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.1); border-color: var(--gold); }
@@ -402,7 +402,7 @@ tr.keeper-trade:hover  td { background: #ffe4cc !important; }
 .draft-round {
   display: flex; align-items: center; gap: 10px;
   padding: 4px 8px; border-radius: 6px; margin-bottom: 2px;
-  border: 1.5px dashed var(--border); min-height: 34px;
+  border: 1.5px dashed var(--border); min-height: 30px;
   transition: all .12s;
 }
 .draft-round.taken        { border-style: solid; border-color: var(--green);  background: #edf7f1; }
@@ -646,7 +646,7 @@ input[type=file] { display: none; }
   }
 
   /* Pool cards */
-  .pool-card { padding: 5px 10px; min-height: 34px; }
+  .pool-card { padding: 3px 8px; min-height: 30px; }
 
   /* Builder slot rows — Row 1: player info · Row 2: stats */
   .slot-row { flex-wrap: wrap; overflow-x: visible; gap: 0 6px; padding: 2px 8px; min-height: 30px; margin-bottom: 2px; align-items: center; }
@@ -3353,7 +3353,7 @@ function buildDraftPlanView(players) {
           <span class="round-meta" style="flex-shrink:0">${p.mlb_team}&nbsp;·&nbsp;${p.position}</span>
           ${bumpBadge}
           ${p.contract ? conTag(p.contract) : ''}
-          <span class="draft-compact-stat" style="margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--text-2);white-space:nowrap;flex-shrink:0">${draftMobParts.join(' · ')}</span>
+          <span class="draft-compact-stat" style="font-family:var(--mono);font-size:10px;color:var(--text-2);white-space:nowrap;flex-shrink:0">${draftMobParts.join(' · ')}</span>
         </div>
         <span class="slot-clear" onclick="clearDraftSlot('${slotKey}','${p.player.replace(/'/g,"\\'")}')">✕</span>
         <div class="draft-stat-mob">${draftMobParts.join(' · ')}</div>`;
