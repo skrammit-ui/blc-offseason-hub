@@ -3009,6 +3009,22 @@ function buildBuilderView(players) {
            ${slotStatCells(null, slot.type)}
            <span style="width:24px;flex-shrink:0"></span>`;
     } else {
+      let elseStatLine = '';
+      if (filled) {
+        const fStats = STATS[filled.id] || STATS[filled.player] || {};
+        const isHit = !isPitcher(filled.position);
+        const mobCols = isHit ? HIT_STAT_COLS : PIT_STAT_COLS;
+        const mobParts = mobCols.map(k => {
+          if (k === 'H/AB') {
+            const v = fStats['H/AB'] || (fStats['H'] && fStats['AB'] ? `${fStats['H']}/${fStats['AB']}` : null);
+            return v || null;
+          }
+          const dataKey = k === 'K/9' ? (fStats['K/9'] !== undefined ? 'K/9' : 'K9') : k;
+          const v = fStats[dataKey] || fStats[k];
+          return v ? `${v} ${k}` : null;
+        }).filter(Boolean);
+        if (mobParts.length) elseStatLine = `<div class="slot-stat-mob">${mobParts.join(' · ')}</div>`;
+      }
       playerHtml = filled
         ? `<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -3017,7 +3033,8 @@ function buildBuilderView(players) {
              </div>
              <span class="slot-meta">${filled.mlb_team} · ${filled.position}</span>
            </div>
-           <span class="slot-clear" onclick="clearSlot('${slot.id}')">✕</span>`
+           <span class="slot-clear" onclick="clearSlot('${slot.id}')">✕</span>
+           ${elseStatLine}`
         : `<span style="font-size:11px;color:var(--text-3);font-style:italic">Empty — drag a player here</span>`;
     }
 
