@@ -699,6 +699,23 @@ input[type=file] { display: none; }
   /* Card header: allow wrapping */
   .card-header { flex-wrap: wrap; gap: 6px; }
 
+  /* ── Draft Board: condense for mobile ── */
+  /* Remove horizontal scroll — table fits in single column */
+  .db-scroll { overflow-x: visible !important; }
+  .db-table  { min-width: 0 !important; }
+  /* Drop SAL and CON columns — info is already in the player sub-line */
+  .db-th-sal, .db-sal, .db-th-con, .db-con { display: none !important; }
+  /* Tight number columns */
+  .db-th-rd,  .db-rd  { padding: 6px 5px !important; width: 26px !important; }
+  .db-th-pk,  .db-pk  { padding: 6px 4px !important; width: 24px !important; }
+  .db-th-ovr, .db-ovr { padding: 6px 4px !important; width: 30px !important; }
+  /* Manager: truncate long names */
+  .db-mgr { padding: 6px 6px !important; max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap !important; }
+  /* Player: tighten padding */
+  .db-player { padding: 6px 6px !important; }
+  /* Round header: full-width strip */
+  .db-round-hdr { padding: 4px 8px !important; }
+
   /* ── Rule 5 Draft: mobile layout ── */
   /* Stack board + pool vertically */
   .r5-layout { grid-template-columns: 1fr !important; }
@@ -1382,17 +1399,17 @@ input[type=file] { display: none; }
 
   <!-- Draft board table -->
   <div class="card">
-    <div class="scroll-x">
-      <table style="width:100%;border-collapse:collapse;min-width:600px">
+    <div class="scroll-x db-scroll">
+      <table class="db-table" style="width:100%;border-collapse:collapse;min-width:600px">
         <thead>
           <tr style="background:var(--navy)">
-            <th style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);padding:9px 12px;text-align:center;width:40px">RD</th>
-            <th style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);padding:9px 12px;text-align:center;width:40px">PK</th>
-            <th style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);padding:9px 12px;text-align:center;width:48px">OVR</th>
-            <th style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);padding:9px 12px;text-align:left">Manager</th>
-            <th style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);padding:9px 12px;text-align:left">Player</th>
-            <th style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);padding:9px 12px;text-align:center;width:52px">SAL</th>
-            <th style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);padding:9px 12px;text-align:center;width:52px">CON</th>
+            <th class="db-th db-th-rd"  style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);padding:9px 12px;text-align:center;width:40px">RD</th>
+            <th class="db-th db-th-pk"  style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);padding:9px 12px;text-align:center;width:40px">PK</th>
+            <th class="db-th db-th-ovr" style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);padding:9px 12px;text-align:center;width:48px">OVR</th>
+            <th class="db-th db-th-mgr" style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);padding:9px 12px;text-align:left">Manager</th>
+            <th class="db-th db-th-player" style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);padding:9px 12px;text-align:left">Player</th>
+            <th class="db-th db-th-sal" style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);padding:9px 12px;text-align:center;width:52px">SAL</th>
+            <th class="db-th db-th-con" style="font-family:var(--head);font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gold);padding:9px 12px;text-align:center;width:52px">CON</th>
           </tr>
         </thead>
         <tbody id="draft-board-body"></tbody>
@@ -3728,7 +3745,7 @@ function buildDraftBoard() {
     const totalOpen = rows.filter(r => r.type === 'open').length;
 
     html += `<tr style="background:var(--bg)">
-      <td colspan="7" style="padding:4px 12px;font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);border-bottom:1px solid var(--border);border-top:2px solid var(--border)">
+      <td class="db-round-hdr" colspan="7" style="padding:4px 12px;font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);border-bottom:1px solid var(--border);border-top:2px solid var(--border)">
         Round ${rd}
         <span style="font-weight:400;color:var(--text-3);margin-left:6px">${totalKept > 0 ? `${totalKept} keeper${totalKept!==1?'s':''} &middot; ` : ''}${totalOpen} open pick${totalOpen!==1?'s':''}</span>
       </td>
@@ -3743,7 +3760,7 @@ function buildDraftBoard() {
       // Manager cell — editable dropdown for open slots
       let managerCell;
       if (isOpen && hasPickOrder) {
-        managerCell = `<td style="padding:4px 8px;border-bottom:1px solid var(--border)">
+        managerCell = `<td class="db-mgr" style="padding:4px 8px;border-bottom:1px solid var(--border)">
           <select onchange="updatePickOrder(${rd},${row.pk},this.value)"
             style="font-family:var(--body);font-size:11px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--text);width:100%">
             <option value="">— unassigned —</option>
@@ -3751,16 +3768,16 @@ function buildDraftBoard() {
           </select>
         </td>`;
       } else {
-        managerCell = `<td style="padding:7px 10px;font-size:12px;font-weight:500;color:var(--text-2);border-bottom:1px solid var(--border);white-space:nowrap">${row.manager || row.team || '—'}</td>`;
+        managerCell = `<td class="db-mgr" style="padding:7px 10px;font-size:11px;font-weight:500;color:var(--text-2);border-bottom:1px solid var(--border);white-space:nowrap">${row.manager || row.team || '—'}</td>`;
       }
 
-      // Player cell: name + mlb team + position
+      // Player cell: name + mlb team + position (+ SAL/CON shown on mobile only)
       const playerCell = isOpen
-        ? `<td style="padding:7px 10px;font-size:12px;color:var(--text-3);font-style:italic;border-bottom:1px solid var(--border)">Open pick</td>`
-        : `<td style="padding:7px 10px;border-bottom:1px solid var(--border)">
-            <span style="font-size:13px;font-weight:600;color:var(--text)">${row.player || '—'}</span>
+        ? `<td class="db-player" style="padding:7px 10px;font-size:11px;color:var(--text-3);font-style:italic;border-bottom:1px solid var(--border)">Open pick</td>`
+        : `<td class="db-player" style="padding:7px 10px;border-bottom:1px solid var(--border)">
+            <span style="font-size:12px;font-weight:600;color:var(--text)">${row.player || '—'}</span>
             ${isKeeper ? `<span style="font-size:9px;background:var(--green-lt);color:var(--green);border:1px solid #a8d5bc;border-radius:3px;padding:1px 4px;margin-left:4px;font-family:var(--mono);font-weight:600">K</span>` : ''}
-            <div style="font-size:11px;color:var(--text-3);margin-top:1px">${row.mlb_team||''} &middot; ${row.position||''}</div>
+            <div style="font-size:11px;color:var(--text-3);margin-top:1px">${row.mlb_team||''} &middot; ${row.position||''}${sal ? ` &middot; Rd&nbsp;${sal}` : ''}${row.contract ? ` &middot; ${row.contract}` : ''}</div>
            </td>`;
 
       // SAL — show original salary, highlight if different from rd (bump)
@@ -3772,13 +3789,13 @@ function buildDraftBoard() {
       const ovr = !isNaN(pkNum) ? cumPicksBefore[rd] + pkNum : '—';
 
       html += `<tr style="${rowBg}">
-        <td style="padding:7px 12px;text-align:center;font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text-3);border-bottom:1px solid var(--border)">${rd}</td>
-        <td style="padding:7px 8px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--text-3);border-bottom:1px solid var(--border)">${row.pk}</td>
-        <td style="padding:7px 8px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--text-3);border-bottom:1px solid var(--border)">${ovr}</td>
+        <td class="db-rd"  style="padding:7px 8px;text-align:center;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text-3);border-bottom:1px solid var(--border)">${rd}</td>
+        <td class="db-pk"  style="padding:7px 6px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--text-3);border-bottom:1px solid var(--border)">${row.pk}</td>
+        <td class="db-ovr" style="padding:7px 6px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--text-3);border-bottom:1px solid var(--border)">${ovr}</td>
         ${managerCell}
         ${playerCell}
-        <td style="padding:5px 8px;text-align:center;border-bottom:1px solid var(--border)">${isOpen ? '' : rdTile(sal, false, salBump)}</td>
-        <td style="padding:5px 8px;text-align:center;border-bottom:1px solid var(--border)">${isOpen ? '' : conTag(row.contract || '', false)}</td>
+        <td class="db-sal" style="padding:5px 8px;text-align:center;border-bottom:1px solid var(--border)">${isOpen ? '' : rdTile(sal, false, salBump)}</td>
+        <td class="db-con" style="padding:5px 8px;text-align:center;border-bottom:1px solid var(--border)">${isOpen ? '' : conTag(row.contract || '', false)}</td>
       </tr>`;
     });
   }
