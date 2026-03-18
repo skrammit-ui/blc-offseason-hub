@@ -3624,16 +3624,42 @@ function buildDraftBoard() {
       }
       for (const rd of Object.keys(teamPicksByRd)) teamPicksByRd[rd].sort((a,b) => a-b);
 
-      // Process highest-SAL keepers first; within a SAL group sort by player name.
-      // Each keeper claims the latest available pick in its SAL round, then climbs
-      // up (SAL-1, SAL-2…) if that round is full or the team has no pick there.
+      const teamCustom = customDraftSlots[ownerKeyFor(team)] || {};
       const occupiedSlots = new Set();
       keepers.sort((a,b) => b.sal - a.sal || a.player.localeCompare(b.player));
+
+      // First pass: honour custom placements from the Draft Planner
+      const needsAutoPlace = [];
       for (const k of keepers) {
+        const custom = teamCustom[k.player];
+        if (custom) {
+          const parts = custom.split('_');
+          const rd = parseInt(parts[0]);
+          const pk = parts[1] ? parseInt(parts[1]) : null;
+          const pks = teamPicksByRd[rd];
+          if (pks) {
+            const candidates = (pk !== null && pks.includes(pk)) ? [pk] : pks;
+            let placed = false;
+            for (const p of candidates) {
+              const slotKey = `${rd}_${p}`;
+              if (!occupiedSlots.has(slotKey)) {
+                occupiedSlots.add(slotKey);
+                keeperAssignments.push({ ...k, rd, pk: p });
+                placed = true;
+                break;
+              }
+            }
+            if (placed) continue;
+          }
+        }
+        needsAutoPlace.push(k);
+      }
+
+      // Second pass: auto-place remaining keepers (SAL round, climbing up)
+      for (const k of needsAutoPlace) {
         for (let tryRd = k.sal; tryRd >= 1; tryRd--) {
           const pks = teamPicksByRd[tryRd];
           if (!pks) continue;
-          // Take the latest unoccupied pick in this round
           let placed = false;
           for (let i = pks.length - 1; i >= 0; i--) {
             const slotKey = `${tryRd}_${pks[i]}`;
@@ -3648,12 +3674,18 @@ function buildDraftBoard() {
         }
       }
     } else {
-      // No pick order — bump duplicates alphabetically (existing behavior)
+      // No pick order — use custom slot if set, else bump duplicates alphabetically
+      const teamCustom = customDraftSlots[ownerKeyFor(team)] || {};
       const bySal = {};
       keepers.forEach(k => { if (!bySal[k.sal]) bySal[k.sal] = []; bySal[k.sal].push(k); });
       for (const [sal, group] of Object.entries(bySal)) {
         group.sort((a,b) => a.player.localeCompare(b.player));
         group.forEach((k, i) => {
+          const custom = teamCustom[k.player];
+          if (custom) {
+            const rd = parseInt(custom.split('_')[0]) || parseInt(custom);
+            if (rd >= 1 && rd <= 30) { keeperAssignments.push({ ...k, rd }); return; }
+          }
           const assignedRd = parseInt(sal) - i;
           if (assignedRd >= 1) keeperAssignments.push({ ...k, rd: assignedRd });
         });
