@@ -1093,6 +1093,10 @@ input[type=file] { display: none; }
   <div class="card" id="roster-card">
     <div class="card-header">
       <span class="card-title" id="roster-card-title">Wetherholt 45s</span>
+      <div id="view-team-picker" style="display:flex;align-items:center;gap:5px;font-size:12px">
+        <span style="color:var(--text-3);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase">View:</span>
+        <select id="view-team-select" onchange="viewTeamOverview(this.value)" style="font-family:var(--body);font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--text)"></select>
+      </div>
       <div style="display:flex;gap:6px">
         <button class="view-tab active" onclick="switchView('overview',this)">📋 Overview</button>
         <button class="view-tab" onclick="switchView('builder',this)">🧩 Keeper Builder</button>
@@ -1673,7 +1677,15 @@ function buildThead(isHitter) {
 
 function loadTeam(teamName) {
   currentTeam = teamName;
-  const isOwn = teamName === 'Wetherholt 45s';
+
+  // Populate the view-team dropdown with all teams; mark own team
+  const sel = document.getElementById('view-team-select');
+  if (sel) {
+    const teams = Object.keys(LEAGUE).sort();
+    sel.innerHTML = teams.map(t =>
+      `<option value="${t}"${t === teamName ? ' selected' : ''}>${t}${t === teamName ? ' (You)' : ''}</option>`
+    ).join('');
+  }
 
   document.getElementById('roster-card-title').textContent = teamName;
 
@@ -1689,6 +1701,13 @@ function loadTeam(teamName) {
   prefillFromKeepers(players);
   buildBuilderView(players);
   buildDraftPlanView(players);
+}
+
+function viewTeamOverview(teamName) {
+  const viewingOwn = teamName === currentTeam;
+  document.getElementById('roster-card-title').textContent = teamName;
+  renderOverview(LEAGUE[teamName] || [], keeperStore[teamName] || {}, viewingOwn);
+  initEditable();
 }
 
 // ── Standings ─────────────────────────────────────────────────────────────────
@@ -2375,8 +2394,8 @@ function getKeptPlayers() {
 }
 
 // Render overview — single unified list sorted by Rd then Player name
-function renderOverview(players, keptPlayers = {}) {
-  const editable = IS_COMMISH;
+function renderOverview(players, keptPlayers = {}, viewingOwn = true) {
+  const editable = IS_COMMISH && viewingOwn;
 
   const sorted = [...players].sort((a, b) => {
     const rdA = parseInt(a.salary) || 999;
@@ -2404,7 +2423,7 @@ function renderOverview(players, keptPlayers = {}) {
     const toggleAttr = editable ? ` onclick="openStatusPicker(this)" title="Click to change status" style="cursor:pointer"` : '';
     const stag = `<span class="stag ${m.cls}"${toggleAttr}>${m.label}</span>`;
     const isExpiring = p.contract && p.contract.trim() === '2026';
-    const keepBtn = isExpiring ? '' : `<span class="keep-btn" onclick="toggleKeeper(this)" title="Mark as keeper">✓</span>`;
+    const keepBtn = (isExpiring || !viewingOwn) ? '' : `<span class="keep-btn" onclick="toggleKeeper(this)" title="Mark as keeper">✓</span>`;
     const editAttr = editable ? ' onclick="openEdit(this)"' : '';
     const isHitter = !isPitcher(p.position);
     const stats = STATS[p.id] || STATS[p.player] || {};
@@ -2774,6 +2793,15 @@ function switchView(view, btn) {
   btn.classList.add('active');
   document.querySelectorAll('.roster-view').forEach(v => v.style.display = 'none');
   document.getElementById('view-' + (view === 'draft' ? 'draft-plan' : view)).style.display = '';
+
+  // Show team-picker only in Overview; reset to own team if switching away
+  const picker = document.getElementById('view-team-picker');
+  const sel    = document.getElementById('view-team-select');
+  if (picker) picker.style.display = (view === 'overview') ? 'flex' : 'none';
+  if (view !== 'overview' && sel && sel.value !== currentTeam) {
+    sel.value = currentTeam;
+    viewTeamOverview(currentTeam);
+  }
 
   const legend = document.getElementById('view-legend');
   if (view === 'builder') {
