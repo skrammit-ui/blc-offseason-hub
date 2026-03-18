@@ -2101,35 +2101,34 @@ const BRACKET_TEMPLATE = {
   'wc20_2': { round:'Week 20', bracket:'champ', group:'Wild Card',         divIdx:2, winnerTo:['ch21_2','team2'], loserTo:['co21_2','team1'] },
   'wc20_3': { round:'Week 20', bracket:'champ', group:'Wild Card',         divIdx:3, winnerTo:['ch21_3','team2'], loserTo:['co21_3','team1'] },
   // ── Week 20: Consolation Opener (4th vs 5th each division)
-  'co20_0': { round:'Week 20', bracket:'consol', group:'Consol. Opener',   divIdx:0, winnerTo:['co21_0','team2'], loserTo:['r5_21_0','team1'] },
-  'co20_1': { round:'Week 20', bracket:'consol', group:'Consol. Opener',   divIdx:1, winnerTo:['co21_1','team2'], loserTo:['r5_21_1','team1'] },
-  'co20_2': { round:'Week 20', bracket:'consol', group:'Consol. Opener',   divIdx:2, winnerTo:['co21_2','team2'], loserTo:['r5_21_1','team2'] },
-  'co20_3': { round:'Week 20', bracket:'consol', group:'Consol. Opener',   divIdx:3, winnerTo:['co21_3','team2'], loserTo:['r5_21_0','team2'] },
+  'co20_0': { round:'Week 20', bracket:'consol', group:'Consol. Opener',   divIdx:0, winnerTo:['co21_0','team2'], loserTo:null },
+  'co20_1': { round:'Week 20', bracket:'consol', group:'Consol. Opener',   divIdx:1, winnerTo:['co21_1','team2'], loserTo:null },
+  'co20_2': { round:'Week 20', bracket:'consol', group:'Consol. Opener',   divIdx:2, winnerTo:['co21_2','team2'], loserTo:null },
+  'co20_3': { round:'Week 20', bracket:'consol', group:'Consol. Opener',   divIdx:3, winnerTo:['co21_3','team2'], loserTo:null },
   // ── Week 21: Divisional Championship (div winner [bye] vs WC winner)
   'ch21_0': { round:'Week 21', bracket:'champ', group:'Divisional',        divIdx:0, winnerTo:['ch22_0','team1'], loserTo:null },
   'ch21_1': { round:'Week 21', bracket:'champ', group:'Divisional',        divIdx:1, winnerTo:['ch22_1','team1'], loserTo:null },
   'ch21_2': { round:'Week 21', bracket:'champ', group:'Divisional',        divIdx:2, winnerTo:['ch22_1','team2'], loserTo:null },
   'ch21_3': { round:'Week 21', bracket:'champ', group:'Divisional',        divIdx:3, winnerTo:['ch22_0','team2'], loserTo:null },
-  // ── Week 21: Consolation (CO winner vs WC loser, per division)
-  'co21_0': { round:'Week 21', bracket:'consol', group:'Consolation',      divIdx:0, winnerTo:['co22_0','team1'], loserTo:null },
-  'co21_1': { round:'Week 21', bracket:'consol', group:'Consolation',      divIdx:1, winnerTo:['co22_1','team1'], loserTo:null },
-  'co21_2': { round:'Week 21', bracket:'consol', group:'Consolation',      divIdx:2, winnerTo:['co22_1','team2'], loserTo:null },
-  'co21_3': { round:'Week 21', bracket:'consol', group:'Consolation',      divIdx:3, winnerTo:['co22_0','team2'], loserTo:null },
-  // ── Week 21: Rule 5 (losers of CO openers — top vs low, middles)
-  'r5_21_0': { round:'Week 21', bracket:'r5', group:'Rule 5',              divIdx:null, label:'Top vs Low',   winnerTo:['r5_22_w','team1'], loserTo:['r5_22_l','team1'] },
-  'r5_21_1': { round:'Week 21', bracket:'r5', group:'Rule 5',              divIdx:null, label:'Middles',      winnerTo:['r5_22_w','team2'], loserTo:['r5_22_l','team2'] },
+  // ── Week 21: Consolation (CO winner vs WC loser; losers drop to Rule 5 Wk22)
+  'co21_0': { round:'Week 21', bracket:'consol', group:'Consolation',      divIdx:0, winnerTo:['co22_0','team1'], loserTo:['r5_22_0','team1'] },
+  'co21_1': { round:'Week 21', bracket:'consol', group:'Consolation',      divIdx:1, winnerTo:['co22_1','team1'], loserTo:['r5_22_1','team1'] },
+  'co21_2': { round:'Week 21', bracket:'consol', group:'Consolation',      divIdx:2, winnerTo:['co22_1','team2'], loserTo:['r5_22_1','team2'] },
+  'co21_3': { round:'Week 21', bracket:'consol', group:'Consolation',      divIdx:3, winnerTo:['co22_0','team2'], loserTo:['r5_22_0','team2'] },
   // ── Week 22: Championship semis (1v4, 2v3)
   'ch22_0': { round:'Week 22', bracket:'champ', group:'Championship',      divIdx:null, label:'1 vs 4',       winnerTo:['ws','team1'],       loserTo:null },
   'ch22_1': { round:'Week 22', bracket:'champ', group:'Championship',      divIdx:null, label:'2 vs 3',       winnerTo:['ws','team2'],       loserTo:null },
   // ── Week 22: Consolation semis (top vs low, middles)
   'co22_0': { round:'Week 22', bracket:'consol', group:'Consolation',      divIdx:null, label:'Top vs Low',   winnerTo:['co_final','team1'], loserTo:null },
   'co22_1': { round:'Week 22', bracket:'consol', group:'Consolation',      divIdx:null, label:'Middles',      winnerTo:['co_final','team2'], loserTo:null },
-  // ── Week 22: Rule 5 Finals (winners: 17th/18th; losers: 19th/20th)
-  'r5_22_w': { round:'Week 22', bracket:'r5', group:'Rule 5 Final',        divIdx:null, label:'17th/18th',    winnerTo:null, loserTo:null },
-  'r5_22_l': { round:'Week 22', bracket:'r5', group:'Rule 5 Final',        divIdx:null, label:'19th/20th',    winnerTo:null, loserTo:null },
+  // ── Week 22: Rule 5 first round (losers of Wk21 consolation — top vs low, middles)
+  'r5_22_0': { round:'Week 22', bracket:'r5', group:'Rule 5',              divIdx:null, label:'Top vs Low',   winnerTo:['r5_23_w','team1'], loserTo:['r5_23_l','team1'] },
+  'r5_22_1': { round:'Week 22', bracket:'r5', group:'Rule 5',              divIdx:null, label:'Middles',      winnerTo:['r5_23_w','team2'], loserTo:['r5_23_l','team2'] },
   // ── Weeks 23–24: Finals
   'ws':       { round:'Wks 23–24', bracket:'champ', group:'World Series',  divIdx:null, label:'World Series', winnerTo:null, loserTo:null },
   'co_final': { round:'Wks 23–24', bracket:'consol', group:'Consol. Final',divIdx:null, label:'9th Place',    winnerTo:null, loserTo:null },
+  'r5_23_w':  { round:'Wks 23–24', bracket:'r5', group:'Rule 5 Finals',   divIdx:null, label:'17th/18th',    winnerTo:null, loserTo:null },
+  'r5_23_l':  { round:'Wks 23–24', bracket:'r5', group:'Rule 5 Finals',   divIdx:null, label:'19th/20th',    winnerTo:null, loserTo:null },
 };
 
 // Bracket rendering layout (ordered columns per bracket type)
@@ -2147,8 +2146,8 @@ const BRACKET_LAYOUT = {
     { colLabel:'Wks 23–24\nConsol. Final',     ids:['co_final'] },
   ],
   r5: [
-    { colLabel:'Week 21\nRule 5',              ids:['r5_21_0','r5_21_1'] },
-    { colLabel:'Week 22\nRule 5 Finals',       ids:['r5_22_w','r5_22_l'] },
+    { colLabel:'Week 22\nRule 5',              ids:['r5_22_0','r5_22_1'] },
+    { colLabel:'Wks 23–24\nRule 5 Finals',     ids:['r5_23_w','r5_23_l'] },
   ],
 };
 
@@ -2322,7 +2321,7 @@ function pushStandingsToPlayoffs() {
 
   // Clear all downstream matchups (Wk21 onwards, except ch21 team1 just set above)
   const downstream = ['co21_0','co21_1','co21_2','co21_3',
-    'r5_21_0','r5_21_1','ch22_0','ch22_1','co22_0','co22_1','r5_22_w','r5_22_l','ws','co_final'];
+    'ch22_0','ch22_1','co22_0','co22_1','r5_22_0','r5_22_1','ws','co_final','r5_23_w','r5_23_l'];
   downstream.forEach(id => {
     state[id] = { team1:'', team2:'', winner:'', loser:'' };
   });
