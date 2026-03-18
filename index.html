@@ -676,15 +676,19 @@ input[type=file] { display: none; }
   /* Keep button — larger touch target */
   .keep-btn { width: 22px; height: 22px; font-size: 11px; margin-left: 6px; }
 
-  /* Draft round — single-row layout on mobile */
-  .draft-round { min-height: 32px; flex-wrap: nowrap; gap: 6px; padding: 3px 8px; margin-bottom: 1px; align-items: center; }
-  .draft-round-badge { display: none; }
-  .draft-exp-badge   { display: none; }
-  .draft-player-content { flex-direction: row !important; align-items: center !important; gap: 4px 6px !important; flex-wrap: nowrap !important; }
+  /* Draft round — two-row layout on mobile: player info + stats */
+  .draft-round { min-height: 32px; flex-wrap: wrap; gap: 0 6px; padding: 3px 8px; margin-bottom: 1px; align-items: center; }
+  /* Compact badge: hide labels, show numbers inline */
+  .draft-round-badge { flex-shrink: 0; gap: 5px !important; padding-right: 4px !important; }
+  .rd-col { flex-direction: row !important; align-items: baseline; }
+  .rd-label { display: none; }
+  .rd-num { font-size: 10px !important; }
+  /* Player content: single row — Player, Team·Pos, SAL all inline */
+  .draft-exp-badge { display: none; }
+  .draft-player-content { flex-direction: row !important; align-items: center !important; gap: 0 5px !important; flex-wrap: nowrap !important; overflow: hidden; }
   .draft-compact-stat { display: none; }
-  .draft-stat-mob { display: none !important; }
-  /* Scale down RD/PK/OVR badge numbers on desktop hover-state (hidden on mobile anyway) */
-  .rd-num { font-size: 11px !important; }
+  /* Stats sub-line: second row, full width */
+  .draft-stat-mob { display: block !important; padding-top: 1px; }
 
   /* Trade grid: single column */
   .tp-grid { grid-template-columns: 1fr !important; }
@@ -3322,23 +3326,23 @@ function buildDraftPlanView(players) {
     if (pk != null) {
       const ovr = plannerCumBefore[r] + pk;
       roundBadge = `<div class="draft-round-badge" style="display:flex;gap:10px;align-items:center;font-family:var(--mono);flex-shrink:0;padding-right:6px">
-          <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
-            <span style="font-size:8px;color:var(--text-3);letter-spacing:.05em">RD</span>
+          <div class="rd-col" style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
+            <span class="rd-label" style="font-size:8px;color:var(--text-3);letter-spacing:.05em">RD</span>
             <span class="rd-num" style="font-size:13px;font-weight:700;color:var(--navy)">${r}</span>
           </div>
-          <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
-            <span style="font-size:8px;color:var(--text-3);letter-spacing:.05em">PK</span>
+          <div class="rd-col" style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
+            <span class="rd-label" style="font-size:8px;color:var(--text-3);letter-spacing:.05em">PK</span>
             <span class="rd-num" style="font-size:13px;font-weight:700;color:var(--navy)">${pk}</span>
           </div>
-          <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
-            <span style="font-size:8px;color:var(--text-3);letter-spacing:.05em">OVR</span>
+          <div class="rd-col" style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
+            <span class="rd-label" style="font-size:8px;color:var(--text-3);letter-spacing:.05em">OVR</span>
             <span class="rd-num" style="font-size:13px;font-weight:700;color:var(--navy)">${ovr}</span>
           </div>
          </div>`;
     } else {
       roundBadge = `<div class="draft-round-badge" style="display:flex;gap:10px;align-items:center;font-family:var(--mono);flex-shrink:0;padding-right:6px">
-          <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
-            <span style="font-size:8px;color:var(--text-3);letter-spacing:.05em">RD</span>
+          <div class="rd-col" style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
+            <span class="rd-label" style="font-size:8px;color:var(--text-3);letter-spacing:.05em">RD</span>
             <span class="rd-num" style="font-size:13px;font-weight:700;color:var(--navy)">${r}</span>
           </div>
          </div>`;
