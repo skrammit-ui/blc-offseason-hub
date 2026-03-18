@@ -656,6 +656,9 @@ input[type=file] { display: none; }
   /* Slot clear button — bigger tap area */
   .slot-clear { padding: 8px; font-size: 16px; }
 
+  /* Keep button — larger touch target */
+  .keep-btn { width: 30px; height: 30px; font-size: 14px; margin-left: 8px; }
+
   /* Draft round — min height for touch */
   .draft-round { min-height: 44px; }
 
@@ -2137,7 +2140,7 @@ function applyEdit(tile, type, val) {
 // Toggle keeper status — highlights row green (MLB) or blue (MiLB)
 function toggleKeeper(btn) {
   const row = btn.closest('tr');
-  const isKept = btn.classList.contains('kept-mlb') || btn.classList.contains('kept-milb');
+  const isKept = [...btn.classList].some(c => c.startsWith('kept-'));
   const normStatus = row.dataset.statusNorm || 'MLB';
 
   if (isKept) {
