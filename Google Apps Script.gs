@@ -104,8 +104,17 @@ const LEGACY_OWNER_KEYS = {
 };
 
 function resolveOwnerKey(raw, ownerMap) {
-  const normalized = LEGACY_OWNER_KEYS[raw] || raw;
-  return ownerMap[normalized] || ownerMap[raw] || null;
+  // 1. Exact match
+  if (ownerMap[raw]) return ownerMap[raw];
+  // 2. Known legacy alias
+  const legacy = LEGACY_OWNER_KEYS[raw];
+  if (legacy && ownerMap[legacy]) return ownerMap[legacy];
+  // 3. Case-insensitive scan (catches any future key typos/renames)
+  const lower = raw.toLowerCase();
+  for (const [k, v] of Object.entries(ownerMap)) {
+    if (k.toLowerCase() === lower) return v;
+  }
+  return null;
 }
 
 function getRosters(ss) {
