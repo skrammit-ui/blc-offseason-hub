@@ -3211,9 +3211,9 @@ function buildDraftPlanView(players) {
       innerHtml = `
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span class="round-player" style="cursor:grab">${p.player}${isExp ? '&nbsp;<span style="font-size:9px;color:var(--red);font-family:var(--mono);font-weight:700">EXP</span>' : ''}</span>
             ${bumpBadge}
-            <span class="draft-compact-stat">${compactStatLine(p)}</span>
+            <span class="round-player" style="cursor:grab">${p.player}${isExp ? '&nbsp;<span style="font-size:9px;color:var(--red);font-family:var(--mono);font-weight:700">EXP</span>' : ''}</span>
+            <span class="draft-compact-stat" style="font-family:var(--mono);font-size:10px;color:var(--text-2)">${draftMobParts.join(' · ')}</span>
           </div>
           <span class="round-meta">${p.mlb_team}&nbsp;·&nbsp;${p.position}</span>
         </div>
