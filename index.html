@@ -180,8 +180,8 @@ tr.row-expired td { background: #fdf2f1 !important; }
 /* Contract pills */
 .ctag {
   display: inline-flex; align-items: center; justify-content: center;
-  font-family: var(--mono); font-size: 10px; font-weight: 500;
-  padding: 2px 6px; border-radius: 4px; cursor: pointer;
+  font-family: var(--mono); font-size: 9px; font-weight: 500;
+  padding: 1px 5px; border-radius: 3px; cursor: pointer;
   transition: filter .1s;
 }
 .ctag:hover { filter: brightness(.9); }
@@ -3332,7 +3332,7 @@ function buildDraftPlanView(players) {
       const sal = parseInt(p.salary);
       // SAL badge — always shown; colour indicates placement vs salary
       const salColor = !sal ? '' : r === sal ? 'color:var(--text-3);background:var(--surface);border:1px solid var(--border)' : r < sal ? 'color:#92400e;background:#fef3c7' : 'color:var(--red);background:var(--red-lt)';
-      const bumpBadge = sal ? `<span style="font-size:10px;font-family:var(--mono);font-weight:500;padding:2px 5px;border-radius:4px;flex-shrink:0;${salColor}">RD ${sal}</span>` : '';
+      const bumpBadge = sal ? `<span style="font-size:9px;font-family:var(--mono);font-weight:500;padding:1px 5px;border-radius:3px;flex-shrink:0;${salColor}">RD ${sal}</span>` : '';
       // Build mobile full-stats line (same format as Roster/Builder)
       const draftStats = STATS[p.id] || STATS[p.player] || {};
       const draftIsHit = !isPitcher(p.position);
