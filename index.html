@@ -585,13 +585,13 @@ input[type=file] { display: none; }
   table.roster-tbl tbody { display: block; width: 100%; }
   table.roster-tbl thead { display: none; }  /* headers replaced by card layout */
 
-  /* Each row: single nowrap flex line */
+  /* Each data row becomes a flex-wrap container */
   table.roster-tbl tr {
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 0 4px;
-    padding: 2px 10px;
+    gap: 2px 3px;
+    padding: 3px 10px;
     border-bottom: 1px solid var(--border);
     box-sizing: border-box;
     width: 100%;
@@ -600,45 +600,46 @@ input[type=file] { display: none; }
     display: block;
     border: none;
     padding: 0;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
   }
 
-  /* Column order: Status · Player · Rd · Con · Stats */
+  /* Row 1: Status · Rd · Con */
   table.roster-tbl .col-status { order: 1; flex: 0 0 auto; }
-  table.roster-tbl .col-rd     { order: 3; flex: 0 0 auto; }
-  table.roster-tbl .col-con    { order: 4; flex: 0 0 auto; }
+  table.roster-tbl .col-rd     { order: 1; flex: 0 0 auto; }
+  table.roster-tbl .col-con    { order: 1; flex: 0 0 auto; }
+
+  /* Row 2: Player name + keeper btn + team · pos
+     flex: 0 0 100% forces a line break after row 1 */
   table.roster-tbl .col-player {
     order: 2;
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    overflow: hidden;
+    flex: 0 0 100%;
+    width: 100%;
     font-size: 12px;
+    padding-top: 2px;
   }
-  table.roster-tbl .col-player strong {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex-shrink: 1;
+  table.roster-tbl .col-player .player-meta {
+    display: inline;
+    margin-top: 0;
+    margin-left: 5px;
   }
-  table.roster-tbl .col-player .player-meta { flex-shrink: 0; }
-  table.roster-tbl .col-player .keep-btn    { flex-shrink: 0; }
 
-  /* Stats: right of Con, clipped */
+  /* Row 3: hide individual stat tds, show single scrollable stats line */
   table.roster-tbl .col-stat,
   table.roster-tbl .col-stat-irrel { display: none; }
   table.roster-tbl .col-stat-mob {
     display: block;
-    order: 5;
-    flex: 0 0 auto;
-    max-width: 36%;
+    order: 3;
+    flex: 0 0 100%;
+    width: 100%;
     font-family: var(--mono);
     font-size: 9px;
     color: var(--text-2);
+    padding-top: 2px;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    text-align: right;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   /* Section header rows (Active / Bench / MiLB dividers) */
@@ -2473,7 +2474,7 @@ function renderOverview(players, keptPlayers = {}, viewingOwn = true) {
       <td class="col-status">${stag}</td>
       <td class="col-rd c"${editAttr}>${rdTile(p.salary, editable)}</td>
       <td class="col-con c"${editAttr}>${conTag(p.contract, editable)}</td>
-      <td class="col-player"><strong>${p.player}</strong><span class="player-meta">${p.mlb_team} · ${p.position}</span>${keepBtn}</td>
+      <td class="col-player"><strong>${p.player}</strong>${keepBtn}<span class="player-meta">${p.mlb_team} · ${p.position}</span></td>
       ${statCols}
       ${mobStatCell}
     </tr>`;
