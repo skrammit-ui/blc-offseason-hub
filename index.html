@@ -526,7 +526,6 @@ input[type=file] { display: none; }
   .brand-name { order: 1; flex: 0 0 auto; margin: 0; font-size: 14px; }
   .brand-sub  { display: none; }
   .commish-badge { display: none; }
-  #change-team-btn { display: none !important; }
   /* Row 2: Rosters · Keepers · Rule 5 */
   .nav-group-1 { order: 2; display: flex; width: 100%; border-top: 1px solid var(--navy-3); }
   /* Row 3: Draft · Rules · Commissioner */
@@ -2429,23 +2428,6 @@ function applyOwner(key) {
     IS_COMMISH = (key === COMMISH_KEY);
   };
 
-  // Add "Change Team" link to nav
-  const topbar = document.querySelector('.topbar');
-  if (topbar && !document.getElementById('change-team-btn')) {
-    const btn = document.createElement('div');
-    btn.id = 'change-team-btn';
-    btn.style.cssText = 'margin-left:auto;font-size:11px;color:#8aa0bc;cursor:pointer;padding:0 14px;white-space:nowrap;display:flex;align-items:center;gap:5px';
-    btn.innerHTML = `<span style="font-size:13px">👤</span> <span>${teamName}</span> <span style="font-size:10px;opacity:.6">▾</span>`;
-    btn.title = 'Click to switch teams';
-    btn.onclick = () => {
-      const url = new URL(window.location.href);
-      url.searchParams.delete('owner');
-      window.location.href = url.toString();
-    };
-    const commishBadge = topbar.querySelector('.commish-badge');
-    if (commishBadge) topbar.insertBefore(btn, commishBadge);
-    else topbar.appendChild(btn);
-  }
 
   // Boot app
   Object.keys(LEAGUE).forEach(team => { if (!keeperStore[team]) keeperStore[team] = {}; });
@@ -4292,11 +4274,7 @@ function doRenameTeam() {
   // Refresh commish selects
   populateCommishSelects();
 
-  // Update nav pill if it was this team
-  const navPill = document.querySelector('#change-team-btn span:nth-child(2)');
-  if (navPill && navPill.textContent === oldName) navPill.textContent = name;
-
-  statusEl.textContent = `✓ Renamed "${oldName}" → "${name}"`;
+statusEl.textContent = `✓ Renamed "${oldName}" → "${name}"`;
   statusEl.style.color = 'var(--green)';
   toast(`Team renamed: ${oldName} → ${name}`);
   // ── Sync rename to Google Sheet ───────────────────────────────────────
