@@ -810,13 +810,13 @@ input[type=file] { display: none; }
   background: var(--navy); border-bottom: 2px solid var(--gold);
 }
 .div-standings-tbl th {
-  padding: 5px 12px; text-align: left;
+  padding: 4px 10px; text-align: left;
   font-family: var(--head); font-size: 10px; font-weight: 700;
   letter-spacing: .06em; text-transform: uppercase; color: var(--gold);
   white-space: nowrap;
 }
 .div-standings-tbl td {
-  padding: 5px 8px; border-bottom: 1px solid var(--border);
+  padding: 4px 8px; border-bottom: 1px solid var(--border);
 }
 .div-standings-tbl td:first-child {
   font-family: var(--mono); font-weight: 700; color: var(--gold);
@@ -965,31 +965,33 @@ input[type=file] { display: none; }
 
 .div-dnd-col {
   border: 1px solid var(--border); border-radius: var(--r);
-  overflow: hidden;
+  overflow: hidden; background: var(--surface);
 }
 .div-dnd-col-header {
-  background: var(--navy); color: #fff;
-  padding: 8px 12px;
-  font-family: var(--head); font-size: 13px; font-weight: 800;
+  background: var(--navy); color: var(--gold);
+  padding: 5px 10px;
+  font-family: var(--head); font-size: 10px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  border-bottom: 2px solid var(--gold);
 }
 .div-dnd-list {
-  padding: 6px; min-height: 60px;
+  padding: 0; min-height: 40px;
 }
 .div-dnd-item {
   display: flex; align-items: center; gap: 6px;
-  padding: 6px 8px; margin-bottom: 4px;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 4px; cursor: grab; user-select: none;
-  font-size: 12px;
+  padding: 4px 8px;
+  background: var(--surface); border: none;
+  border-bottom: 1px solid var(--border);
+  cursor: grab; user-select: none; font-size: 12px;
 }
-.div-dnd-item:last-child { margin-bottom: 0; }
-.div-dnd-item:hover { border-color: var(--gold); }
+.div-dnd-item:last-child { border-bottom: none; }
+.div-dnd-item:hover { background: var(--amber-lt); }
 .div-dnd-item.dragging { opacity: .4; }
-.div-dnd-item.drag-over { border-color: var(--gold); background: var(--amber-lt); }
+.div-dnd-item.drag-over { background: var(--amber-lt); outline: 1px solid var(--gold); }
 .drag-handle { color: var(--text-3); font-size: 13px; cursor: grab; }
 .dnd-pos {
-  font-family: var(--mono); font-size: 10px; color: var(--text-3);
-  min-width: 18px; text-align: right;
+  font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--gold);
+  min-width: 20px; text-align: right;
 }
 .dnd-name { flex: 1; font-weight: 500; }
 .dnd-remove {
@@ -1029,17 +1031,17 @@ input[type=file] { display: none; }
 /* Matchup card (structured) */
 .smatchup {
   border: 1px solid var(--border); border-radius: var(--r);
-  overflow: hidden; background: var(--surface); margin: 0 6px 8px;
+  overflow: hidden; background: var(--surface); margin: 0 6px 4px;
 }
 .smatchup-label {
   background: var(--bg); border-bottom: 1px solid var(--border);
   font-size: 9px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .06em; color: var(--text-3);
-  padding: 3px 8px;
+  padding: 2px 8px;
 }
 .smatchup-team {
   display: flex; align-items: center; gap: 6px;
-  padding: 7px 10px; border-bottom: 1px solid var(--border);
+  padding: 4px 10px; border-bottom: 1px solid var(--border);
   font-size: 12px; transition: background .1s;
 }
 .smatchup-team:last-child { border-bottom: none; }
@@ -1061,7 +1063,7 @@ input[type=file] { display: none; }
 .bfs-col { min-width: 280px; }
 .bfs-row {
   display: flex; align-items: center; gap: 0;
-  font-size: 12px; padding: 5px 8px;
+  font-size: 12px; padding: 4px 8px;
   border-bottom: 1px solid var(--border);
 }
 .bfs-col-header {
