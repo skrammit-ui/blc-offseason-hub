@@ -3091,8 +3091,8 @@ function buildBuilderView(players) {
            ${slotStatCells(filled, slot.type)}
            <span class="slot-rd-mob">${rdTile(filled.salary)}</span>
            <span class="slot-con-mob">${conTag(filled.contract)}</span>
-           ${mobStatLine}
-           <span class="slot-clear" onclick="clearSlot('${slot.id}')">✕</span>`
+           <span class="slot-clear" onclick="clearSlot('${slot.id}')">✕</span>
+           ${mobStatLine}`
         : `<span style="flex:1;font-size:11px;color:var(--text-3);font-style:italic">Empty — drag a player here</span>
            ${slotStatCells(null, slot.type)}
            <span style="width:24px;flex-shrink:0"></span>`;
@@ -3121,8 +3121,8 @@ function buildBuilderView(players) {
            </div>
            <span class="slot-rd-mob">${rdTile(filled.salary)}</span>
            <span class="slot-con-mob">${conTag(filled.contract)}</span>
-           ${elseStatLine}
-           <span class="slot-clear" onclick="clearSlot('${slot.id}')">✕</span>`
+           <span class="slot-clear" onclick="clearSlot('${slot.id}')">✕</span>
+           ${elseStatLine}`
         : `<span style="font-size:11px;color:var(--text-3);font-style:italic">Empty — drag a player here</span>`;
     }
 
@@ -3355,8 +3355,8 @@ function buildDraftPlanView(players) {
           ${p.contract ? conTag(p.contract) : ''}
           <span class="draft-compact-stat" style="margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--text-2);white-space:nowrap;flex-shrink:0">${draftMobParts.join(' · ')}</span>
         </div>
-        <div class="draft-stat-mob">${draftMobParts.join(' · ')}</div>
-        <span class="slot-clear" onclick="clearDraftSlot('${slotKey}','${p.player.replace(/'/g,"\\'")}')">✕</span>`;
+        <span class="slot-clear" onclick="clearDraftSlot('${slotKey}','${p.player.replace(/'/g,"\\'")}')">✕</span>
+        <div class="draft-stat-mob">${draftMobParts.join(' · ')}</div>`;
     }
 
     let roundBadge;
