@@ -794,11 +794,11 @@ input[type=file] { display: none; }
   display: flex; align-items: center; justify-content: space-between;
 }
 .division-card-name {
-  font-family: var(--head); font-size: 15px; font-weight: 800;
+  font-family: var(--head); font-size: 13px; font-weight: 800;
   letter-spacing: .02em;
 }
 .division-card-year {
-  font-size: 10px; color: var(--gold); font-weight: 700;
+  font-size: 13px; color: var(--gold); font-weight: 700;
   letter-spacing: .06em; text-transform: uppercase;
 }
 
@@ -2273,7 +2273,6 @@ function renderDivisionCard(divName, year, ownerKeys) {
       <span class="division-card-year">${year}</span>
     </div>
     <table class="div-standings-tbl">
-      <thead><tr><th>Rank</th><th>Team</th></tr></thead>
       <tbody>${tbody}</tbody>
     </table>
   </div>`;
@@ -2390,7 +2389,6 @@ function renderPlayoffBracket(year) {
 
     const cards = pairs.map(([top, bot]) =>
       `<div class="smatchup">
-        <div class="smatchup-label">${top.place} / ${bot.place}</div>
         ${rowHtml(top)}${rowHtml(bot)}
       </div>`
     ).join('');
@@ -2399,12 +2397,6 @@ function renderPlayoffBracket(year) {
     <div class="bracket-round-col bfs-col">
       <div class="bracket-col-label">Final<br>Standings</div>
       <div class="bracket-round-matchups">
-        <div class="bfs-col-header">
-          <span class="bfs-rank">Rank</span>
-          <span class="bfs-team">Team</span>
-          <span class="bfs-pick">Draft</span>
-          <span class="bfs-pick">Rule 5</span>
-        </div>
         ${cards}
       </div>
     </div>`;
