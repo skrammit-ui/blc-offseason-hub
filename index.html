@@ -650,9 +650,21 @@ input[type=file] { display: none; }
   /* Pool cards — better touch target */
   .pool-card { padding: 10px 12px; min-height: 44px; }
 
-  /* Builder slot rows — allow horizontal scroll so stats stay on one line */
-  .slot-row { overflow-x: auto; flex-wrap: nowrap; }
-  .slot-stat, .slot-stat-hdr { width: 32px; flex-shrink: 0; font-size: 10px; }
+  /* Builder slot rows — two-row layout matching Roster view */
+  .slot-row { flex-wrap: wrap; overflow-x: visible; }
+  .slot-stat, .slot-stat-hdr, .slot-hdr-row { display: none; }
+  .slot-stat-mob {
+    display: block;
+    flex: 0 0 100%;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-2);
+    white-space: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-top: 2px;
+    padding-left: 46px; /* align under player name (slot-label 36px + gap 10px) */
+  }
 
   /* Slot clear button — bigger tap area */
   .slot-clear { padding: 8px; font-size: 16px; }
@@ -1479,7 +1491,7 @@ function slotStatCells(p, sectionType) {
 
 function slotStatHdrRow(sectionType, labelWidth) {
   const cols = sectionType === 'hit' ? HIT_STAT_COLS : PIT_STAT_COLS;
-  return `<div style="display:flex;align-items:center;gap:10px;padding:0 10px;margin-bottom:2px">
+  return `<div class="slot-hdr-row" style="display:flex;align-items:center;gap:10px;padding:0 10px;margin-bottom:2px">
     <span style="width:${labelWidth}px;flex-shrink:0"></span>
     <span style="flex:1;font-size:10px;font-weight:600;color:var(--text-3)">Player</span>
     ${cols.map(c => `<span class="slot-stat-hdr">${c}</span>`).join('')}
@@ -2936,13 +2948,30 @@ function buildBuilderView(players) {
     const hasStatCols = slot.type === 'hit' || slot.type === 'pit';
     let playerHtml;
     if (hasStatCols) {
+      // Build mobile single-line stats string
+      let mobStatLine = '';
+      if (filled) {
+        const fStats = STATS[filled.id] || STATS[filled.player] || {};
+        const mobCols = slot.type === 'hit' ? HIT_STAT_COLS : PIT_STAT_COLS;
+        const mobParts = mobCols.map(k => {
+          if (k === 'H/AB') {
+            const v = fStats['H/AB'] || (fStats['H'] && fStats['AB'] ? `${fStats['H']}/${fStats['AB']}` : null);
+            return v || null;
+          }
+          const dataKey = k === 'K/9' ? (fStats['K/9'] !== undefined ? 'K/9' : 'K9') : k;
+          const v = fStats[dataKey] || fStats[k];
+          return v ? `${v} ${k}` : null;
+        }).filter(Boolean);
+        mobStatLine = `<div class="slot-stat-mob">${mobParts.join(' · ')}</div>`;
+      }
       playerHtml = filled
         ? `<div style="flex:1;min-width:0">
              <div style="font-size:13px;font-weight:500">${filled.player}</div>
              <span class="slot-meta">${filled.mlb_team} · ${filled.position}</span>
            </div>
            ${slotStatCells(filled, slot.type)}
-           <span class="slot-clear" onclick="clearSlot('${slot.id}')">✕</span>`
+           <span class="slot-clear" onclick="clearSlot('${slot.id}')">✕</span>
+           ${mobStatLine}`
         : `<span style="flex:1;font-size:11px;color:var(--text-3);font-style:italic">Empty — drag a player here</span>
            ${slotStatCells(null, slot.type)}
            <span style="width:24px;flex-shrink:0"></span>`;
