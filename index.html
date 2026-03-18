@@ -676,22 +676,15 @@ input[type=file] { display: none; }
   /* Keep button — larger touch target */
   .keep-btn { width: 22px; height: 22px; font-size: 11px; margin-left: 6px; }
 
-  /* Draft round — mobile two-row layout */
-  .draft-round { min-height: 32px; flex-wrap: wrap; gap: 3px 10px; padding: 3px 8px; margin-bottom: 1px; }
+  /* Draft round — single-row layout on mobile */
+  .draft-round { min-height: 32px; flex-wrap: nowrap; gap: 6px; padding: 3px 8px; margin-bottom: 1px; align-items: center; }
+  .draft-round-badge { display: none; }
+  .draft-exp-badge   { display: none; }
+  .draft-player-content { flex-direction: row !important; align-items: center !important; gap: 4px 6px !important; flex-wrap: nowrap !important; }
   .draft-compact-stat { display: none; }
-  /* Scale down RD/PK/OVR badge numbers on mobile */
+  .draft-stat-mob { display: none !important; }
+  /* Scale down RD/PK/OVR badge numbers on desktop hover-state (hidden on mobile anyway) */
   .rd-num { font-size: 11px !important; }
-  .draft-stat-mob {
-    display: block;
-    flex: 0 0 100%;
-    font-family: var(--mono);
-    font-size: 8px;
-    color: var(--text-2);
-    white-space: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-top: 2px;
-  }
 
   /* Trade grid: single column */
   .tp-grid { grid-template-columns: 1fr !important; }
@@ -3311,10 +3304,10 @@ function buildDraftPlanView(players) {
       }).filter(Boolean);
 
       innerHtml = `
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+        <div class="draft-player-content" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <span style="display:inline-flex;align-items:center;gap:6px;flex-shrink:0">
-              <span class="round-player" style="cursor:grab">${p.player}${isExp ? '&nbsp;<span style="font-size:9px;color:var(--red);font-family:var(--mono);font-weight:700">EXP</span>' : ''}</span>
+              <span class="round-player" style="cursor:grab">${p.player}${isExp ? '&nbsp;<span class="draft-exp-badge" style="font-size:9px;color:var(--red);font-family:var(--mono);font-weight:700">EXP</span>' : ''}</span>
               ${bumpBadge}
             </span>
             <span class="draft-compact-stat" style="margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--text-2)">${draftMobParts.join(' · ')}</span>
@@ -3328,7 +3321,7 @@ function buildDraftPlanView(players) {
     let roundBadge;
     if (pk != null) {
       const ovr = plannerCumBefore[r] + pk;
-      roundBadge = `<div style="display:flex;gap:10px;align-items:center;font-family:var(--mono);flex-shrink:0;padding-right:6px">
+      roundBadge = `<div class="draft-round-badge" style="display:flex;gap:10px;align-items:center;font-family:var(--mono);flex-shrink:0;padding-right:6px">
           <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
             <span style="font-size:8px;color:var(--text-3);letter-spacing:.05em">RD</span>
             <span class="rd-num" style="font-size:13px;font-weight:700;color:var(--navy)">${r}</span>
@@ -3343,7 +3336,7 @@ function buildDraftPlanView(players) {
           </div>
          </div>`;
     } else {
-      roundBadge = `<div style="display:flex;gap:10px;align-items:center;font-family:var(--mono);flex-shrink:0;padding-right:6px">
+      roundBadge = `<div class="draft-round-badge" style="display:flex;gap:10px;align-items:center;font-family:var(--mono);flex-shrink:0;padding-right:6px">
           <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1">
             <span style="font-size:8px;color:var(--text-3);letter-spacing:.05em">RD</span>
             <span class="rd-num" style="font-size:13px;font-weight:700;color:var(--navy)">${r}</span>
