@@ -586,26 +586,29 @@ input[type=file] { display: none; }
     text-overflow: clip;
   }
 
-  /* Line 1 — Status · Rd · Con · Player (all on one line) */
+  /* Row 1: Status · Rd · Con */
   table.roster-tbl .col-status { order: 1; flex: 0 0 auto; }
-  table.roster-tbl .col-rd     { order: 2; flex: 0 0 auto; }
-  table.roster-tbl .col-con    { order: 3; flex: 0 0 auto; }
+  table.roster-tbl .col-rd     { order: 1; flex: 0 0 auto; }
+  table.roster-tbl .col-con    { order: 1; flex: 0 0 auto; }
+
+  /* Row 2: Player name + keeper btn + team · pos
+     flex: 0 0 100% forces a line break after row 1 */
   table.roster-tbl .col-player {
-    order: 4;
-    flex: 1 1 auto;
-    min-width: 0;
+    order: 2;
+    flex: 0 0 100%;
+    width: 100%;
     font-size: 14px;
+    padding-top: 4px;
   }
-  /* Player meta (team · position) flows inline on mobile next to the name */
   table.roster-tbl .col-player .player-meta {
     display: inline;
     margin-top: 0;
     margin-left: 5px;
   }
 
-  /* Line 2 — Relevant stats only (stats are wide enough to always wrap naturally) */
+  /* Row 3: Stats */
   table.roster-tbl .col-stat {
-    order: 5;
+    order: 3;
     flex: 0 0 auto;
     text-align: center;
     min-width: 30px;
