@@ -3898,8 +3898,8 @@ function handleDraftResultsUpload(event) {
     // Apps Script expects owner keys (not team names) — same pattern as importRosters
     const resultsForSheet = draftResults.map(d => ({ ...d, manager: ownerKeyFor(d.manager) || d.manager }));
     remotePost({ action: 'importDraftResults', results: resultsForSheet }).then(r => {
-      if (r && r.ok) statusEl.innerHTML += ' · saved to sheet ✓';
-      else statusEl.innerHTML += ' · ⚠ sheet save failed';
+      if (r && r.ok) statusEl.textContent += ' · saved to sheet ✓';
+      else statusEl.textContent += ' · ⚠ sheet save failed';
     });
   };
   reader.readAsText(file);
@@ -4171,7 +4171,8 @@ function r5SelectPlayer(playerName, fromTeam) {
     LEAGUE[selectingTeam] = LEAGUE[selectingTeam] || [];
     LEAGUE[selectingTeam].push({ ...moved, status: 'Rule 5' });
     // ── Sync Rule 5 pick to Google Sheet ─────────────────────────────────
-    remotePost({ action: 'r5Pick', playerId: moved.id || '', player: playerName, fromTeamKey: ownerKeyFor(fromTeam), toTeamKey: ownerKeyFor(selectingTeam), newStatus: 'Rule 5' });
+    remotePost({ action: 'r5Pick', playerId: moved.id || '', player: playerName, fromTeamKey: ownerKeyFor(fromTeam), toTeamKey: ownerKeyFor(selectingTeam), newStatus: 'Rule 5' })
+      .then(r => { if (!r?.ok) toast('⚠ Sheet sync failed — pick recorded locally but not saved to sheet'); });
   }
 
   // Populate draft order bar with team names
@@ -4207,7 +4208,8 @@ function r5UndoLastPick() {
       : (moved.contract === '2026' ? 'Expired' : 'Active');
     LEAGUE[last.fromTeam].push({ ...moved, status: restoredStatus });
     // ── Sync Rule 5 undo to Google Sheet ─────────────────────────────────
-    remotePost({ action: 'r5Pick', playerId: last.id || '', player: last.player, fromTeamKey: ownerKeyFor(last.selectingTeam), toTeamKey: ownerKeyFor(last.fromTeam), newStatus: restoredStatus });
+    remotePost({ action: 'r5Pick', playerId: last.id || '', player: last.player, fromTeamKey: ownerKeyFor(last.selectingTeam), toTeamKey: ownerKeyFor(last.fromTeam), newStatus: restoredStatus })
+      .then(r => { if (!r?.ok) toast('⚠ Sheet sync failed — undo recorded locally but not saved to sheet'); });
   }
 
   r5LossCounts[last.fromTeam] = Math.max(0, (r5LossCounts[last.fromTeam] || 1) - 1);
@@ -4537,7 +4539,8 @@ function executeTrade() {
 
   if (!moves.length) { toast('No players found to move'); return; }
 
-  remotePost({ action: 'tradePlayers', moves });
+  remotePost({ action: 'tradePlayers', moves })
+    .then(r => { if (!r?.ok) toast('⚠ Sheet sync failed — trade recorded locally but not saved to sheet'); });
   toast(`Trade executed: ${moves.length} player${moves.length !== 1 ? 's' : ''} moved`);
 
   // Reset selectors and refresh
@@ -4637,7 +4640,8 @@ statusEl.textContent = `✓ Renamed "${oldName}" → "${name}"`;
   statusEl.style.color = 'var(--green)';
   toast(`Team renamed: ${oldName} → ${name}`);
   // ── Sync rename to Google Sheet ───────────────────────────────────────
-  remotePost({ action: 'renameTeam', oldName, newName: name, ownerKey: key });
+  remotePost({ action: 'renameTeam', oldName, newName: name, ownerKey: key })
+    .then(r => { if (!r?.ok) toast('⚠ Sheet sync failed — rename saved locally but not to sheet'); });
 }
 
 // ── Transfer Team ─────────────────────────────────────────────────────────────
