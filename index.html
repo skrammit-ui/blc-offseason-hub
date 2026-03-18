@@ -149,7 +149,7 @@ table.roster-tbl {
 .roster-tbl .col-status  { width: 70px; }
 .roster-tbl .col-player  { width: 220px; }
 .player-meta { display: block; font-size: 11px; color: var(--text-3); margin-top: 1px; font-weight: 400; }
-.roster-tbl .col-stat    { width: 52px; text-align: center; }
+.roster-tbl .col-stat    { width: 52px; text-align: center; font-size: 11px; font-family: var(--mono); }
 .roster-tbl .col-rd      { width: 52px; text-align: center; }
 .roster-tbl .col-con     { width: 58px; text-align: center; }
 
@@ -623,6 +623,8 @@ input[type=file] { display: none; }
     flex: 0 0 auto;
     padding-top: 3px;
   }
+  /* Tighter column gap for the stats row so all fit on one line */
+  table.roster-tbl tr { gap: 4px 2px; }
   /* Hide cells with no value (data-mob="") */
   table.roster-tbl .col-stat[data-mob=""] { display: none; }
   /* Hide the raw value span and projection; show labeled ::before instead */
@@ -631,7 +633,7 @@ input[type=file] { display: none; }
   table.roster-tbl .col-stat::before {
     content: attr(data-mob);
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-2);
   }
   /* Hide irrelevant "—" stat cols (hitter cols on pitcher rows and vice versa) */
@@ -2336,7 +2338,7 @@ function renderOverview(players, keptPlayers = {}) {
       // H/AB — check combined column first, then separate H / AB
       if (k === 'H/AB') {
         const v = stats['H/AB'] || (stats['H'] && stats['AB'] ? `${stats['H']}/${stats['AB']}` : '—');
-        const mob = v !== '—' ? `${v} H/AB` : '';
+        const mob = v !== '—' ? v : '';  // fraction is self-evident, no label needed
         return `<td class="col-stat c" data-mob="${mob}"><span class="stat-val">${v}</span></td>`;
       }
       const dataKey = k === 'K/9' ? (stats['K/9'] !== undefined ? 'K/9' : 'K9') : k;
