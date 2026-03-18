@@ -904,17 +904,6 @@ input[type=file] { display: none; }
   border: 1.5px dashed var(--border); border-radius: var(--r);
 }
 
-/* Standings entry table in commish panel */
-#standings-entry-table td input[type=number] {
-  width: 52px; font-family: var(--mono); font-size: 12px;
-  padding: 3px 6px; border: 1px solid var(--border);
-  border-radius: 4px; background: var(--bg); color: var(--text);
-  text-align: right;
-}
-#standings-entry-table td input[type=number]:focus {
-  outline: none; border-color: var(--gold);
-}
-
 /* Bracket editor in commish panel */
 .bracket-editor-round {
   border: 1px solid var(--border); border-radius: var(--r);
@@ -1394,35 +1383,6 @@ input[type=file] { display: none; }
         <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
           <button class="btn btn-primary" style="font-size:11px;padding:5px 14px" onclick="saveDivisionAssignments()">Save Divisions</button>
           <span id="div-assign-status" style="font-size:11px;color:var(--text-3)"></span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Standings entry -->
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-header">
-        <span class="card-title">Season Standings Entry</span>
-        <span style="font-size:11px;color:var(--text-3)" id="standings-entry-year-label"></span>
-      </div>
-      <div style="padding:16px">
-        <p style="font-size:12px;color:var(--text-2);margin-bottom:14px">Enter each team's final regular season record. Fill in W, L, RS, RA for each team.</p>
-        <div style="overflow-x:auto">
-          <table class="data-table" id="standings-entry-table">
-            <thead>
-              <tr>
-                <th>Team</th>
-                <th style="width:60px">W</th>
-                <th style="width:60px">L</th>
-                <th style="width:70px">RS</th>
-                <th style="width:70px">RA</th>
-              </tr>
-            </thead>
-            <tbody id="standings-entry-tbody"></tbody>
-          </table>
-        </div>
-        <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
-          <button class="btn btn-primary" style="font-size:11px;padding:5px 14px" onclick="saveHistoricalStandings()">Save Standings</button>
-          <span id="standings-entry-status" style="font-size:11px;color:var(--text-3)"></span>
         </div>
       </div>
     </div>
@@ -2021,12 +1981,6 @@ let DIVISIONS = {
   },
 };
 
-// Historical season standings: { year: { ownerKey: { W, L, RS, RA } } }
-let HISTORICAL_STANDINGS = {
-  '2025': {},
-  '2026': {},
-};
-
 // Playoff bracket: { year: [ { round, matchups: [{team1,team2,wins1,wins2}] } ] }
 let PLAYOFFS_DATA = {
   '2025': [],
@@ -2060,54 +2014,26 @@ function renderDivisionGrid(year) {
   const grid = document.getElementById('division-grid');
   if (!grid) return;
   const divs = DIVISIONS[year] || {};
-  const standings = HISTORICAL_STANDINGS[year] || {};
   const divNames = ['Dairy Daddies','Thunder Chickens','Iron Pigs','Flying Mummies'];
   grid.innerHTML = divNames.map(divName =>
-    renderDivisionCard(divName, year, divs[divName] || [], standings)
+    renderDivisionCard(divName, year, divs[divName] || [])
   ).join('');
 }
 
-function renderDivisionCard(divName, year, ownerKeys, standings) {
-  const rows = ownerKeys.map(key => {
-    const rec = standings[key] || {};
-    return { key, teamName: OWNER_MAP[key] || key, W: rec.W ?? null, L: rec.L ?? null, RS: rec.RS ?? null, RA: rec.RA ?? null };
-  });
-
-  rows.sort((a, b) => {
-    const aHas = a.W !== null, bHas = b.W !== null;
-    if (aHas && bHas) {
-      if (b.W !== a.W) return b.W - a.W;
-      if (a.L !== b.L) return a.L - b.L;
-    }
-    if (aHas && !bHas) return -1;
-    if (!aHas && bHas) return 1;
-    return a.teamName.localeCompare(b.teamName);
-  });
-
-  const hasData = rows.some(r => r.W !== null);
-  const leader = rows[0];
-
-  function pct(r) {
-    if (r.W === null) return '\u2014';
-    const tot = r.W + r.L;
-    return tot === 0 ? '.000' : '.' + String(Math.round(r.W / tot * 1000)).padStart(3, '0');
-  }
-  function gb(r, i) {
-    if (!hasData || r.W === null || i === 0) return '\u2014';
-    const d = ((leader.W - r.W) + (r.L - leader.L)) / 2;
-    return d % 1 === 0 ? String(d) : d.toFixed(1);
-  }
-
-  const tbody = rows.length === 0
-    ? `<tr class="no-data-row"><td colspan="6">No teams assigned</td></tr>`
-    : rows.map((r, i) => `<tr${i === 0 && hasData && r.W !== null ? ' class="div-leader"' : ''}>
-        <td>${i + 1}</td>
-        <td>${r.teamName}</td>
-        <td>${r.W ?? '\u2014'}</td>
-        <td>${r.L ?? '\u2014'}</td>
-        <td>${pct(r)}</td>
-        <td>${gb(r, i)}</td>
-      </tr>`).join('');
+function renderDivisionCard(divName, year, ownerKeys) {
+  // ownerKeys array is in final finishing order (index 0 = division winner)
+  const myTeam = currentTeam;
+  const tbody = ownerKeys.length === 0
+    ? `<tr class="no-data-row"><td colspan="2">No teams assigned</td></tr>`
+    : ownerKeys.map((key, i) => {
+        const teamName = OWNER_MAP[key] || key;
+        const isMe = teamName === myTeam;
+        const suffix = isMe ? ' <span class="stag stag-active" style="font-size:9px">You</span>' : '';
+        return `<tr${i === 0 ? ' class="div-leader"' : ''}>
+          <td>${i + 1}</td>
+          <td>${teamName}${suffix}</td>
+        </tr>`;
+      }).join('');
 
   return `<div class="division-card">
     <div class="division-card-header">
@@ -2115,7 +2041,7 @@ function renderDivisionCard(divName, year, ownerKeys, standings) {
       <span class="division-card-year">${year}</span>
     </div>
     <table class="div-standings-tbl">
-      <thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>PCT</th><th>GB</th></tr></thead>
+      <thead><tr><th>#</th><th>Final Standing</th></tr></thead>
       <tbody>${tbody}</tbody>
     </table>
   </div>`;
@@ -2170,84 +2096,56 @@ function renderPlayoffBracket(year) {
 // ── Commissioner: Division & Bracket Editor ────────────────────────────────────
 
 function buildStandingsCommishPanel(year) {
-  ['div-assign-year-label','standings-entry-year-label','bracket-entry-year-label'].forEach(id => {
+  ['div-assign-year-label','bracket-entry-year-label'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.textContent = year;
   });
   buildDivAssignGrid(year);
-  buildStandingsEntryTable(year);
   buildBracketEditor(year);
 }
 
+// Ordered position selects: commissioner picks which team finished 1st–5th in each division
 function buildDivAssignGrid(year) {
   const grid = document.getElementById('div-assign-grid');
   if (!grid) return;
   const divs = DIVISIONS[year] || {};
   const divNames = ['Dairy Daddies','Thunder Chickens','Iron Pigs','Flying Mummies'];
   const allKeys = Object.keys(OWNER_MAP).sort((a,b) => OWNER_MAP[a].localeCompare(OWNER_MAP[b]));
+  const positions = ['1st','2nd','3rd','4th','5th'];
   grid.innerHTML = divNames.map(divName => {
-    const assigned = divs[divName] || [];
-    const opts = allKeys.map(k =>
-      `<option value="${k}"${assigned.includes(k) ? ' selected' : ''}>${OWNER_MAP[k]} (${k})</option>`
-    ).join('');
+    const ordered = divs[divName] || [];
+    const rows = positions.map((pos, i) => {
+      const sel = ordered[i] || '';
+      const opts = `<option value="">— Select —</option>` +
+        allKeys.map(k => `<option value="${k}"${k === sel ? ' selected' : ''}>${OWNER_MAP[k]}</option>`).join('');
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text-3);min-width:26px;text-align:right">${i+1}</span>
+        <select data-division="${divName}" data-pos="${i}" style="flex:1;font-size:11px;font-family:var(--body);padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)">${opts}</select>
+      </div>`;
+    }).join('');
     return `<div style="border:1px solid var(--border);border-radius:var(--r);padding:12px">
-      <div style="font-weight:700;font-size:12px;font-family:var(--head);letter-spacing:.02em;margin-bottom:8px">${divName}</div>
-      <select multiple data-division="${divName}" style="width:100%;height:110px;font-size:11px;font-family:var(--body);border:1px solid var(--border);border-radius:4px;padding:4px;background:var(--bg)">${opts}</select>
-      <div style="font-size:10px;color:var(--text-3);margin-top:4px">Hold Ctrl/Cmd to multi-select</div>
+      <div style="font-weight:700;font-size:12px;font-family:var(--head);letter-spacing:.02em;margin-bottom:10px">${divName}</div>
+      ${rows}
     </div>`;
   }).join('');
 }
 
 function saveDivisionAssignments() {
   const year = currentStandingsYear;
-  const selects = document.querySelectorAll('#div-assign-grid select[data-division]');
-  const newDivs = {};
-  selects.forEach(sel => {
-    newDivs[sel.dataset.division] = Array.from(sel.selectedOptions).map(o => o.value);
+  if (!DIVISIONS[year]) DIVISIONS[year] = {};
+  const divNames = ['Dairy Daddies','Thunder Chickens','Iron Pigs','Flying Mummies'];
+  divNames.forEach(divName => {
+    const selects = [...document.querySelectorAll(`#div-assign-grid select[data-division="${divName}"]`)]
+      .sort((a,b) => Number(a.dataset.pos) - Number(b.dataset.pos));
+    DIVISIONS[year][divName] = selects.map(s => s.value).filter(Boolean);
   });
-  DIVISIONS[year] = newDivs;
   renderDivisionGrid(year);
   const st = document.getElementById('div-assign-status');
   st.textContent = '✓ Saved locally'; st.style.color = 'var(--green)';
-  remotePost({ action: 'saveDivisions', year, divisions: newDivs })
+  remotePost({ action: 'saveDivisions', year, divisions: DIVISIONS[year] })
     .then(r => {
       st.textContent = r?.ok ? '✓ Saved to sheet' : '⚠ Sheet sync failed';
       st.style.color = r?.ok ? 'var(--green)' : 'var(--red)';
-    });
-}
-
-function buildStandingsEntryTable(year) {
-  const tbody = document.getElementById('standings-entry-tbody');
-  if (!tbody) return;
-  const standings = HISTORICAL_STANDINGS[year] || {};
-  const allKeys = Object.keys(OWNER_MAP).sort((a,b) => OWNER_MAP[a].localeCompare(OWNER_MAP[b]));
-  tbody.innerHTML = allKeys.map(key => {
-    const rec = standings[key] || {};
-    return `<tr>
-      <td style="font-weight:500">${OWNER_MAP[key]}</td>
-      <td><input type="number" min="0" max="300" data-key="${key}" data-field="W" value="${rec.W ?? ''}" placeholder="W"></td>
-      <td><input type="number" min="0" max="300" data-key="${key}" data-field="L" value="${rec.L ?? ''}" placeholder="L"></td>
-      <td><input type="number" min="0" data-key="${key}" data-field="RS" value="${rec.RS ?? ''}" placeholder="RS"></td>
-      <td><input type="number" min="0" data-key="${key}" data-field="RA" value="${rec.RA ?? ''}" placeholder="RA"></td>
-    </tr>`;
-  }).join('');
-}
-
-function saveHistoricalStandings() {
-  const year = currentStandingsYear;
-  if (!HISTORICAL_STANDINGS[year]) HISTORICAL_STANDINGS[year] = {};
-  document.querySelectorAll('#standings-entry-tbody input').forEach(inp => {
-    const key = inp.dataset.key, field = inp.dataset.field, val = inp.value.trim();
-    if (!HISTORICAL_STANDINGS[year][key]) HISTORICAL_STANDINGS[year][key] = {};
-    HISTORICAL_STANDINGS[year][key][field] = val === '' ? null : Number(val);
-  });
-  renderDivisionGrid(year);
-  const st = document.getElementById('standings-entry-status');
-  st.textContent = '✓ Saved locally'; st.style.color = 'var(--green)';
-  remotePost({ action: 'saveHistoricalStandings', year, standings: HISTORICAL_STANDINGS[year] })
-    .then(r => {
-      st.textContent = r?.ok ? '✓ Saved to sheet' : '⚠ Sheet sync failed — check Apps Script';
-      st.style.color = r?.ok ? 'var(--green)' : 'var(--orange)';
     });
 }
 
@@ -2269,15 +2167,20 @@ function renderBracketEditor() {
   container.innerHTML = bracketEditorRounds.map((round, ri) => {
     const matchupsHtml = round.matchups.length === 0
       ? `<div style="font-size:11px;color:var(--text-3);font-style:italic">No matchups yet — click + Matchup</div>`
-      : round.matchups.map((m, mi) => `<div class="bracket-editor-matchup">
-          <input type="text" data-round="${ri}" data-match="${mi}" data-field="team1" value="${m.team1 || ''}" placeholder="Team 1 key">
-          <span class="vs-label">vs</span>
-          <input type="text" data-round="${ri}" data-match="${mi}" data-field="team2" value="${m.team2 || ''}" placeholder="Team 2 key">
-          <input type="number" min="0" data-round="${ri}" data-match="${mi}" data-field="wins1" value="${m.wins1 ?? ''}" placeholder="W">
-          <span class="score-dash">-</span>
-          <input type="number" min="0" data-round="${ri}" data-match="${mi}" data-field="wins2" value="${m.wins2 ?? ''}" placeholder="W">
-          <button onclick="removeMatchup(${ri},${mi})" style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:13px;padding:0 2px" title="Remove">✕</button>
-        </div>`).join('');
+      : round.matchups.map((m, mi) => {
+          const allKeys = Object.keys(OWNER_MAP).sort((a,b) => OWNER_MAP[a].localeCompare(OWNER_MAP[b]));
+          const t1opts = `<option value="">— Team —</option>` + allKeys.map(k => `<option value="${k}"${k === m.team1 ? ' selected' : ''}>${OWNER_MAP[k]}</option>`).join('');
+          const t2opts = `<option value="">— Team —</option>` + allKeys.map(k => `<option value="${k}"${k === m.team2 ? ' selected' : ''}>${OWNER_MAP[k]}</option>`).join('');
+          return `<div class="bracket-editor-matchup">
+            <select data-round="${ri}" data-match="${mi}" data-field="team1" style="font-size:11px;font-family:var(--body);padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)">${t1opts}</select>
+            <span class="vs-label">vs</span>
+            <select data-round="${ri}" data-match="${mi}" data-field="team2" style="font-size:11px;font-family:var(--body);padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)">${t2opts}</select>
+            <input type="number" min="0" data-round="${ri}" data-match="${mi}" data-field="wins1" value="${m.wins1 ?? ''}" placeholder="W">
+            <span class="score-dash">-</span>
+            <input type="number" min="0" data-round="${ri}" data-match="${mi}" data-field="wins2" value="${m.wins2 ?? ''}" placeholder="W">
+            <button onclick="removeMatchup(${ri},${mi})" style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:13px;padding:0 2px" title="Remove">✕</button>
+          </div>`;
+        }).join('');
     return `<div class="bracket-editor-round">
       <div class="bracket-editor-round-header">
         <span class="bracket-editor-round-name"><input type="text" data-round="${ri}" data-field="roundName" value="${round.round}" placeholder="Round name"></span>
@@ -2287,18 +2190,18 @@ function renderBracketEditor() {
       <div class="bracket-editor-matchups">${matchupsHtml}</div>
     </div>`;
   }).join('');
-  container.querySelectorAll('input').forEach(inp => inp.addEventListener('change', syncBracketEditorState));
+  container.querySelectorAll('input, select').forEach(el => el.addEventListener('change', syncBracketEditorState));
 }
 
 function syncBracketEditorState() {
   const container = document.getElementById('bracket-editor');
   if (!container) return;
-  container.querySelectorAll('input').forEach(inp => {
-    const ri = parseInt(inp.dataset.round);
+  container.querySelectorAll('input, select').forEach(el => {
+    const ri = parseInt(el.dataset.round);
     if (isNaN(ri)) return;
-    const mi = inp.dataset.match !== undefined ? parseInt(inp.dataset.match) : undefined;
-    const field = inp.dataset.field;
-    const val = inp.value.trim();
+    const mi = el.dataset.match !== undefined ? parseInt(el.dataset.match) : undefined;
+    const field = el.dataset.field;
+    const val = el.value.trim();
     if (field === 'roundName') {
       bracketEditorRounds[ri].round = val;
     } else if (mi !== undefined && !isNaN(mi)) {
@@ -3236,7 +3139,7 @@ function applyOwner(key) {
 //  Replace APPS_SCRIPT_URL with your deployed Web App URL.
 //  Format: https://script.google.com/macros/s/YOUR_DEPLOY_ID/exec
 // ════════════════════════════════════════════════════════════════════════════
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyYl8BQESZtIh0MwRfjLEKT6JnEa4SLud0fAG_444AIw50H9wsR7RJOzZaJrkUff1_v/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzbAAKOr0dTNa7QQTdgTFdVR_I-ZIANBDJR0QUtNcywF3PJnl0EuxTYN4djPZNnx1x8/exec';
 
 // ── Remote data fetch ─────────────────────────────────────────────────────
 async function fetchLeagueData() {
@@ -3346,14 +3249,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       Object.keys(data.divisions).forEach(yr => {
         if (!DIVISIONS[yr]) DIVISIONS[yr] = {};
         Object.assign(DIVISIONS[yr], data.divisions[yr]);
-      });
-    }
-
-    // Hydrate Historical Standings
-    if (data.historicalStandings) {
-      Object.keys(data.historicalStandings).forEach(yr => {
-        if (!HISTORICAL_STANDINGS[yr]) HISTORICAL_STANDINGS[yr] = {};
-        Object.assign(HISTORICAL_STANDINGS[yr], data.historicalStandings[yr]);
       });
     }
 

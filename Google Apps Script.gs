@@ -25,7 +25,6 @@ function doGet(e) {
       r5Status:           getR5Status(ss),
       draftPlan:          getDraftPlans(ss),
       divisions:          getDivisions(ss),
-      historicalStandings: getHistoricalStandings(ss),
       playoffs:           getPlayoffsData(ss),
     };
     return corsResponse({ ok: true, data });
@@ -89,9 +88,6 @@ function doPost(e) {
         break;
       case 'saveDivisions':
         saveDivisions(ss, payload.year, payload.divisions);
-        break;
-      case 'saveHistoricalStandings':
-        saveHistoricalStandings(ss, payload.year, payload.standings);
         break;
       case 'savePlayoffs':
         savePlayoffs(ss, payload.year, payload.playoffs);
