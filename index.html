@@ -671,6 +671,8 @@ input[type=file] { display: none; }
 
   /* Slot clear button */
   .slot-clear { padding: 4px 6px; font-size: 16px; }
+  /* Push ✕ to the right in draft rows when stats are hidden on mobile */
+  .draft-round .slot-clear { margin-left: auto; }
 
   /* Keep button — larger touch target */
   .keep-btn { width: 22px; height: 22px; font-size: 11px; margin-left: 6px; }
@@ -3354,8 +3356,8 @@ function buildDraftPlanView(players) {
           ${bumpBadge}
           ${p.contract ? conTag(p.contract) : ''}
         </div>
-        <span class="draft-compact-stat" style="flex:1 1 0;min-width:0;font-family:var(--mono);font-size:10px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${draftMobParts.join(' · ')}</span>
-        <span class="slot-clear" style="margin-left:auto;flex-shrink:0" onclick="clearDraftSlot('${slotKey}','${p.player.replace(/'/g,"\\'")}')">✕</span>
+        <span class="draft-compact-stat" style="margin-left:auto;flex-shrink:1;min-width:0;font-family:var(--mono);font-size:10px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${draftMobParts.join(' · ')}</span>
+        <span class="slot-clear" style="flex-shrink:0" onclick="clearDraftSlot('${slotKey}','${p.player.replace(/'/g,"\\'")}')">✕</span>
         <div class="draft-stat-mob">${draftMobParts.join(' · ')}</div>`;
     }
 
