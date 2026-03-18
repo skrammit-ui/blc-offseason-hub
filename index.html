@@ -2185,7 +2185,11 @@ async function toggleKeeper(btn) {
   } else {
     delete keeperStore[manager][player];
     // ── Sync to Google Sheet ──────────────────────────────────────────────
-    const res = await remotePost({ action: 'removeKeeper', teamKey: ownerKeyFor(manager), player, playerId: playerIdFor(manager, player) });
+    const teamKey = ownerKeyFor(manager);
+    const playerId = playerIdFor(manager, player);
+    toast(`DEBUG removing: teamKey=${teamKey} player=${player} id=${playerId}`);
+    const res = await remotePost({ action: 'removeKeeper', teamKey, player, playerId });
+    toast(`DEBUG response: ok=${res.ok} err=${res.error || 'none'}`);
     if (!res.ok) toast(`⚠ Sheet sync failed removing ${player} — try again`);
   }
 
