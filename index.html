@@ -4048,13 +4048,15 @@ function buildKeepersPage() {
       const conHtml = `<span class="ctag ${conCls}" style="cursor:default">${con || '—'}</span>`;
 
       return `<tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:5px 10px;font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">
-          ${p.player}
-          <div style="font-size:10px;color:var(--text-3);margin-top:1px">${mlbTeam}${mlbTeam && pos ? ' · ' : ''}${pos}</div>
+        <td style="padding:3px 8px;max-width:160px">
+          <div style="display:flex;align-items:center;gap:4px;overflow:hidden">
+            <span style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1">${p.player}</span>
+            <span style="font-size:10px;color:var(--text-3);white-space:nowrap;flex-shrink:0">${mlbTeam}${mlbTeam && pos ? ' · ' : ''}${pos}</span>
+          </div>
         </td>
-        <td style="padding:4px 6px;text-align:center;white-space:nowrap">${stagHtml}</td>
-        <td style="padding:4px 6px;text-align:center;width:44px">${rdHtml}</td>
-        <td style="padding:4px 6px;text-align:center;white-space:nowrap">${conHtml}</td>
+        <td style="padding:3px 6px;text-align:center;white-space:nowrap">${stagHtml}</td>
+        <td style="padding:3px 6px;text-align:center;width:44px">${rdHtml}</td>
+        <td style="padding:3px 6px;text-align:center;white-space:nowrap">${conHtml}</td>
       </tr>`;
     }).join('');
 
@@ -4110,13 +4112,15 @@ function buildAllRostersPage() {
       const conHtml = `<span class="ctag ${conCls}" style="cursor:default">${con || '—'}</span>`;
 
       return `<tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:5px 10px;font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">
-          ${p.player}
-          <div style="font-size:10px;color:var(--text-3);margin-top:1px">${p.mlb_team || ''}${p.mlb_team && p.position ? ' · ' : ''}${p.position || ''}</div>
+        <td style="padding:3px 8px;max-width:160px">
+          <div style="display:flex;align-items:center;gap:4px;overflow:hidden">
+            <span style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1">${p.player}</span>
+            <span style="font-size:10px;color:var(--text-3);white-space:nowrap;flex-shrink:0">${p.mlb_team || ''}${p.mlb_team && p.position ? ' · ' : ''}${p.position || ''}</span>
+          </div>
         </td>
-        <td style="padding:4px 6px;text-align:center;white-space:nowrap">${stagHtml}</td>
-        <td style="padding:4px 6px;text-align:center;width:44px">${rdHtml}</td>
-        <td style="padding:4px 6px;text-align:center;white-space:nowrap">${conHtml}</td>
+        <td style="padding:3px 6px;text-align:center;white-space:nowrap">${stagHtml}</td>
+        <td style="padding:3px 6px;text-align:center;width:44px">${rdHtml}</td>
+        <td style="padding:3px 6px;text-align:center;white-space:nowrap">${conHtml}</td>
       </tr>`;
     }).join('');
 
