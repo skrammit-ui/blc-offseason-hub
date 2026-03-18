@@ -766,7 +766,10 @@ input[type=file] { display: none; }
   <div class="nav-divider"></div>
   <div class="nav-group nav-group-1">
     <div class="nav-item active" onclick="nav('rosters',this)">
-      <span class="nav-icon">📋</span> Rosters
+      <span class="nav-icon">📋</span> Team Roster
+    </div>
+    <div class="nav-item" onclick="nav('allrosters',this)">
+      <span class="nav-icon">📂</span> All Rosters
     </div>
     <div class="nav-item" onclick="nav('keepers',this)">
       <span class="nav-icon">🔒</span> Keepers
@@ -1027,6 +1030,13 @@ input[type=file] { display: none; }
 <!-- ════════════════════════════════════════
      KEEPERS PAGE
 ════════════════════════════════════════ -->
+<div class="page" id="page-allrosters">
+  <div class="page-title">&#x1F4C2; All Rosters</div>
+  <div class="page-sub">All 20 teams &middot; Full rosters sorted by draft round</div>
+
+  <div id="allrosters-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px"></div>
+</div>
+
 <div class="page" id="page-keepers">
   <div class="page-title">&#x1F512; Keeper Declarations</div>
   <div class="page-sub">All 20 teams &middot; Players marked as keepers in the Rosters tab appear here</div>
@@ -1085,7 +1095,7 @@ input[type=file] { display: none; }
      ROSTERS PAGE
 ════════════════════════════════════════ -->
 <div class="page active" id="page-rosters">
-  <div class="page-title">Team Rosters</div>
+  <div class="page-title">Team Roster</div>
   <div class="page-sub">2025 Season · Post-draft contracts &amp; salaries</div>
 
   <div class="card" id="roster-card">
@@ -1500,6 +1510,7 @@ function nav(page, el) {
   if (page === 'standings') buildStandings();
   if (page === 'rule5') r5InitPage();
   if (page === 'keepers') buildKeepersPage();
+  if (page === 'allrosters') buildAllRostersPage();
   if (page === 'draft') initDraftBoardPage();
   if (page === 'commish') initCommishPage();
 }
@@ -4076,6 +4087,63 @@ function buildKeepersPage() {
             <tbody>${rowsHtml}</tbody>
           </table>`
       }
+    </div>`;
+  }).join('');
+}
+
+function buildAllRostersPage() {
+  const grid = document.getElementById('allrosters-grid');
+  if (!grid) return;
+
+  const thStyle = `font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:4px 8px;border-bottom:1px solid var(--border)`;
+
+  const teams = Object.keys(LEAGUE).sort();
+  grid.innerHTML = teams.map(team => {
+    const players = [...(LEAGUE[team] || [])].sort((a, b) =>
+      (parseInt(a.salary) || 999) - (parseInt(b.salary) || 999)
+    );
+
+    const rowsHtml = players.map(p => {
+      const rd  = p.salary   || '—';
+      const con = p.contract || '—';
+      const normStatus = STATUS_MAP[p.status] || 'MLB';
+      const sm = STATUS_META[normStatus] || STATUS_META['MLB'];
+      const stagHtml = `<span class="stag ${sm.cls}" style="cursor:default;white-space:nowrap">${sm.label}</span>`;
+      const rdHtml  = `<span class="rd-tile" style="font-weight:700">${rd}</span>`;
+      const conCls  = con === '2026' ? 'ctag-exp'
+                    : con === '2027' ? 'ctag-2027'
+                    : con === '2028' ? 'ctag-2028'
+                    : con === '2029' ? 'ctag-ok'
+                    : con === '—' || con === '' ? 'ctag-na'
+                    : 'ctag-teal';
+      const conHtml = `<span class="ctag ${conCls}" style="cursor:default">${con || '—'}</span>`;
+
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:5px 10px;font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">
+          ${p.player}
+          <div style="font-size:10px;color:var(--text-3);margin-top:1px">${p.mlb_team || ''}${p.mlb_team && p.position ? ' · ' : ''}${p.position || ''}</div>
+        </td>
+        <td style="padding:4px 6px;text-align:center;white-space:nowrap">${stagHtml}</td>
+        <td style="padding:4px 6px;text-align:center;width:44px">${rdHtml}</td>
+        <td style="padding:4px 6px;text-align:center;white-space:nowrap">${conHtml}</td>
+      </tr>`;
+    }).join('');
+
+    const countBadge = `<span style="font-size:11px;font-weight:600;color:var(--text-3);margin-left:auto">${players.length} players</span>`;
+    return `<div class="card" style="overflow:hidden">
+      <div class="card-header" style="background:var(--navy);padding:8px 12px">
+        <span style="font-family:var(--head);font-weight:700;font-size:13px;letter-spacing:.04em;color:#fff">${team}</span>
+        ${countBadge}
+      </div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:var(--bg)">
+          <th style="${thStyle};text-align:left;padding-left:10px">Player / Team / Pos</th>
+          <th style="${thStyle};text-align:center">Status</th>
+          <th style="${thStyle};text-align:center;width:44px">Rd</th>
+          <th style="${thStyle};text-align:center">Con</th>
+        </tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
     </div>`;
   }).join('');
 }
