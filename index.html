@@ -524,7 +524,7 @@ input[type=file] { display: none; }
 @media (max-width:768px) {
   /* Nav: three-row layout on mobile */
   .topbar {
-    padding: 4px 12px 0;
+    padding: 2px 12px 0;
     flex-wrap: wrap;
     height: auto;
     overflow-x: visible;
@@ -539,15 +539,15 @@ input[type=file] { display: none; }
   .nav-group-1 { order: 2; display: flex; width: 100%; border-top: 1px solid var(--navy-3); }
   /* Row 3: Draft · Rules · Commissioner */
   .nav-group-2 { order: 3; display: flex; width: 100%; border-top: 1px solid var(--navy-3); }
-  .nav-group .nav-item { height: 38px; padding: 0 11px; font-size: 12px; }
+  .nav-group .nav-item { height: 34px; padding: 0 11px; font-size: 12px; }
   /* Hide dividers — row breaks handle separation */
   .nav-divider { display: none; }
 
   /* Main content padding */
-  .main { padding: 14px 12px; }
+  .main { padding: 8px 12px; }
 
   /* Legend bar: wrap so keeper hint drops below the tiles */
-  #view-legend { flex-wrap: wrap; gap: 6px 8px; }
+  #view-legend { flex-wrap: wrap; gap: 4px 8px; }
   #view-legend .legend-keeper-hint {
     width: 100%;
     margin-left: 0 !important;
@@ -555,11 +555,11 @@ input[type=file] { display: none; }
   }
 
   /* Page titles */
-  .page-title { font-size: 22px; }
-  .page-sub { margin-bottom: 16px; }
+  .page-title { font-size: 22px; margin-bottom: 2px; }
+  .page-sub { margin-bottom: 8px; }
 
-  /* Buttons — larger touch targets */
-  .btn { padding: 11px 16px; min-height: 44px; }
+  /* Buttons — touch targets */
+  .btn { padding: 8px 16px; min-height: 40px; }
 
   /* Edit popover — full-width on small screens */
   #edit-popover {
@@ -588,8 +588,8 @@ input[type=file] { display: none; }
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 3px 3px;
-    padding: 4px 10px;
+    gap: 2px 3px;
+    padding: 3px 10px;
     border-bottom: 1px solid var(--border);
     box-sizing: border-box;
     width: 100%;
@@ -615,7 +615,7 @@ input[type=file] { display: none; }
     flex: 0 0 100%;
     width: 100%;
     font-size: 14px;
-    padding-top: 4px;
+    padding-top: 2px;
   }
   table.roster-tbl .col-player .player-meta {
     display: inline;
@@ -637,7 +637,7 @@ input[type=file] { display: none; }
     font-family: var(--mono);
     font-size: 9px;
     color: var(--text-2);
-    padding-top: 3px;
+    padding-top: 2px;
     white-space: nowrap;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -648,12 +648,12 @@ input[type=file] { display: none; }
   table.roster-tbl .tbl-section-hdr td {
     display: block;
     width: 100%;
-    padding: 5px 10px;
+    padding: 3px 10px;
     box-sizing: border-box;
   }
 
-  /* Pool cards — better touch target */
-  .pool-card { padding: 8px 10px; min-height: 40px; }
+  /* Pool cards */
+  .pool-card { padding: 5px 10px; min-height: 34px; }
 
   /* Builder slot rows — two-row layout matching Roster view */
   .slot-row { flex-wrap: wrap; overflow-x: visible; }
@@ -677,7 +677,7 @@ input[type=file] { display: none; }
   .keep-btn { width: 22px; height: 22px; font-size: 11px; margin-left: 6px; }
 
   /* Draft round — mobile two-row layout */
-  .draft-round { min-height: 40px; flex-wrap: wrap; }
+  .draft-round { min-height: 34px; flex-wrap: wrap; }
   .draft-compact-stat { display: none; }
   .draft-stat-mob {
     display: block;
@@ -697,13 +697,14 @@ input[type=file] { display: none; }
   /* Toast: don't overflow on narrow screens */
   #toast { white-space: normal; text-align: center; max-width: calc(100vw - 40px); }
 
-  /* Card header: allow wrapping */
-  .card-header { flex-wrap: wrap; gap: 6px; }
+  /* Card header: allow wrapping, tighter padding */
+  .card-header { flex-wrap: wrap; gap: 6px; padding: 7px 14px; }
+  .card { margin-bottom: 12px; }
 
   /* ── Draft Board controls + legend ── */
-  .draft-controls { margin-bottom: 8px !important; gap: 8px !important; }
+  .draft-controls { margin-bottom: 4px !important; gap: 6px !important; }
   .draft-upload-hint { display: none; }
-  .draft-legend { margin-bottom: 8px !important; gap: 8px !important; font-size: 10px !important; }
+  .draft-legend { margin-bottom: 4px !important; gap: 6px !important; font-size: 10px !important; }
   /* Team filter and open-slot selects: override the 16px iOS zoom rule */
   #draft-team-filter, .db-mgr-select { font-size: 12px !important; padding: 3px 6px !important; }
 
