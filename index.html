@@ -2395,7 +2395,7 @@ function getKeptPlayers() {
 
 // Render overview — single unified list sorted by Rd then Player name
 function renderOverview(players, keptPlayers = {}, viewingOwn = true) {
-  const editable = IS_COMMISH && viewingOwn;
+  const editable = IS_COMMISH;
 
   const sorted = [...players].sort((a, b) => {
     const rdA = parseInt(a.salary) || 999;
@@ -2423,7 +2423,7 @@ function renderOverview(players, keptPlayers = {}, viewingOwn = true) {
     const toggleAttr = editable ? ` onclick="openStatusPicker(this)" title="Click to change status" style="cursor:pointer"` : '';
     const stag = `<span class="stag ${m.cls}"${toggleAttr}>${m.label}</span>`;
     const isExpiring = p.contract && p.contract.trim() === '2026';
-    const keepBtn = (isExpiring || !viewingOwn) ? '' : `<span class="keep-btn" onclick="toggleKeeper(this)" title="Mark as keeper">✓</span>`;
+    const keepBtn = (isExpiring || (!viewingOwn && !IS_COMMISH)) ? '' : `<span class="keep-btn" onclick="toggleKeeper(this)" title="Mark as keeper">✓</span>`;
     const editAttr = editable ? ' onclick="openEdit(this)"' : '';
     const isHitter = !isPitcher(p.position);
     const stats = STATS[p.id] || STATS[p.player] || {};
