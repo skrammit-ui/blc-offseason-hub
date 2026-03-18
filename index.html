@@ -511,6 +511,9 @@ input[type=file] { display: none; }
 .rules-two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:10px; }
 @media (max-width:900px) { .rules-grid { grid-template-columns:1fr; } .rules-two-col { grid-template-columns:1fr; } }
 
+/* Legend: stag tiles match ctag sizing */
+#view-legend .stag { width: auto; padding: 2px 6px; }
+
 /* ── Mobile ── */
 @media (max-width:768px) {
   /* Nav: three-row layout on mobile */
@@ -536,6 +539,14 @@ input[type=file] { display: none; }
 
   /* Main content padding */
   .main { padding: 14px 12px; }
+
+  /* Legend bar: wrap so keeper hint drops below the tiles */
+  #view-legend { flex-wrap: wrap; gap: 6px 8px; }
+  #view-legend .legend-keeper-hint {
+    width: 100%;
+    margin-left: 0 !important;
+    margin-top: 0;
+  }
 
   /* Page titles */
   .page-title { font-size: 22px; }
@@ -1009,7 +1020,7 @@ input[type=file] { display: none; }
       <span class="ctag ctag-2028" style="cursor:default">2028</span>
       <span class="ctag ctag-ok"   style="cursor:default">2029</span>
       <span class="ctag ctag-teal" style="cursor:default">2030</span> &nbsp;&nbsp;
-      <span style="margin-left:auto;font-size:11px">Click <strong>✓</strong> on any player to mark as keeper</span>
+      <span class="legend-keeper-hint" style="margin-left:auto;font-size:11px">Click <strong>✓</strong> on any player to mark as keeper</span>
     </div>
 
     <!-- VIEW 1: Overview -->
@@ -2658,7 +2669,7 @@ function switchView(view, btn) {
       <span class="stag stag-active" style="cursor:default">MLB</span>
       <span class="stag stag-milb" style="cursor:default">MiLB</span>
       <span style="margin-left:8px"></span><span class="ctag ctag-exp" style="cursor:default">2026</span> expiring &nbsp;&nbsp;
-      <span style="margin-left:auto;font-size:11px">Click <strong>✓</strong> on any player to mark as keeper</span>`;
+      <span class="legend-keeper-hint" style="margin-left:auto;font-size:11px">Click <strong>✓</strong> on any player to mark as keeper</span>`;
   }
 }
 
