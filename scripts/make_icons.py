@@ -9,20 +9,25 @@ import os
 
 ICONS_DIR = os.path.join(os.path.dirname(__file__), "..", "icons")
 SIZES = [16, 32, 64, 128, 256]
-WHITE_THRESHOLD = 230  # pixels this bright or brighter are treated as background
+COLOR_TOLERANCE = 30  # max per-channel difference to be considered background
+
+
+def _color_distance(c1, c2):
+    return max(abs(c1[0]-c2[0]), abs(c1[1]-c2[1]), abs(c1[2]-c2[2]))
 
 
 def remove_white_bg(img: Image.Image) -> Image.Image:
+    from collections import deque
     img = img.convert("RGBA")
     pixels = img.load()
     w, h = img.size
 
-    # Flood-fill from all four corners to find background pixels
-    from collections import deque
+    # Sample background color from the corner with the most uniform area
+    bg_color = pixels[0, 0][:3]
+
     visited = set()
     queue = deque()
-    corners = [(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)]
-    for c in corners:
+    for c in [(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)]:
         if c not in visited:
             queue.append(c)
             visited.add(c)
@@ -30,7 +35,7 @@ def remove_white_bg(img: Image.Image) -> Image.Image:
     while queue:
         x, y = queue.popleft()
         r, g, b, a = pixels[x, y]
-        if r >= WHITE_THRESHOLD and g >= WHITE_THRESHOLD and b >= WHITE_THRESHOLD:
+        if _color_distance((r, g, b), bg_color) <= COLOR_TOLERANCE:
             pixels[x, y] = (r, g, b, 0)
             for nx, ny in [(x-1,y),(x+1,y),(x,y-1),(x,y+1)]:
                 if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in visited:
