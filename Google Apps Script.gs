@@ -24,6 +24,7 @@ function doGet(e) {
       projections:        getProjections(ss),
       r5Status:           getR5Status(ss),
       draftPlan:          getDraftPlans(ss),
+      builderSlots:       getBuilderSlots(ss),
       divisions:          getDivisions(ss),
       playoffs:           getPlayoffsData(ss),
     };
@@ -85,6 +86,9 @@ function doPost(e) {
         break;
       case 'saveDraftPlan':
         saveDraftPlan(ss, payload.teamKey, payload.plan);
+        break;
+      case 'saveBuilderPlan':
+        saveBuilderPlan(ss, payload.teamKey, payload.plan);
         break;
       case 'saveDivisions':
         saveDivisions(ss, payload.year, payload.divisions);
@@ -569,6 +573,40 @@ function saveDraftPlan(ss, teamKey, plan) {
   if (rows.length > 0) {
     sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 3).setValues(rows);
   }
+}
+// ── Save keeper builder slot overrides to sheet ───────────────────────────────
+function saveBuilderPlan(ss, teamKey, plan) {
+  const sheet = ss.getSheetByName('BuilderSlots') || ss.insertSheet('BuilderSlots');
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(['teamKey', 'player', 'slotId']);
+    sheet.getRange(1, 1, 1, 3)
+      .setFontWeight('bold')
+      .setBackground('#0d1b2a')
+      .setFontColor('#c9a84c');
+  }
+  const data = sheet.getDataRange().getValues();
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][0]).trim() === teamKey) sheet.deleteRow(i + 1);
+  }
+  const rows = Object.entries(plan || {}).map(([player, slotId]) => [teamKey, player, slotId]);
+  if (rows.length > 0) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 3).setValues(rows);
+  }
+}
+function getBuilderSlots(ss) {
+  const sheet = ss.getSheetByName('BuilderSlots');
+  if (!sheet || sheet.getLastRow() < 2) return {};
+  const [, ...rows] = sheet.getDataRange().getValues();
+  const slots = {};
+  rows.forEach(row => {
+    const teamKey = String(row[0] || '').trim();
+    const player  = String(row[1] || '').trim();
+    const slotId  = String(row[2] || '').trim();
+    if (!teamKey || !player || !slotId) return;
+    if (!slots[teamKey]) slots[teamKey] = {};
+    slots[teamKey][player] = slotId;
+  });
+  return slots;
 }
 // ── Save stats to sheet ───────────────────────────────────────────────────────
 function saveStats(ss, stats) {
