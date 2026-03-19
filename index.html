@@ -120,7 +120,9 @@ body {
 .page-title {
   font-family: var(--head); font-weight: 800; font-size: 28px;
   letter-spacing: -.01em; color: var(--text); margin-bottom: 4px;
+  display: flex; align-items: center; gap: 10px;
 }
+.page-title-icon { width: 36px; height: 36px; object-fit: contain; flex-shrink: 0; }
 .page-sub { font-size: 13px; color: var(--text-3); margin-bottom: 24px; }
 
 /* ── Team selector bar ── */
@@ -1137,7 +1139,7 @@ input[type=file] { display: none; }
       <img class="nav-icon-img" src="icons/phillies/phillies-32.png" alt=""> Standings
     </div>
     <div class="nav-item" onclick="nav('rules',this)">
-      <span class="nav-icon">📖</span> Rules
+      <img class="nav-icon-img" src="icons/indians/indians-32.png" alt=""> Rules
     </div>
     <div class="nav-item" id="nav-commish" onclick="nav('commish',this)">
       <img class="nav-icon-img" src="icons/braves/braves-32.png" alt=""> Commissioner
@@ -1200,7 +1202,7 @@ input[type=file] { display: none; }
      RULES PAGE
 ════════════════════════════════════════ -->
 <div class="page" id="page-rules">
-  <div class="page-title">League Rules</div>
+  <div class="page-title"><img class="page-title-icon" src="icons/indians/indians-64.png" alt="">League Rules</div>
   <div class="page-sub">Bush League Chew &middot; Updated Dec 10, 2025</div>
 
   <div class="rules-grid">
@@ -1384,14 +1386,14 @@ input[type=file] { display: none; }
      KEEPERS PAGE
 ════════════════════════════════════════ -->
 <div class="page" id="page-allrosters">
-  <div class="page-title">&#x1F4C2; All Rosters</div>
+  <div class="page-title"><img class="page-title-icon" src="icons/dodgers/dodgers-64.png" alt="">All Rosters</div>
   <div class="page-sub">All 20 teams &middot; Full rosters sorted by draft round</div>
 
   <div id="allrosters-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px"></div>
 </div>
 
 <div class="page" id="page-keepers">
-  <div class="page-title">&#x1F512; Keeper Declarations</div>
+  <div class="page-title"><img class="page-title-icon" src="icons/pirates/pirates-64.png" alt="">Keeper Declarations</div>
   <div class="page-sub">All 20 teams &middot; Players marked as keepers in the Rosters tab appear here</div>
 
   <div id="keepers-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px"></div>
@@ -1401,7 +1403,7 @@ input[type=file] { display: none; }
      RULE 5 DRAFT PAGE
 ════════════════════════════════════════ -->
 <div class="page" id="page-rule5">
-  <div class="page-title">&#x1F7E3; Rule 5 Draft</div>
+  <div class="page-title"><img class="page-title-icon" src="icons/yankees/yankees-64.png" alt="">Rule 5 Draft</div>
   <div class="page-sub">Select one player per pick from unprotected rosters &middot; Max 2 losses per team &middot; Held last week of January</div>
 
   <div style="background:var(--navy);border-radius:var(--r);padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -1448,7 +1450,7 @@ input[type=file] { display: none; }
      ROSTERS PAGE
 ════════════════════════════════════════ -->
 <div class="page active" id="page-rosters">
-  <div class="page-title">Team Roster</div>
+  <div class="page-title"><img class="page-title-icon" src="icons/giants/giants-64.png" alt="">Team Roster</div>
   <div class="page-sub">2025 Season · Post-draft contracts &amp; salaries</div>
 
   <div class="card" id="roster-card">
@@ -1498,7 +1500,7 @@ input[type=file] { display: none; }
      STANDINGS PAGE
 ════════════════════════════════════════ -->
 <div class="page" id="page-standings">
-  <div class="page-title">🏆 League Standings</div>
+  <div class="page-title"><img class="page-title-icon" src="icons/phillies/phillies-64.png" alt="">League Standings</div>
   <div class="page-sub">Final regular season standings by division &amp; playoff results</div>
 
   <!-- Year tabs -->
@@ -1535,7 +1537,7 @@ input[type=file] { display: none; }
      IMPORT PAGE
 ════════════════════════════════════════ -->
 <div class="page" id="page-commish">
-  <div class="page-title">⭐ Commissioner</div>
+  <div class="page-title"><img class="page-title-icon" src="icons/braves/braves-64.png" alt="">Commissioner</div>
   <div class="page-sub">Team management · Data imports &amp; exports · League configuration</div>
 
   <!-- ── TEAM MANAGEMENT ── -->
@@ -1790,7 +1792,7 @@ input[type=file] { display: none; }
      DRAFT RESULTS PAGE
 ════════════════════════════════════════ -->
 <div class="page" id="page-draft">
-  <div class="page-title">&#x1F3AF; Draft Board</div>
+  <div class="page-title"><img class="page-title-icon" src="icons/athletics/athletics-64.png" alt="">Draft Board</div>
   <div class="page-sub">Keepers highlighted in green &middot; Upload results CSV post-draft to fill remaining picks</div>
 
   <!-- Controls bar -->
