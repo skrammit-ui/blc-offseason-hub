@@ -3752,6 +3752,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Hydrate custom draft plan overrides
     if (data.draftPlan) Object.assign(customDraftSlots, data.draftPlan);
+    // Hydrate custom keeper builder slot overrides
+    if (data.builderSlots) Object.assign(customBuilderSlots, data.builderSlots);
 
     // Hydrate pickOrder and draftResults from Picks sheet
     if (data.picks && data.picks.length > 0) {
@@ -3944,6 +3946,19 @@ function prefillFromKeepers(players) {
       const r = parseInt(p.salary);
       if (r >= 1 && r <= 30) draftAssignments[String(r)] = [p];
     });
+  }
+
+  // Apply any saved builder slot overrides (user-moved players in Keeper Builder)
+  const savedBuilderSlots = customBuilderSlots[ownerKeyFor(currentTeam)] || {};
+  for (const [playerName, targetSlot] of Object.entries(savedBuilderSlots)) {
+    const currentSlot = Object.keys(slotAssignments).find(k => slotAssignments[k]?.player === playerName);
+    if (!currentSlot || currentSlot === targetSlot) continue;
+    const player = slotAssignments[currentSlot];
+    if (!isEligibleForSlot(player, targetSlot)) continue;
+    const displaced = slotAssignments[targetSlot];
+    delete slotAssignments[currentSlot];
+    if (displaced) slotAssignments[currentSlot] = displaced;
+    slotAssignments[targetSlot] = player;
   }
 
   // Apply any saved custom slot overrides (user-moved players) on top of auto-fill
@@ -4250,11 +4265,21 @@ function slotDrop(event, slotId) {
   }
   slotAssignments[slotId] = draggedPlayer;
   draggedPlayer = null;
+  saveBuilderPlan();
   buildBuilderView(LEAGUE[currentTeam] || []);
 }
 
 function clearSlot(slotId) {
+  const p = slotAssignments[slotId];
   delete slotAssignments[slotId];
+  // Remove this player's override so auto-fill takes over next time
+  if (p?.player) {
+    const teamKey = ownerKeyFor(currentTeam);
+    if (teamKey && customBuilderSlots[teamKey]) {
+      delete customBuilderSlots[teamKey][p.player];
+      remotePost({ action: 'saveBuilderPlan', teamKey, plan: customBuilderSlots[teamKey] });
+    }
+  }
   buildBuilderView(LEAGUE[currentTeam] || []);
 }
 
@@ -4263,6 +4288,8 @@ function clearSlot(slotId) {
 const draftAssignments = {};
 // customDraftSlots: teamKey → { playerName: slotKey } — user-moved overrides
 const customDraftSlots = {};
+// customBuilderSlots: teamKey → { playerName: slotId } — user-moved keeper slot overrides
+const customBuilderSlots = {};
 
 function saveDraftPlan() {
   const teamKey = ownerKeyFor(currentTeam);
@@ -4273,6 +4300,17 @@ function saveDraftPlan() {
   if (!customDraftSlots[teamKey]) customDraftSlots[teamKey] = {};
   customDraftSlots[teamKey] = plan;
   remotePost({ action: 'saveDraftPlan', teamKey, plan });
+}
+
+function saveBuilderPlan() {
+  const teamKey = ownerKeyFor(currentTeam);
+  if (!teamKey) return;
+  const plan = {};
+  for (const [slotId, p] of Object.entries(slotAssignments)) {
+    if (p?.player) plan[p.player] = slotId;
+  }
+  customBuilderSlots[teamKey] = plan;
+  remotePost({ action: 'saveBuilderPlan', teamKey, plan });
 }
 function buildDraftPlanView(players) {
   const boardEl = document.getElementById('draft-board');
