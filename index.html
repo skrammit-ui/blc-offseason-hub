@@ -87,6 +87,7 @@ body {
 .nav-item:hover { color: #fff; background: var(--navy-2); }
 .nav-item.active { color: #fff; border-bottom-color: var(--gold); }
 .nav-item .nav-icon { font-size: 14px; }
+.nav-item .nav-icon-img { width: 22px; height: 22px; object-fit: contain; vertical-align: middle; display: inline-block; }
 .nav-group { display: contents; } /* transparent to flex on desktop */
 .commish-badge {
   display: inline-flex; align-items: center; gap: 4px;
@@ -1115,31 +1116,31 @@ input[type=file] { display: none; }
   <div class="nav-divider"></div>
   <div class="nav-group nav-group-1">
     <div class="nav-item active" onclick="nav('rosters',this)">
-      <span class="nav-icon">📋</span> Team Roster
+      <img class="nav-icon-img" src="icons/giants/giants-32.png" alt=""> Team Roster
     </div>
     <div class="nav-item" onclick="nav('allrosters',this)">
-      <span class="nav-icon">📂</span> All Rosters
+      <img class="nav-icon-img" src="icons/dodgers/dodgers-32.png" alt=""> All Rosters
     </div>
     <div class="nav-item" onclick="nav('keepers',this)">
-      <span class="nav-icon">🔒</span> Keepers
+      <img class="nav-icon-img" src="icons/pirates/pirates-32.png" alt=""> Keepers
     </div>
     <div class="nav-item" onclick="nav('rule5',this)">
-      <span class="nav-icon">🟣</span> Rule 5
+      <img class="nav-icon-img" src="icons/yankees/yankees-32.png" alt=""> Rule 5
     </div>
   </div>
   <div class="nav-divider"></div>
   <div class="nav-group nav-group-2">
     <div class="nav-item" onclick="nav('draft',this)">
-      <span class="nav-icon">🎯</span> Draft
+      <img class="nav-icon-img" src="icons/athletics/athletics-32.png" alt=""> Draft
     </div>
     <div class="nav-item" onclick="nav('standings',this)">
-      <span class="nav-icon">🏆</span> Standings
+      <img class="nav-icon-img" src="icons/phillies/phillies-32.png" alt=""> Standings
     </div>
     <div class="nav-item" onclick="nav('rules',this)">
       <span class="nav-icon">📖</span> Rules
     </div>
     <div class="nav-item" id="nav-commish" onclick="nav('commish',this)">
-      <span class="nav-icon">⭐</span> Commissioner
+      <img class="nav-icon-img" src="icons/braves/braves-32.png" alt=""> Commissioner
     </div>
   </div>
   <span class="commish-badge">⭐ Commissioner</span>
