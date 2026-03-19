@@ -1721,6 +1721,13 @@ input[type=file] { display: none; }
         <div class="sub">Columns: Round, Pick, Team &mdash; 600 rows for a 20-team 30-round draft</div>
       </div>
       <input type="file" id="pickorder-file" accept=".csv" onchange="handlePickOrderUpload(event)">
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:4px">No order yet? Set a placeholder</div>
+          <div style="font-size:11px;color:var(--text-3)">Assigns teams alphabetically in a snake order so managers can start planning. Replace with the real CSV once the draft order is set.</div>
+        </div>
+        <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px;white-space:nowrap" onclick="confirmGenericPickOrder()">&#x1F500; Set Generic Order</button>
+      </div>
       <div id="pickorder-status" style="font-size:13px;color:var(--text-3);margin-top:8px"></div>
     </div>
   </div>
@@ -4689,6 +4696,48 @@ function handlePickOrderDrop(event) {
   document.getElementById('pickorder-zone').classList.remove('drag');
   const file = event.dataTransfer.files[0];
   if (file) { document.getElementById('pickorder-file').files = event.dataTransfer.files; handlePickOrderUpload({target: {files: event.dataTransfer.files, value: ''}}); }
+}
+
+function confirmGenericPickOrder() {
+  const teamCount = Object.keys(LEAGUE).length;
+  const confirmed = window.confirm(
+    `Set Generic Pick Order?\n\nThis will assign all ${teamCount} managers to a placeholder snake draft order (alphabetical, 30 rounds) so they can start using the Draft Planner before the real order is known.\n\nYou can replace it at any time by uploading the real CSV.\n\nContinue?`
+  );
+  if (confirmed) setGenericPickOrder();
+}
+
+function setGenericPickOrder() {
+  const NUM_ROUNDS = 30;
+  // Sort teams alphabetically for a stable, neutral placeholder order
+  const teams = Object.keys(LEAGUE).sort();
+  const numTeams = teams.length;
+
+  const slots = [];
+  pickOrder = {};
+
+  for (let rd = 1; rd <= NUM_ROUNDS; rd++) {
+    // Snake: even rounds reverse the order
+    const ordered = (rd % 2 === 0) ? [...teams].reverse() : [...teams];
+    for (let pk = 1; pk <= numTeams; pk++) {
+      const team = ordered[pk - 1];
+      pickOrder[pickKey(rd, pk)] = team;
+      slots.push({ round: rd, pick: pk, team: ownerKeyFor(team) || team });
+    }
+  }
+
+  const statusEl = document.getElementById('pickorder-status');
+  statusEl.textContent = `✓ Generic order set — ${slots.length} picks (${numTeams} teams × ${NUM_ROUNDS} rounds, alphabetical snake)`;
+  statusEl.style.color = 'var(--green)';
+  toast(`Generic pick order set — ${slots.length} picks`);
+
+  remotePost({ action: 'importPickOrder', slots }).then(r => {
+    if (r && r.ok) statusEl.textContent += ' · saved to sheet';
+    else statusEl.textContent += ' · ⚠ sheet save failed';
+  });
+
+  if (document.getElementById('page-draft').classList.contains('active')) buildDraftBoard();
+  // Refresh draft planner if open
+  if (currentTeam) buildDraftPlanView(LEAGUE[currentTeam] || []);
 }
 
 function updatePickOrder(round, pick, newTeam) {
