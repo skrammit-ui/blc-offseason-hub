@@ -3340,6 +3340,11 @@ function applyStatus(el, newStatus) {
   const player  = row.dataset.player;
   const manager = row.dataset.manager || currentTeam;
 
+  // Update the clicked stag element in-place (needed for All Rosters view)
+  const sm = STATUS_META[newStatus];
+  if (sm) { el.className = `stag ${sm.cls}`; el.textContent = sm.label; }
+  if (row) row.dataset.statusNorm = newStatus;
+
   // Capture current keeper state before re-render
   const keepBtn = row.querySelector('.keep-btn');
   const wasKept = keepBtn && (keepBtn.classList.contains('kept-mlb') || keepBtn.classList.contains('kept-milb') || keepBtn.classList.contains('kept-rule5') || keepBtn.classList.contains('kept-trade'));
@@ -5116,21 +5121,17 @@ function buildAllRostersPage() {
     );
 
     const rowsHtml = players.map(p => {
-      const rd  = p.salary   || '—';
-      const con = p.contract || '—';
       const normStatus = STATUS_MAP[p.status] || 'MLB';
       const sm = STATUS_META[normStatus] || STATUS_META['MLB'];
-      const stagHtml = `<span class="stag ${sm.cls}" style="cursor:default;white-space:nowrap">${sm.label}</span>`;
-      const rdHtml  = `<span class="rd-tile" style="font-weight:700">${rd}</span>`;
-      const conCls  = con === '2026' ? 'ctag-exp'
-                    : con === '2027' ? 'ctag-2027'
-                    : con === '2028' ? 'ctag-2028'
-                    : con === '2029' ? 'ctag-ok'
-                    : con === '—' || con === '' ? 'ctag-na'
-                    : 'ctag-teal';
-      const conHtml = `<span class="ctag ${conCls}" style="cursor:default">${con || '—'}</span>`;
+      const toggleAttr = IS_COMMISH
+        ? ` onclick="openStatusPicker(this)" title="Click to change status" style="cursor:pointer;white-space:nowrap"`
+        : ` style="cursor:default;white-space:nowrap"`;
+      const stagHtml = `<span class="stag ${sm.cls}"${toggleAttr}>${sm.label}</span>`;
 
-      return `<tr style="border-bottom:1px solid var(--border)">
+      return `<tr style="border-bottom:1px solid var(--border)"
+          data-player="${p.player.replace(/"/g,'&quot;')}"
+          data-manager="${team.replace(/"/g,'&quot;')}"
+          data-status-norm="${normStatus}">
         <td style="padding:3px 8px;max-width:160px">
           <div style="display:flex;align-items:center;gap:4px;overflow:hidden">
             <span style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1">${p.player}</span>
@@ -5138,8 +5139,8 @@ function buildAllRostersPage() {
           </div>
         </td>
         <td style="padding:3px 6px;text-align:center;white-space:nowrap">${stagHtml}</td>
-        <td style="padding:3px 6px;text-align:center;width:44px">${rdHtml}</td>
-        <td style="padding:3px 6px;text-align:center;white-space:nowrap">${conHtml}</td>
+        <td style="padding:3px 6px;text-align:center;width:44px">${rdTile(p.salary, IS_COMMISH)}</td>
+        <td style="padding:3px 6px;text-align:center;white-space:nowrap">${conTag(p.contract, IS_COMMISH)}</td>
       </tr>`;
     }).join('');
 
@@ -5160,6 +5161,7 @@ function buildAllRostersPage() {
       </table>
     </div>`;
   }).join('');
+  if (IS_COMMISH) initEditable();
 }
 
 // ── RULE 5 DRAFT ─────────────────────────────────────────────────────────────
