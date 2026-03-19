@@ -1724,7 +1724,7 @@ input[type=file] { display: none; }
       <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <div>
           <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:4px">No order yet? Set a placeholder</div>
-          <div style="font-size:11px;color:var(--text-3)">Assigns teams alphabetically in a snake order so managers can start planning. Replace with the real CSV once the draft order is set.</div>
+          <div style="font-size:11px;color:var(--text-3)">Gives each team one pick per round (rounds 1–30) so managers can start planning. No order between teams — replace with the real CSV once the draft order is set.</div>
         </div>
         <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px;white-space:nowrap" onclick="confirmGenericPickOrder()">&#x1F500; Set Generic Order</button>
       </div>
@@ -4701,34 +4701,31 @@ function handlePickOrderDrop(event) {
 function confirmGenericPickOrder() {
   const teamCount = Object.keys(LEAGUE).length;
   const confirmed = window.confirm(
-    `Set Generic Pick Order?\n\nThis will assign all ${teamCount} managers to a placeholder snake draft order (alphabetical, 30 rounds) so they can start using the Draft Planner before the real order is known.\n\nYou can replace it at any time by uploading the real CSV.\n\nContinue?`
+    `Set Generic Picks?\n\nThis will give each of the ${teamCount} managers one pick per round for rounds 1–30, with no ordering between teams.\n\nManagers can start planning their keepers right away. Replace with the real CSV once the draft order is set.\n\nContinue?`
   );
   if (confirmed) setGenericPickOrder();
 }
 
 function setGenericPickOrder() {
   const NUM_ROUNDS = 30;
-  // Sort teams alphabetically for a stable, neutral placeholder order
   const teams = Object.keys(LEAGUE).sort();
-  const numTeams = teams.length;
 
   const slots = [];
   pickOrder = {};
 
-  for (let rd = 1; rd <= NUM_ROUNDS; rd++) {
-    // Snake: even rounds reverse the order
-    const ordered = (rd % 2 === 0) ? [...teams].reverse() : [...teams];
-    for (let pk = 1; pk <= numTeams; pk++) {
-      const team = ordered[pk - 1];
+  // Each team gets one pick per round — pick number = their index (no ordering implied)
+  teams.forEach((team, i) => {
+    const pk = i + 1;
+    for (let rd = 1; rd <= NUM_ROUNDS; rd++) {
       pickOrder[pickKey(rd, pk)] = team;
       slots.push({ round: rd, pick: pk, team: ownerKeyFor(team) || team });
     }
-  }
+  });
 
   const statusEl = document.getElementById('pickorder-status');
-  statusEl.textContent = `✓ Generic order set — ${slots.length} picks (${numTeams} teams × ${NUM_ROUNDS} rounds, alphabetical snake)`;
+  statusEl.textContent = `✓ Generic picks set — ${teams.length} teams × ${NUM_ROUNDS} rounds`;
   statusEl.style.color = 'var(--green)';
-  toast(`Generic pick order set — ${slots.length} picks`);
+  toast(`Generic picks set — managers can now use the Draft Planner`);
 
   remotePost({ action: 'importPickOrder', slots }).then(r => {
     if (r && r.ok) statusEl.textContent += ' · saved to sheet';
@@ -4736,7 +4733,6 @@ function setGenericPickOrder() {
   });
 
   if (document.getElementById('page-draft').classList.contains('active')) buildDraftBoard();
-  // Refresh draft planner if open
   if (currentTeam) buildDraftPlanView(LEAGUE[currentTeam] || []);
 }
 
