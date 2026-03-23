@@ -3986,12 +3986,17 @@ function prefillFromKeepers(players) {
   for (const [playerName, savedSlot] of Object.entries(savedPlan)) {
     const autoSlot = Object.keys(draftAssignments).find(k => draftAssignments[k]?.[0]?.player === playerName);
     if (!autoSlot) continue;
-    // Translate old round-only format ("3") → new round_pick format ("3_2") when pick order exists
+    // When a pick order exists, ensure the saved slot references a pick this team
+    // actually owns in that round. Handles: (a) old round-only format "4",
+    // (b) stale pick numbers from a previous pick order "4_2" when team now has "4_15".
     let resolvedSlot = savedSlot;
-    if (!savedSlot.includes('_') && Object.keys(pickOrder).length > 0) {
-      const rd = parseInt(savedSlot);
+    if (Object.keys(pickOrder).length > 0) {
+      const [rdPart, pkPart] = savedSlot.split('_');
+      const rd = parseInt(rdPart);
       const pks = teamPicksByRd[rd];
-      if (pks && pks.length > 0) resolvedSlot = `${rd}_${pks[0]}`;
+      if (pks && pks.length > 0 && !pks.includes(parseInt(pkPart))) {
+        resolvedSlot = `${rd}_${pks[0]}`;
+      }
     }
     if (autoSlot === resolvedSlot) continue;
     const player = draftAssignments[autoSlot][0];
