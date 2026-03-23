@@ -151,10 +151,12 @@ table.roster-tbl {
 
 /* Column widths */
 .roster-tbl .col-status  { width: 70px; }
-.roster-tbl .col-player  { width: 220px; display: flex; align-items: center; overflow: hidden; }
-.roster-tbl .col-player strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }
-.roster-tbl .col-player .keep-btn { flex-shrink: 0; }
-.player-meta { display: inline; font-size: 11px; color: var(--text-3); margin-left: 4px; font-weight: 400; flex-shrink: 0; }
+.roster-tbl .col-player  { width: 220px; overflow: hidden; }
+.col-player-inner { display: flex; align-items: center; width: 100%; min-width: 0; overflow: hidden; }
+.col-player-inner > strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }
+.col-player-inner > .player-meta { flex-shrink: 0; white-space: nowrap; }
+.col-player-inner > .keep-btn { flex-shrink: 0; }
+.player-meta { display: inline; font-size: 11px; color: var(--text-3); margin-left: 4px; font-weight: 400; }
 .roster-tbl .col-stat    { width: 52px; text-align: center; font-size: 11px; font-family: var(--mono); }
 .col-stat-mob { display: none; }
 .slot-stat-mob { display: none; }
@@ -615,9 +617,7 @@ input[type=file] { display: none; }
     overflow: hidden;
     font-size: 12px;
   }
-  table.roster-tbl .col-player strong       { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; }
-  table.roster-tbl .col-player .player-meta { flex-shrink: 0; }
-  table.roster-tbl .col-player .keep-btn    { flex-shrink: 0; }
+  table.roster-tbl .col-player .col-player-inner { flex: 1; min-width: 0; }
   table.roster-tbl .col-rd  { order: 3; flex: 0 0 auto; }
   table.roster-tbl .col-con { order: 4; flex: 0 0 auto; }
 
@@ -3543,7 +3543,7 @@ function renderOverview(players, keptPlayers = {}, viewingOwn = true, managerNam
       <td class="col-status">${stag}</td>
       <td class="col-rd c"${editAttr}>${rdTile(p.salary, editable)}</td>
       <td class="col-con c"${editAttr}>${conTag(p.contract, editable)}</td>
-      <td class="col-player"><strong>${p.player}</strong><span class="player-meta">${p.mlb_team} · ${p.position}</span>${keepBtn}</td>
+      <td class="col-player"><div class="col-player-inner"><strong>${p.player}</strong><span class="player-meta">${p.mlb_team} · ${p.position}</span>${keepBtn}</div></td>
       ${statCols}
       ${mobStatCell}
     </tr>`;
