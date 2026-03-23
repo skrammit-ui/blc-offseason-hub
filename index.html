@@ -966,6 +966,28 @@ input[type=file] { display: none; }
 @media (max-width: 900px) { .div-dnd-wrap { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 500px) { .div-dnd-wrap { grid-template-columns: 1fr; } }
 
+/* ── Commissioner page responsive helpers ───────────────────────────────── */
+.commish-2col {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px;
+}
+.commish-trade-grid {
+  display: grid; grid-template-columns: 1fr 32px 1fr; gap: 12px; align-items: start;
+}
+.commish-dl-row {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 0 20px 20px;
+}
+.commish-salary-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px; flex-wrap: wrap; gap: 8px;
+}
+.commish-salary-hdr-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 768px) {
+  .commish-2col { grid-template-columns: 1fr; }
+  .commish-trade-grid { grid-template-columns: 1fr; }
+  .commish-trade-arrow { display: none; }
+}
+
 .div-dnd-col {
   border: 1px solid var(--border); border-radius: var(--r);
   overflow: hidden; background: var(--surface);
@@ -1546,7 +1568,7 @@ input[type=file] { display: none; }
       <span class="card-title">👥 Team Management</span>
       <span style="font-size:11px;color:var(--text-3)">Changes bake into a re-downloaded HTML file</span>
     </div>
-    <div style="padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px">
+    <div class="commish-2col">
 
       <!-- Rename Team -->
       <div style="border:1px solid var(--border);border-radius:var(--r);padding:18px">
@@ -1594,7 +1616,7 @@ input[type=file] { display: none; }
 
     </div>
     <!-- Save changes -->
-    <div style="padding:0 20px 20px;display:flex;align-items:center;gap:12px">
+    <div class="commish-dl-row">
       <button class="btn btn-primary" onclick="downloadUpdatedHTML()" style="gap:6px;display:flex;align-items:center">
         <span>💾</span> Download Updated Hub File
       </button>
@@ -1631,7 +1653,7 @@ input[type=file] { display: none; }
   <div class="card">
     <div class="card-header"><span class="card-title">&#x1F501; Execute Trade</span></div>
     <div style="padding:20px">
-      <div style="display:grid;grid-template-columns:1fr 32px 1fr;gap:12px;align-items:start">
+      <div class="commish-trade-grid">
 
         <!-- Team A -->
         <div>
@@ -1644,7 +1666,7 @@ input[type=file] { display: none; }
         </div>
 
         <!-- Divider arrow -->
-        <div style="text-align:center;padding-top:32px;font-size:18px;color:var(--text-3)">&#x21C4;</div>
+        <div class="commish-trade-arrow" style="text-align:center;padding-top:32px;font-size:18px;color:var(--text-3)">&#x21C4;</div>
 
         <!-- Team B -->
         <div>
@@ -1765,9 +1787,9 @@ input[type=file] { display: none; }
 
       <!-- Review table — hidden until CSV loaded -->
       <div id="salary-review-panel" style="display:none;margin-top:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div class="commish-salary-hdr">
           <div style="font-size:13px;font-weight:600;color:var(--text-2)">Proposed Changes <span id="salary-review-count" style="color:var(--text-3);font-weight:400"></span></div>
-          <div style="display:flex;gap:8px">
+          <div class="commish-salary-hdr-btns">
             <button class="btn btn-secondary" style="font-size:11px;padding:4px 10px" onclick="salaryReviewSelectAll(true)">✓ Approve All</button>
             <button class="btn btn-secondary" style="font-size:11px;padding:4px 10px" onclick="salaryReviewSelectAll(false)">✕ Reject All</button>
             <button class="btn btn-primary" style="font-size:11px;padding:4px 12px" onclick="applySalaryReview()">Apply Approved</button>
