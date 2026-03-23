@@ -151,8 +151,10 @@ table.roster-tbl {
 
 /* Column widths */
 .roster-tbl .col-status  { width: 70px; }
-.roster-tbl .col-player  { width: 220px; }
-.player-meta { display: inline; font-size: 11px; color: var(--text-3); margin-left: 4px; font-weight: 400; }
+.roster-tbl .col-player  { width: 220px; display: flex; align-items: center; overflow: hidden; }
+.roster-tbl .col-player strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex-shrink: 1; }
+.roster-tbl .col-player .keep-btn { flex-shrink: 0; }
+.player-meta { display: inline; font-size: 11px; color: var(--text-3); margin-left: 4px; font-weight: 400; flex-shrink: 0; }
 .roster-tbl .col-stat    { width: 52px; text-align: center; font-size: 11px; font-family: var(--mono); }
 .col-stat-mob { display: none; }
 .slot-stat-mob { display: none; }
@@ -3553,16 +3555,17 @@ function renderOverview(players, keptPlayers = {}, viewingOwn = true, managerNam
   `;
 
   // Restore keeper selections and sync to keeperStore
-  if (!keeperStore[currentTeam]) keeperStore[currentTeam] = {};
+  if (!keeperStore[managerName]) keeperStore[managerName] = {};
   Object.entries(keptPlayers).forEach(([playerName, type]) => {
     const row = document.querySelector(`#view-overview tr[data-player="${playerName.replace(/"/g,'&quot;')}"]`);
     if (!row) return;
-    const btn = row.querySelector('.keep-btn');
-    if (!btn) return;
-    btn.classList.add(`kept-${type}`);
     row.classList.add(`keeper-${type}`);
-    btn.title = 'Remove from keepers';
-    keeperStore[currentTeam][playerName] = type;
+    const btn = row.querySelector('.keep-btn');
+    if (btn) {
+      btn.classList.add(`kept-${type}`);
+      btn.title = 'Remove from keepers';
+    }
+    keeperStore[managerName][playerName] = type;
   });
 }
 
