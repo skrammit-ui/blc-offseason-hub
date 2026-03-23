@@ -1971,8 +1971,11 @@ function slotStatCells(p, sectionType) {
   const cols = sectionType === 'hit' ? HIT_STAT_COLS : PIT_STAT_COLS;
   if (!p) return cols.map(() => `<span class="slot-stat" style="color:var(--border)">—</span>`).join('');
   const stats = STATS[p.id] || STATS[p.player] || {};
-  const isZeroVal = v => v == null || v === '' || v === '0' || parseFloat(v) === 0;
-  const allZeroSlot = Object.values(stats).every(v => isZeroVal(v));
+  const isZeroVal = v => v == null || v === '' || v === '0' || parseFloat(v) === 0 || isNaN(parseFloat(v));
+  const isHit = sectionType === 'hit';
+  const allZeroSlot = isHit
+    ? ['H','AB','R','HR','RBI','SB','OBP'].every(k => isZeroVal(stats[k]))
+    : ['IP','K','QA','SVH','ERA','WHIP'].every(k => isZeroVal(stats[k]));
   return cols.map(k => {
     let v;
     if (allZeroSlot) {
@@ -2044,9 +2047,11 @@ function playerRow(p, status, editable, isHitter) {
   const stats = STATS[p.id] || STATS[p.player] || {};
   const proj  = PROJECTIONS[p.id] || PROJECTIONS[p.player] || {};
 
-  // If every stat for this player is 0/"0"/empty, treat them all as no-data (show '—')
-  const isZeroStat = v => v == null || v === '' || v === '0' || parseFloat(v) === 0;
-  const allZero = Object.values(stats).every(v => isZeroStat(v));
+  // If every relevant stat for this player is 0/"0"/empty/NaN, treat as no-data (show '—')
+  const isZeroStat = v => v == null || v === '' || v === '0' || parseFloat(v) === 0 || isNaN(parseFloat(v));
+  const allZero = isHitter
+    ? ['H','AB','R','HR','RBI','SB','OBP'].every(k => isZeroStat(stats[k]))
+    : ['IP','K','QA','SVH','ERA','WHIP'].every(k => isZeroStat(stats[k]));
 
   let statCols = '';
   if (isHitter) {
@@ -3467,12 +3472,10 @@ function renderOverview(players, keptPlayers = {}, viewingOwn = true, managerNam
     const stats = STATS[p.id] || STATS[p.player] || {};
     const proj  = PROJECTIONS[p.id] || PROJECTIONS[p.player] || {};
 
-    const isZeroStat2 = v => v == null || v === '' || v === '0' || parseFloat(v) === 0;
-    const relevantKeys2 = isHitter
-      ? ['H','AB','H/AB','R','HR','RBI','SB','OBP']
-      : ['IP','K','K/9','K9','QA','SVH','ERA','WHIP'];
-    const allZero2 = relevantKeys2.every(k => isZeroStat2(stats[k]))
-      && Object.values(stats).every(v => isZeroStat2(v));
+    const isZeroStat2 = v => v == null || v === '' || v === '0' || parseFloat(v) === 0 || isNaN(parseFloat(v));
+    const allZero2 = isHitter
+      ? ['H','AB','R','HR','RBI','SB','OBP'].every(k => isZeroStat2(stats[k]))
+      : ['IP','K','QA','SVH','ERA','WHIP'].every(k => isZeroStat2(stats[k]));
     const statCols = ALL_STATS.map(k => {
       const relevant = isHitter ? HIT_STATS.includes(k) : PIT_STATS.includes(k);
       if (!relevant) return `<td class="col-stat col-stat-irrel c" style="color:var(--border)">—</td>`;
