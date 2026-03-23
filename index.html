@@ -1943,13 +1943,23 @@ function isPitcher(pos) {
   return pos.split(',').every(p => ['SP','RP','P'].includes(p.trim()));
 }
 
+// Format ERA/K9 to 2dp, OBP/WHIP to 3dp; pass through everything else unchanged
+function fmtStat(k, v) {
+  if (v == null || v === '' || v === '—') return v;
+  const n = parseFloat(v);
+  if (isNaN(n)) return v;
+  if (k === 'OBP' || k === 'WHIP') return n.toFixed(3);
+  if (k === 'ERA' || k === 'K/9') return n.toFixed(2);
+  return v;
+}
+
 function compactStatLine(p) {
   const stats = STATS[p.id] || STATS[p.player] || {};
   const isHit = !isPitcher(p.position);
   const pairs = isHit
     ? [['HR', stats.HR], ['RBI', stats.RBI], ['OBP', stats.OBP], ['SB', stats.SB]]
     : [['ERA', stats.ERA], ['WHIP', stats.WHIP], ['K', stats.K], ['IP', stats.IP]];
-  const parts = pairs.filter(([,v]) => v != null && v !== '').map(([k,v]) => `${v} ${k}`);
+  const parts = pairs.filter(([,v]) => v != null && v !== '').map(([k,v]) => `${fmtStat(k,v)} ${k}`);
   if (!parts.length) return '';
   return `<span class="slot-compact-stat" style="font-size:10px;font-family:var(--mono);color:var(--text-3);white-space:nowrap;flex-shrink:0">${parts.join(' &middot; ')}</span>`;
 }
@@ -1968,7 +1978,7 @@ function slotStatCells(p, sectionType) {
     } else {
       v = stats[k === 'K/9' ? 'K9' : k] || stats[k] || '—';
     }
-    return `<span class="slot-stat">${v}</span>`;
+    return `<span class="slot-stat">${fmtStat(k, v)}</span>`;
   }).join('');
 }
 
@@ -2040,16 +2050,16 @@ function playerRow(p, status, editable, isHitter) {
     const habMob = habVal !== '—' ? `${habVal} H/AB` : '';
     statCols += `<td class="col-stat c" data-mob="${habMob}"><span class="stat-val">${habVal}</span>${habProj}</td>`;
     ['R','HR','RBI','SB','OBP'].forEach(k => {
-      const v = stats[k] || '—';
-      const pv = proj[k];
+      const v = fmtStat(k, stats[k] || '—');
+      const pv = fmtStat(k, proj[k]);
       const projStr = pv ? `<div class="stat-proj ${parseFloat(pv) >= parseFloat(v) ? 'up' : 'down'}">${pv}</div>` : '';
       const mob = v !== '—' ? `${v} ${k}` : '';
       statCols += `<td class="col-stat c" data-mob="${mob}"><span class="stat-val">${v}</span>${projStr}</td>`;
     });
   } else {
     ['IP','K','K/9','QA','SVH','ERA','WHIP'].forEach(k => {
-      const v = stats[k] || stats[k === 'K/9' ? 'K9' : k] || '—';
-      const pv = proj[k] || proj[k === 'K/9' ? 'K9' : k];
+      const v = fmtStat(k, stats[k] || stats[k === 'K/9' ? 'K9' : k] || '—');
+      const pv = fmtStat(k, proj[k] || proj[k === 'K/9' ? 'K9' : k]);
       const lowerBetter = ['ERA','WHIP'].includes(k);
       const projStr = pv ? `<div class="stat-proj ${lowerBetter ? (parseFloat(pv) <= parseFloat(v) ? 'up' : 'down') : (parseFloat(pv) >= parseFloat(v) ? 'up' : 'down')}">${pv}</div>` : '';
       const mob = v !== '—' ? `${v} ${k}` : '';
@@ -3455,8 +3465,8 @@ function renderOverview(players, keptPlayers = {}, viewingOwn = true) {
         return `<td class="col-stat c">${v}</td>`;
       }
       const dataKey = k === 'K/9' ? (stats['K/9'] !== undefined ? 'K/9' : 'K9') : k;
-      const v = stats[dataKey] || '—';
-      const pv = proj[dataKey];
+      const v = fmtStat(k, stats[dataKey] || '—');
+      const pv = fmtStat(k, proj[dataKey]);
       const lowerBetter = ['ERA','WHIP'].includes(k);
       const projStr = pv ? `<div class="stat-proj ${lowerBetter ? (parseFloat(pv) <= parseFloat(v) ? 'up':'down') : (parseFloat(pv) >= parseFloat(v) ? 'up':'down')}">${pv}</div>` : '';
       return `<td class="col-stat c">${v}${projStr}</td>`;
@@ -3468,13 +3478,13 @@ function renderOverview(players, keptPlayers = {}, viewingOwn = true) {
           const parts = [];
           const hab = stats['H/AB'] || (stats['H'] && stats['AB'] ? `${stats['H']}/${stats['AB']}` : null);
           if (hab) parts.push(hab);
-          ['R','HR','RBI','SB','OBP'].forEach(k => { const v = stats[k]; if (v) parts.push(`${v} ${k}`); });
+          ['R','HR','RBI','SB','OBP'].forEach(k => { const v = stats[k]; if (v) parts.push(`${fmtStat(k,v)} ${k}`); });
           return parts;
         })()
       : ['IP','K','K/9','QA','SVH','ERA','WHIP'].map(k => {
           const dataKey = k === 'K/9' ? (stats['K/9'] !== undefined ? 'K/9' : 'K9') : k;
           const v = stats[dataKey] || stats[k];
-          return v ? `${v} ${k}` : null;
+          return v ? `${fmtStat(k,v)} ${k}` : null;
         }).filter(Boolean);
     const mobStatCell = `<td class="col-stat-mob">${mobParts.join(' · ')}</td>`;
 
@@ -4125,7 +4135,7 @@ function buildBuilderView(players) {
           }
           const dataKey = k === 'K/9' ? (fStats['K/9'] !== undefined ? 'K/9' : 'K9') : k;
           const v = fStats[dataKey] || fStats[k];
-          return v ? `${v} ${k}` : null;
+          return v ? `${fmtStat(k,v)} ${k}` : null;
         }).filter(Boolean);
         mobStatLine = `<div class="slot-stat-mob">${mobParts.join(' · ')}</div>`;
       }
@@ -4155,7 +4165,7 @@ function buildBuilderView(players) {
           }
           const dataKey = k === 'K/9' ? (fStats['K/9'] !== undefined ? 'K/9' : 'K9') : k;
           const v = fStats[dataKey] || fStats[k];
-          return v ? `${v} ${k}` : null;
+          return v ? `${fmtStat(k,v)} ${k}` : null;
         }).filter(Boolean);
         if (mobParts.length) elseStatLine = `<div class="slot-stat-mob">${mobParts.join(' · ')}</div>`;
       }
@@ -4413,7 +4423,7 @@ function buildDraftPlanView(players) {
         }
         const dataKey = k === 'K/9' ? (draftStats['K/9'] !== undefined ? 'K/9' : 'K9') : k;
         const v = draftStats[dataKey] || draftStats[k];
-        return v ? `${v} ${k}` : null;
+        return v ? `${fmtStat(k,v)} ${k}` : null;
       }).filter(Boolean);
 
       innerHtml = `
