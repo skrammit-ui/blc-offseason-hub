@@ -2040,17 +2040,24 @@ function playerRow(p, status, editable, isHitter) {
   const stats = STATS[p.id] || STATS[p.player] || {};
   const proj  = PROJECTIONS[p.id] || PROJECTIONS[p.player] || {};
 
+  // If every stat for this player is 0/"0"/empty, treat them all as no-data (show '—')
+  const isZeroStat = v => v == null || v === '' || parseFloat(v) === 0;
+  const allZero = isHitter
+    ? ['H','AB','H/AB','R','HR','RBI','SB','OBP'].every(k => isZeroStat(stats[k]))
+    : ['IP','K','K/9','K9','QA','SVH','ERA','WHIP'].every(k => isZeroStat(stats[k]));
+
   let statCols = '';
   if (isHitter) {
     // H/AB: check combined column first, then separate H / AB
-    const habRaw = stats['H/AB'] || (stats['H'] && stats['AB'] ? `${stats['H']}/${stats['AB']}` : null);
+    const habRaw = !allZero && (stats['H/AB'] || (stats['H'] && stats['AB'] ? `${stats['H']}/${stats['AB']}` : null));
     const habVal = habRaw || '—';
     const ph = proj['H'], pab = proj['AB'];
     const habProj = (ph && pab) ? `<div class="stat-proj up" style="font-size:8px">${ph}/${pab}</div>` : '';
     const habMob = habVal !== '—' ? `${habVal} H/AB` : '';
     statCols += `<td class="col-stat c" data-mob="${habMob}"><span class="stat-val">${habVal}</span>${habProj}</td>`;
     ['R','HR','RBI','SB','OBP'].forEach(k => {
-      const v = fmtStat(k, stats[k] || '—');
+      const raw = allZero ? '—' : (stats[k] || '—');
+      const v = fmtStat(k, raw);
       const pv = fmtStat(k, proj[k]);
       const projStr = pv ? `<div class="stat-proj ${parseFloat(pv) >= parseFloat(v) ? 'up' : 'down'}">${pv}</div>` : '';
       const mob = v !== '—' ? `${v} ${k}` : '';
@@ -2058,7 +2065,8 @@ function playerRow(p, status, editable, isHitter) {
     });
   } else {
     ['IP','K','K/9','QA','SVH','ERA','WHIP'].forEach(k => {
-      const v = fmtStat(k, stats[k] || stats[k === 'K/9' ? 'K9' : k] || '—');
+      const raw = allZero ? '—' : (stats[k] || stats[k === 'K/9' ? 'K9' : k] || '—');
+      const v = fmtStat(k, raw);
       const pv = fmtStat(k, proj[k] || proj[k === 'K/9' ? 'K9' : k]);
       const lowerBetter = ['ERA','WHIP'].includes(k);
       const projStr = pv ? `<div class="stat-proj ${lowerBetter ? (parseFloat(pv) <= parseFloat(v) ? 'up' : 'down') : (parseFloat(pv) >= parseFloat(v) ? 'up' : 'down')}">${pv}</div>` : '';
@@ -3457,15 +3465,19 @@ function renderOverview(players, keptPlayers = {}, viewingOwn = true, managerNam
     const stats = STATS[p.id] || STATS[p.player] || {};
     const proj  = PROJECTIONS[p.id] || PROJECTIONS[p.player] || {};
 
+    const isZeroStat2 = v => v == null || v === '' || parseFloat(v) === 0;
+    const allZero2 = isHitter
+      ? ['H','AB','H/AB','R','HR','RBI','SB','OBP'].every(k => isZeroStat2(stats[k]))
+      : ['IP','K','K/9','K9','QA','SVH','ERA','WHIP'].every(k => isZeroStat2(stats[k]));
     const statCols = ALL_STATS.map(k => {
       const relevant = isHitter ? HIT_STATS.includes(k) : PIT_STATS.includes(k);
       if (!relevant) return `<td class="col-stat col-stat-irrel c" style="color:var(--border)">—</td>`;
       if (k === 'H/AB') {
-        const v = stats['H/AB'] || (stats['H'] && stats['AB'] ? `${stats['H']}/${stats['AB']}` : '—');
+        const v = allZero2 ? '—' : (stats['H/AB'] || (stats['H'] && stats['AB'] ? `${stats['H']}/${stats['AB']}` : '—'));
         return `<td class="col-stat c">${v}</td>`;
       }
       const dataKey = k === 'K/9' ? (stats['K/9'] !== undefined ? 'K/9' : 'K9') : k;
-      const v = fmtStat(k, stats[dataKey] || '—');
+      const v = fmtStat(k, allZero2 ? '—' : (stats[dataKey] || '—'));
       const pv = fmtStat(k, proj[dataKey]);
       const lowerBetter = ['ERA','WHIP'].includes(k);
       const projStr = pv ? `<div class="stat-proj ${lowerBetter ? (parseFloat(pv) <= parseFloat(v) ? 'up':'down') : (parseFloat(pv) >= parseFloat(v) ? 'up':'down')}">${pv}</div>` : '';
