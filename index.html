@@ -2429,11 +2429,18 @@ function renderPlayoffBracket(year) {
       </div>`
     ).join('');
 
+    const header = `<div class="bfs-col-header">
+      <span class="bfs-rank">Place</span>
+      <span class="bfs-team">Team</span>
+      <span class="bfs-pick">Draft</span>
+      <span class="bfs-pick">R5</span>
+    </div>`;
+
     return `<div class="bracket-connector-col"></div>
     <div class="bracket-round-col bfs-col">
       <div class="bracket-col-label">Final<br>Standings</div>
       <div class="bracket-round-matchups">
-        ${cards}
+        ${header}${cards}
       </div>
     </div>`;
   }
