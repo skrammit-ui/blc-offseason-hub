@@ -2128,7 +2128,7 @@ function loadTeam(teamName) {
 function viewTeamOverview(teamName) {
   const viewingOwn = teamName === currentTeam;
   document.getElementById('roster-card-title').textContent = teamName;
-  renderOverview(LEAGUE[teamName] || [], keeperStore[teamName] || {}, viewingOwn);
+  renderOverview(LEAGUE[teamName] || [], keeperStore[teamName] || {}, viewingOwn, teamName);
   initEditable();
 }
 
@@ -3422,7 +3422,7 @@ function getKeptPlayers() {
 }
 
 // Render overview — single unified list sorted by Rd then Player name
-function renderOverview(players, keptPlayers = {}, viewingOwn = true) {
+function renderOverview(players, keptPlayers = {}, viewingOwn = true, managerName = currentTeam) {
   const editable = IS_COMMISH;
 
   const sorted = [...players].sort((a, b) => {
@@ -3488,7 +3488,7 @@ function renderOverview(players, keptPlayers = {}, viewingOwn = true) {
         }).filter(Boolean);
     const mobStatCell = `<td class="col-stat-mob">${mobParts.join(' · ')}</td>`;
 
-    return `<tr data-player="${p.player.replace(/"/g,'&quot;')}" data-manager="${currentTeam.replace(/"/g,'&quot;')}" data-status-norm="${normStatus}">
+    return `<tr data-player="${p.player.replace(/"/g,'&quot;')}" data-manager="${managerName.replace(/"/g,'&quot;')}" data-status-norm="${normStatus}">
       <td class="col-status">${stag}</td>
       <td class="col-rd c"${editAttr}>${rdTile(p.salary, editable)}</td>
       <td class="col-con c"${editAttr}>${conTag(p.contract, editable)}</td>
@@ -3985,15 +3985,23 @@ function prefillFromKeepers(players) {
   const savedPlan = customDraftSlots[ownerKeyFor(currentTeam)] || {};
   for (const [playerName, savedSlot] of Object.entries(savedPlan)) {
     const autoSlot = Object.keys(draftAssignments).find(k => draftAssignments[k]?.[0]?.player === playerName);
-    if (!autoSlot || autoSlot === savedSlot) continue;
+    if (!autoSlot) continue;
+    // Translate old round-only format ("3") → new round_pick format ("3_2") when pick order exists
+    let resolvedSlot = savedSlot;
+    if (!savedSlot.includes('_') && Object.keys(pickOrder).length > 0) {
+      const rd = parseInt(savedSlot);
+      const pks = teamPicksByRd[rd];
+      if (pks && pks.length > 0) resolvedSlot = `${rd}_${pks[0]}`;
+    }
+    if (autoSlot === resolvedSlot) continue;
     const player = draftAssignments[autoSlot][0];
-    const targetRd = parseInt(savedSlot.split('_')[0]) || parseInt(savedSlot);
+    const targetRd = parseInt(resolvedSlot.split('_')[0]) || parseInt(resolvedSlot);
     const sal = parseInt(player.salary) || 0;
     if (sal && targetRd > sal) continue; // skip invalid placements
-    const displaced = draftAssignments[savedSlot]?.[0];
+    const displaced = draftAssignments[resolvedSlot]?.[0];
     delete draftAssignments[autoSlot];
     if (displaced) draftAssignments[autoSlot] = [displaced];
-    draftAssignments[savedSlot] = [player];
+    draftAssignments[resolvedSlot] = [player];
   }
 }
 
