@@ -3923,9 +3923,9 @@ function prefillFromKeepers(players) {
   });
 
   // ── Auto-populate Draft Planner using same slot logic as Draft Results ─────
+  const teamPicksByRd = {};
   if (Object.keys(pickOrder).length > 0) {
     // Build team's picks per round, sorted ascending by pick number
-    const teamPicksByRd = {};
     for (const [key, assignedTeam] of Object.entries(pickOrder)) {
       if (assignedTeam !== currentTeam) continue;
       const [rdStr, pkStr] = key.split('_');
