@@ -1490,14 +1490,10 @@ input[type=file] { display: none; }
       <div style="display:flex;align-items:center;gap:10px">
         <img id="team-logo" src="icons/teamroster.png" alt="Team Logo"
              onerror="this.src='icons/teamroster.png';this.onerror=null">
-        <span class="card-title" id="roster-card-title">Wetherholt 45s</span>
+        <span class="card-title" id="roster-card-title" onclick="openTeamPicker(this)" title="Switch team" style="cursor:pointer">Wetherholt 45s</span>
         <label id="logo-upload-label" for="logo-file-input" style="display:none" title="Upload team logo"><img src="icons/upload-logo.svg" style="width:14px;height:14px;display:block;cursor:pointer"></label>
         <input type="file" id="logo-file-input" accept="image/*" style="display:none"
                onchange="uploadTeamLogo(this)">
-      </div>
-      <div id="view-team-picker" style="display:flex;align-items:center;gap:5px;font-size:12px">
-        <span style="color:var(--text-3);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase">View:</span>
-        <select id="view-team-select" onchange="viewTeamOverview(this.value)" style="font-family:var(--body);font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--text)"></select>
       </div>
       <div style="display:flex;gap:6px">
         <button class="view-tab active" onclick="switchView('overview',this)"><img src="icons/rosteroverview.png" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;margin-right:4px">Overview</button>
@@ -2153,15 +2149,6 @@ function buildThead(isHitter) {
 
 function loadTeam(teamName) {
   currentTeam = teamName;
-
-  // Populate the view-team dropdown with all teams; mark own team
-  const sel = document.getElementById('view-team-select');
-  if (sel) {
-    const teams = Object.keys(LEAGUE).sort();
-    sel.innerHTML = teams.map(t =>
-      `<option value="${t}"${t === teamName ? ' selected' : ''}>${t}${t === teamName ? ' (You)' : ''}</option>`
-    ).join('');
-  }
 
   document.getElementById('roster-card-title').textContent = teamName;
   setTeamLogo(ownerKeyFor(teamName));
@@ -3419,6 +3406,35 @@ function openStatusPicker(el) {
   pop.style.top  = top  + 'px';
 }
 
+function openTeamPicker(el) {
+  event && event.stopPropagation && event.stopPropagation();
+  const cur   = el.textContent.trim();
+  const label = document.getElementById('pop-label');
+  const grid  = document.getElementById('pop-grid');
+
+  label.textContent = 'View Team';
+  grid.className = 'pop-grid';
+  grid.innerHTML = '';
+  Object.keys(LEAGUE).sort().forEach(teamName => {
+    const btn = document.createElement('button');
+    btn.className = 'pop-opt' + (teamName === cur ? ' selected' : '');
+    btn.textContent = teamName + (teamName === currentTeam ? ' (You)' : '');
+    btn.onclick = (ev) => { ev.stopPropagation(); viewTeamOverview(teamName); closePop(); };
+    grid.appendChild(btn);
+  });
+
+  const rect = el.getBoundingClientRect();
+  pop.classList.add('open');
+  const pw = pop.offsetWidth || 220;
+  const ph = pop.offsetHeight || 200;
+  let left = rect.left;
+  let top  = rect.bottom + 6;
+  if (left + pw > window.innerWidth - 8)  left = window.innerWidth - pw - 8;
+  if (top  + ph > window.innerHeight - 8) top  = rect.top - ph - 6;
+  pop.style.left = left + 'px';
+  pop.style.top  = top  + 'px';
+}
+
 function applyStatus(el, newStatus) {
   const row     = el.closest('tr');
   const player  = row.dataset.player;
@@ -3985,13 +4001,10 @@ function switchView(view, btn) {
   document.querySelectorAll('.roster-view').forEach(v => v.style.display = 'none');
   document.getElementById('view-' + (view === 'draft' ? 'draft-plan' : view)).style.display = '';
 
-  // Show team-picker only in Overview; reset to own team if switching away
-  const picker = document.getElementById('view-team-picker');
-  const sel    = document.getElementById('view-team-select');
-  if (picker) picker.style.display = (view === 'overview') ? 'flex' : 'none';
-  if (view !== 'overview' && sel && sel.value !== currentTeam) {
-    sel.value = currentTeam;
-    viewTeamOverview(currentTeam);
+  // Reset to own team when switching away from overview
+  if (view !== 'overview') {
+    const title = document.getElementById('roster-card-title');
+    if (title && title.textContent !== currentTeam) viewTeamOverview(currentTeam);
   }
 
   const legend = document.getElementById('view-legend');
