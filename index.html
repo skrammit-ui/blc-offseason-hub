@@ -114,6 +114,20 @@ body {
   letter-spacing: .06em; text-transform: uppercase; color: var(--text-2);
 }
 
+/* ── Team logo ── */
+#team-logo-wrap { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+#team-logo {
+  width: 44px; height: 44px; object-fit: contain; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg); display: block;
+}
+#logo-upload-label {
+  font-size: 9px; font-weight: 700; color: var(--blue); cursor: pointer;
+  letter-spacing: .04em; text-transform: uppercase;
+  padding: 1px 5px; border-radius: 3px; border: 1px solid var(--blue);
+  transition: all .12s; white-space: nowrap;
+}
+#logo-upload-label:hover { background: var(--blue); color: #fff; }
+
 /* ── Pages ── */
 .page { display: none; }
 .page.active { display: block; }
@@ -1479,7 +1493,16 @@ input[type=file] { display: none; }
 
   <div class="card" id="roster-card">
     <div class="card-header">
-      <span class="card-title" id="roster-card-title">Wetherholt 45s</span>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div id="team-logo-wrap">
+          <img id="team-logo" src="icons/teamroster.png" alt="Team Logo"
+               onerror="this.src='icons/teamroster.png';this.onerror=null">
+          <label id="logo-upload-label" for="logo-file-input" style="display:none">Upload</label>
+          <input type="file" id="logo-file-input" accept="image/*" style="display:none"
+                 onchange="uploadTeamLogo(this)">
+        </div>
+        <span class="card-title" id="roster-card-title">Wetherholt 45s</span>
+      </div>
       <div id="view-team-picker" style="display:flex;align-items:center;gap:5px;font-size:12px">
         <span style="color:var(--text-3);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase">View:</span>
         <select id="view-team-select" onchange="viewTeamOverview(this.value)" style="font-family:var(--body);font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--text)"></select>
@@ -2149,6 +2172,7 @@ function loadTeam(teamName) {
   }
 
   document.getElementById('roster-card-title').textContent = teamName;
+  setTeamLogo(ownerKeyFor(teamName));
 
   const players = LEAGUE[teamName] || [];
 
@@ -2167,6 +2191,7 @@ function loadTeam(teamName) {
 function viewTeamOverview(teamName) {
   const viewingOwn = teamName === currentTeam;
   document.getElementById('roster-card-title').textContent = teamName;
+  setTeamLogo(ownerKeyFor(teamName));
   renderOverview(LEAGUE[teamName] || [], keeperStore[teamName] || {}, viewingOwn, teamName);
   initEditable();
 }
@@ -3618,6 +3643,69 @@ function playerIdFor(teamName, playerName) {
   return (LEAGUE[teamName] || []).find(p => p.player === playerName)?.id || '';
 }
 
+// ── Team Logos ────────────────────────────────────────────────────────────────
+function setTeamLogo(teamKey) {
+  const img   = document.getElementById('team-logo');
+  const label = document.getElementById('logo-upload-label');
+  if (!img) return;
+  img.src = teamKey ? `icons/${teamKey}.png` : 'icons/teamroster.png';
+  img.onerror = function() { this.src = 'icons/teamroster.png'; this.onerror = null; };
+  if (label) label.style.display = (teamKey && teamKey === window._currentOwnerKey) ? '' : 'none';
+}
+
+async function uploadTeamLogo(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+
+  if (!GITHUB_TOKEN) { toast('Set GITHUB_TOKEN in the app to enable logo uploads'); return; }
+  if (file.size > 512 * 1024) { toast('Logo must be under 512 KB'); return; }
+
+  const teamKey = window._currentOwnerKey;
+  if (!teamKey) return;
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const dataUrl = e.target.result;
+    const base64  = dataUrl.split(',')[1];
+    const path    = `icons/${teamKey}.png`;
+    toast('Uploading logo…');
+
+    // Fetch existing file SHA so GitHub accepts the update
+    let sha;
+    try {
+      const r = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${path}`, {
+        headers: { Authorization: `Bearer ${GITHUB_TOKEN}`, Accept: 'application/vnd.github+json' }
+      });
+      if (r.ok) sha = (await r.json()).sha;
+    } catch (_) {}
+
+    const body = { message: `Team logo: ${teamKey}`, content: base64 };
+    if (sha) body.sha = sha;
+
+    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${path}`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${GITHUB_TOKEN}`,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      toast('Logo saved!');
+      const img = document.getElementById('team-logo');
+      if (img) { img.src = dataUrl; img.onerror = null; }
+    } else {
+      const err = await res.json().catch(() => ({}));
+      toast('Upload failed — ' + (err.message || 'check console'));
+      console.error('Logo upload:', err);
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
 // ── Team Picker ───────────────────────────────────────────────────────────────
 let pickedOwnerKey = null;
 
@@ -3701,6 +3789,10 @@ function applyOwner(key) {
 //  Format: https://script.google.com/macros/s/YOUR_DEPLOY_ID/exec
 // ════════════════════════════════════════════════════════════════════════════
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw8Hs8M1kZTcM5ZSOgDXLQP1euoV6IjYcomiBhW9tQQFtZGKsLJ1QfKRb6yzVOd7Ug8/exec';
+
+// ── GitHub repo — used for team logo uploads ───────────────────────────────
+const GITHUB_REPO  = 'skrammit-ui/blc-offseason-hub';
+const GITHUB_TOKEN = ''; // Fine-grained PAT: Contents (read+write) on this repo
 
 // ── Remote data fetch ─────────────────────────────────────────────────────
 async function fetchLeagueData() {
