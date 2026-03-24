@@ -119,11 +119,8 @@ body {
   width: 44px; height: 44px; object-fit: contain; border-radius: 6px;
   border: 1px solid var(--border); background: var(--bg); display: block; flex-shrink: 0;
 }
-#logo-upload-label {
-  font-size: 15px; color: var(--text-3); cursor: pointer;
-  line-height: 1; transition: color .12s;
-}
-#logo-upload-label:hover { color: var(--blue); }
+#logo-upload-label { cursor: pointer; opacity: .75; transition: opacity .12s; }
+#logo-upload-label:hover { opacity: 1; }
 
 /* ── Pages ── */
 .page { display: none; }
@@ -1494,7 +1491,7 @@ input[type=file] { display: none; }
         <img id="team-logo" src="icons/teamroster.png" alt="Team Logo"
              onerror="this.src='icons/teamroster.png';this.onerror=null">
         <span class="card-title" id="roster-card-title">Wetherholt 45s</span>
-        <label id="logo-upload-label" for="logo-file-input" style="display:none" title="Upload team logo">&#9998;</label>
+        <label id="logo-upload-label" for="logo-file-input" style="display:none" title="Upload team logo"><img src="icons/upload-logo.svg" style="width:24px;height:24px;display:block;cursor:pointer"></label>
         <input type="file" id="logo-file-input" accept="image/*" style="display:none"
                onchange="uploadTeamLogo(this)">
       </div>

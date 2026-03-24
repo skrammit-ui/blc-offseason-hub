@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60">
+  <!-- Photo frame -->
+  <rect x="1" y="1" width="50" height="42" rx="5" ry="5" fill="#dce8f0" stroke="#c4d4e0" stroke-width="1.5"/>
+  <!-- Sun -->
+  <circle cx="13" cy="12" r="6" fill="#b8ccd8"/>
+  <!-- Mountain left -->
+  <polygon points="2,40 20,16 38,40" fill="#a8bcc8"/>
+  <!-- Mountain right -->
+  <polygon points="26,40 40,24 52,40" fill="#90aabb"/>
+  <!-- Clip mountains to frame -->
+  <rect x="1" y="38" width="50" height="6" fill="#dce8f0"/>
+  <!-- Blue upload circle -->
+  <circle cx="42" cy="44" r="16" fill="#2196F3"/>
+  <!-- Upload arrow shaft -->
+  <rect x="39" y="44" width="6" height="8" rx="1" fill="white"/>
+  <!-- Upload arrow head -->
+  <polygon points="42,33 49,44 35,44" fill="white"/>
+</svg>
