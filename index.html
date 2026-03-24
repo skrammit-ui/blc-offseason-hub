@@ -3640,8 +3640,16 @@ function setTeamLogo(teamKey) {
   const img   = document.getElementById('team-logo');
   const label = document.getElementById('logo-upload-label');
   if (!img) return;
-  img.src = teamKey ? `icons/${teamKey}.png` : 'icons/teamroster.png';
-  img.onerror = function() { this.src = 'icons/teamroster.png'; this.onerror = null; };
+  if (teamKey) {
+    img.src = `logos/${teamKey}.jpg`;
+    img.onerror = function() {
+      this.src = `logos/${teamKey}.png`;
+      this.onerror = function() { this.src = 'icons/teamroster.png'; this.onerror = null; };
+    };
+  } else {
+    img.src = 'icons/teamroster.png';
+    img.onerror = null;
+  }
   if (label) label.style.display = (teamKey && teamKey === window._currentOwnerKey) ? '' : 'none';
 }
 
@@ -3660,7 +3668,7 @@ async function uploadTeamLogo(input) {
   reader.onload = async (e) => {
     const dataUrl = e.target.result;
     const base64  = dataUrl.split(',')[1];
-    const path    = `icons/${teamKey}.png`;
+    const path    = `logos/${teamKey}.jpg`;
     toast('Uploading logo…');
 
     // Fetch existing file SHA so GitHub accepts the update
