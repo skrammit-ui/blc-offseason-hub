@@ -1491,7 +1491,7 @@ input[type=file] { display: none; }
         <img id="team-logo" src="icons/teamroster.png" alt="Team Logo"
              onerror="this.src='icons/teamroster.png';this.onerror=null">
         <span class="card-title" id="roster-card-title">Wetherholt 45s</span>
-        <label id="logo-upload-label" for="logo-file-input" style="display:none" title="Upload team logo"><img src="icons/upload-logo.svg" style="width:24px;height:24px;display:block;cursor:pointer"></label>
+        <label id="logo-upload-label" for="logo-file-input" style="display:none" title="Upload team logo"><img src="icons/upload-logo.svg" style="width:14px;height:14px;display:block;cursor:pointer"></label>
         <input type="file" id="logo-file-input" accept="image/*" style="display:none"
                onchange="uploadTeamLogo(this)">
       </div>
@@ -3691,8 +3691,9 @@ async function uploadTeamLogo(input) {
       if (img) { img.src = dataUrl; img.onerror = null; }
     } else {
       const err = await res.json().catch(() => ({}));
-      toast('Upload failed — ' + (err.message || 'check console'));
-      console.error('Logo upload:', err);
+      const msg = err.message || err.error || 'unknown error';
+      toast(`Upload failed ${res.status} — ${msg}`);
+      console.error('Logo upload failed:', res.status, res.statusText, err);
     }
   };
   reader.readAsDataURL(file);
