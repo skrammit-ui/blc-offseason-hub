@@ -115,18 +115,15 @@ body {
 }
 
 /* ── Team logo ── */
-#team-logo-wrap { display: flex; flex-direction: column; align-items: center; gap: 3px; }
 #team-logo {
   width: 44px; height: 44px; object-fit: contain; border-radius: 6px;
-  border: 1px solid var(--border); background: var(--bg); display: block;
+  border: 1px solid var(--border); background: var(--bg); display: block; flex-shrink: 0;
 }
 #logo-upload-label {
-  font-size: 9px; font-weight: 700; color: var(--blue); cursor: pointer;
-  letter-spacing: .04em; text-transform: uppercase;
-  padding: 1px 5px; border-radius: 3px; border: 1px solid var(--blue);
-  transition: all .12s; white-space: nowrap;
+  font-size: 15px; color: var(--text-3); cursor: pointer;
+  line-height: 1; transition: color .12s;
 }
-#logo-upload-label:hover { background: var(--blue); color: #fff; }
+#logo-upload-label:hover { color: var(--blue); }
 
 /* ── Pages ── */
 .page { display: none; }
@@ -1494,14 +1491,12 @@ input[type=file] { display: none; }
   <div class="card" id="roster-card">
     <div class="card-header">
       <div style="display:flex;align-items:center;gap:10px">
-        <div id="team-logo-wrap">
-          <img id="team-logo" src="icons/teamroster.png" alt="Team Logo"
-               onerror="this.src='icons/teamroster.png';this.onerror=null">
-          <label id="logo-upload-label" for="logo-file-input" style="display:none">Upload</label>
-          <input type="file" id="logo-file-input" accept="image/*" style="display:none"
-                 onchange="uploadTeamLogo(this)">
-        </div>
+        <img id="team-logo" src="icons/teamroster.png" alt="Team Logo"
+             onerror="this.src='icons/teamroster.png';this.onerror=null">
         <span class="card-title" id="roster-card-title">Wetherholt 45s</span>
+        <label id="logo-upload-label" for="logo-file-input" style="display:none" title="Upload team logo">&#9998;</label>
+        <input type="file" id="logo-file-input" accept="image/*" style="display:none"
+               onchange="uploadTeamLogo(this)">
       </div>
       <div id="view-team-picker" style="display:flex;align-items:center;gap:5px;font-size:12px">
         <span style="color:var(--text-3);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase">View:</span>
