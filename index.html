@@ -1838,15 +1838,19 @@ input[type=file] { display: none; }
 ════════════════════════════════════════ -->
 <div class="page" id="page-matchups">
   <div class="page-title"><img class="page-title-icon" src="icons/matchups.png" alt="">Matchups</div>
-  <div class="page-sub">Weekly head-to-head matchups · 2025 Season</div>
+  <div class="page-sub">Weekly head-to-head matchups · 2026 Season</div>
 
   <div class="card" style="border-left:3px solid var(--gold)">
     <div class="card-header">
-      <span class="card-title">Weekly Matchups</span>
+      <span class="card-title">Weekly Schedule</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:12px;color:var(--text-3)">Week</label>
+        <select id="matchup-week-select" onchange="renderMatchupsWeek(this.value)"
+          style="font-family:var(--body);font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
+        </select>
+      </div>
     </div>
-    <div style="padding:40px 24px;text-align:center;color:var(--text-3);font-size:13px">
-      Matchup data coming soon — share your reference spreadsheet to set up the sheet tab.
-    </div>
+    <div id="matchup-body" style="padding:16px 18px"></div>
   </div>
 </div>
 
@@ -2220,6 +2224,9 @@ let PLAYOFFS_DATA = {
   '2025': {},
   '2026': {},
 };
+
+// Weekly matchups: [{ week, home, visitor, type }]
+let MATCHUPS = [];
 
 // ── 2026 Bracket Template (structure + routing) ────────────────────────────────
 // Division indices: 0=Dairy Daddies, 1=Thunder Chickens, 2=Iron Pigs, 3=Flying Mummies
@@ -3953,6 +3960,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       });
     }
+
+    // Hydrate matchups
+    if (Array.isArray(data.matchups) && data.matchups.length) MATCHUPS = data.matchups;
 
     // Hydrate custom draft plan overrides
     if (data.draftPlan) Object.assign(customDraftSlots, data.draftPlan);
@@ -5965,7 +5975,82 @@ function executeTrade() {
 }
 
 function initMatchupsPage() {
-  // Placeholder — will render weekly matchups from sheet data
+  const sel = document.getElementById('matchup-week-select');
+  if (!sel) return;
+
+  // Build week options from MATCHUPS data (or fallback 1–19)
+  const weeks = MATCHUPS.length
+    ? [...new Set(MATCHUPS.map(m => m.week))].sort((a,b) => a - b)
+    : Array.from({length: 19}, (_, i) => i + 1);
+
+  sel.innerHTML = weeks.map(w => {
+    const hasPlayoff = MATCHUPS.some(m => m.week === w && m.type !== 'Regular Season');
+    const label = hasPlayoff ? `Week ${w} · Playoffs` : `Week ${w}`;
+    return `<option value="${w}">${label}</option>`;
+  }).join('');
+
+  // Default to current or first week
+  const now = new Date();
+  sel.value = weeks[0];
+  renderMatchupsWeek(weeks[0]);
+}
+
+function renderMatchupsWeek(week) {
+  const body = document.getElementById('matchup-body');
+  if (!body) return;
+  week = Number(week);
+
+  const rows = MATCHUPS.filter(m => m.week === week);
+  if (!rows.length) {
+    body.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-3);font-size:13px">
+      No matchup data for Week ${week}.<br>Run <code>setupMatchupsSheet()</code> in Apps Script to seed the data.
+    </div>`;
+    return;
+  }
+
+  // Group by type
+  const groups = {};
+  rows.forEach(m => {
+    const t = m.type || 'Regular Season';
+    if (!groups[t]) groups[t] = [];
+    groups[t].push(m);
+  });
+
+  const typeOrder = ['Regular Season','Wild Card','Championship','Consolation','Rule 5'];
+  const typeBadge = {
+    'Regular Season': '',
+    'Wild Card':      '<span style="font-size:10px;font-weight:700;color:var(--orange);background:var(--orange-lt);border:1px solid #fed7aa;border-radius:3px;padding:1px 5px;margin-left:6px">Wild Card</span>',
+    'Championship':   '<span style="font-size:10px;font-weight:700;color:var(--green);background:var(--green-lt);border:1px solid #a8d5bc;border-radius:3px;padding:1px 5px;margin-left:6px">Championship</span>',
+    'Consolation':    '<span style="font-size:10px;font-weight:700;color:var(--blue);background:var(--blue-lt);border:1px solid #b5d4f4;border-radius:3px;padding:1px 5px;margin-left:6px">Consolation</span>',
+    'Rule 5':         '<span style="font-size:10px;font-weight:700;color:var(--purple);background:var(--purple-lt);border:1px solid #c4b5fd;border-radius:3px;padding:1px 5px;margin-left:6px">Rule 5</span>',
+  };
+
+  let html = '<table style="width:100%;border-collapse:collapse">';
+  html += `<thead><tr>
+    <th style="text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);padding:6px 10px;border-bottom:1px solid var(--border)">Home</th>
+    <th style="text-align:center;font-size:11px;color:var(--text-3);padding:6px 4px;border-bottom:1px solid var(--border)"></th>
+    <th style="text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);padding:6px 10px;border-bottom:1px solid var(--border)">Visitor</th>
+    <th style="border-bottom:1px solid var(--border)"></th>
+  </tr></thead><tbody>`;
+
+  typeOrder.forEach(type => {
+    if (!groups[type]) return;
+    groups[type].forEach((m, i) => {
+      const homeName  = OWNER_MAP[m.home]    || m.home;
+      const visitName = OWNER_MAP[m.visitor] || m.visitor;
+      const badge     = i === 0 ? (typeBadge[type] || '') : '';
+      const stripe    = i % 2 === 1 ? 'background:var(--bg-2,var(--bg))' : '';
+      html += `<tr style="${stripe}">
+        <td style="padding:9px 10px;font-size:13px;font-weight:600">${homeName}</td>
+        <td style="padding:9px 4px;text-align:center;font-size:11px;color:var(--text-3);font-weight:700">vs</td>
+        <td style="padding:9px 10px;font-size:13px">${visitName}</td>
+        <td style="padding:9px 10px">${badge}</td>
+      </tr>`;
+    });
+  });
+
+  html += '</tbody></table>';
+  body.innerHTML = html;
 }
 
 function initCommishPage() {
