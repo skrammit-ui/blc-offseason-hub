@@ -1170,6 +1170,9 @@ input[type=file] { display: none; }
     <div class="nav-item" onclick="nav('standings',this)">
       <img class="nav-icon-img" src="icons/standings.png" alt=""> Standings
     </div>
+    <div class="nav-item" id="nav-matchups" onclick="nav('matchups',this)">
+      <img class="nav-icon-img" src="icons/matchups.png" alt=""> Matchups
+    </div>
     <div class="nav-item" onclick="nav('rules',this)">
       <img class="nav-icon-img" src="icons/rules.png" alt=""> Rules
     </div>
@@ -1831,6 +1834,23 @@ input[type=file] { display: none; }
 </div>
 
 <!-- ════════════════════════════════════════
+     MATCHUPS PAGE
+════════════════════════════════════════ -->
+<div class="page" id="page-matchups">
+  <div class="page-title"><img class="page-title-icon" src="icons/matchups.png" alt="">Matchups</div>
+  <div class="page-sub">Weekly head-to-head matchups · 2025 Season</div>
+
+  <div class="card" style="border-left:3px solid var(--gold)">
+    <div class="card-header">
+      <span class="card-title">Weekly Matchups</span>
+    </div>
+    <div style="padding:40px 24px;text-align:center;color:var(--text-3);font-size:13px">
+      Matchup data coming soon — share your reference spreadsheet to set up the sheet tab.
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
      DRAFT RESULTS PAGE
 ════════════════════════════════════════ -->
 <div class="page" id="page-draft">
@@ -1951,6 +1971,7 @@ function nav(page, el) {
   if (page === 'allrosters') buildAllRostersPage();
   if (page === 'draft') initDraftBoardPage();
   if (page === 'commish') initCommishPage();
+  if (page === 'matchups') initMatchupsPage();
 }
 
 // ── Roster rendering ──────────────────────────────────────────────────────────
@@ -3775,6 +3796,8 @@ function applyOwner(key) {
   if (badge) badge.style.display = isCommish ? '' : 'none';
   const commishNav = document.getElementById('nav-commish');
   if (commishNav) commishNav.style.display = isCommish ? '' : 'none';
+  const matchupsNav = document.getElementById('nav-matchups');
+  if (matchupsNav) matchupsNav.style.display = isCommish ? '' : 'none';
 
   // Update team select default + badge label
   const teamSel = document.getElementById('team-select');
@@ -5939,6 +5962,10 @@ function executeTrade() {
   populateTradeRoster('a');
   populateTradeRoster('b');
   if (document.getElementById('page-rosters')?.classList.contains('active')) loadTeam(currentTeam);
+}
+
+function initMatchupsPage() {
+  // Placeholder — will render weekly matchups from sheet data
 }
 
 function initCommishPage() {
