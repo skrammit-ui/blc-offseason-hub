@@ -2343,18 +2343,52 @@ function renderDivisionGrid(year) {
   }
 }
 
+// Compute W/L/T and category totals from MATCHUPS for regular season games.
+// Returns { ownerKey: { W, L, T, catW, catL } }
+function computeStandings() {
+  const recs = {};
+  const init = k => { if (!recs[k]) recs[k] = { W:0, L:0, T:0, catW:0, catL:0 }; };
+  MATCHUPS
+    .filter(m => m.type === 'Regular Season' && m.homeScore != null && m.visitorScore != null)
+    .forEach(m => {
+      const hs = Number(m.homeScore), vs = Number(m.visitorScore);
+      init(m.home); init(m.visitor);
+      recs[m.home].catW    += hs; recs[m.home].catL    += vs;
+      recs[m.visitor].catW += vs; recs[m.visitor].catL += hs;
+      if      (hs > vs) { recs[m.home].W++;    recs[m.visitor].L++; }
+      else if (vs > hs) { recs[m.visitor].W++; recs[m.home].L++;    }
+      else              { recs[m.home].T++;     recs[m.visitor].T++; }
+    });
+  return recs;
+}
+
+function standingsSortFn(recs) {
+  return (a, b) => {
+    const ra = recs[a] || {W:0,L:0,T:0,catW:0,catL:0};
+    const rb = recs[b] || {W:0,L:0,T:0,catW:0,catL:0};
+    if (rb.W !== ra.W) return rb.W - ra.W;
+    return (rb.catW - rb.catL) - (ra.catW - ra.catL);
+  };
+}
+
 function renderDivisionCard(divName, year, ownerKeys) {
-  // ownerKeys array is in final finishing order (index 0 = division winner)
+  const recs = computeStandings();
+  const hasResults = Object.keys(recs).length > 0;
+  const sorted = hasResults ? [...ownerKeys].sort(standingsSortFn(recs)) : ownerKeys;
   const myTeam = currentTeam;
-  const tbody = ownerKeys.length === 0
-    ? `<tr class="no-data-row"><td colspan="2">No teams assigned</td></tr>`
-    : ownerKeys.map((key, i) => {
+
+  const tbody = sorted.length === 0
+    ? `<tr class="no-data-row"><td colspan="3">No teams assigned</td></tr>`
+    : sorted.map((key, i) => {
         const teamName = OWNER_MAP[key] || key;
         const isMe = teamName === myTeam;
         const suffix = isMe ? ' <span class="stag stag-active" style="font-size:9px">You</span>' : '';
+        const r = recs[key];
+        const recStr = r ? `${r.W}-${r.L}${r.T ? `-${r.T}` : ''}` : '—';
         return `<tr${i === 0 ? ' class="div-leader"' : ''}>
           <td>${i + 1}</td>
           <td>${teamName}${suffix}</td>
+          <td style="text-align:center;color:var(--text-3);font-size:12px;white-space:nowrap">${recStr}</td>
         </tr>`;
       }).join('');
 
@@ -2364,7 +2398,7 @@ function renderDivisionCard(divName, year, ownerKeys) {
       <span class="division-card-year">${year}</span>
     </div>
     <table class="div-standings-tbl">
-      <thead><tr><th>#</th><th>Team</th></tr></thead>
+      <thead><tr><th>#</th><th>Team</th><th style="text-align:center">W-L</th></tr></thead>
       <tbody>${tbody}</tbody>
     </table>
   </div>`;
@@ -2529,7 +2563,16 @@ function renderPlayoffBracket(year) {
 // ── Push standings to playoff bracket ────────────────────────────────────────
 function pushStandingsToPlayoffs() {
   const year = currentStandingsYear;
-  const divs = DIVISIONS[year] || {};
+  const recs = computeStandings();
+  const hasResults = Object.keys(recs).length > 0;
+
+  // Sort each division by computed W/L (falls back to existing order if no results)
+  const divs = {};
+  DIV_NAMES_ORDER.forEach(divName => {
+    const keys = (DIVISIONS[year] || {})[divName] || [];
+    divs[divName] = hasResults ? [...keys].sort(standingsSortFn(recs)) : keys;
+  });
+
   if (!PLAYOFFS_DATA[year]) PLAYOFFS_DATA[year] = {};
   const state = PLAYOFFS_DATA[year];
 
@@ -2688,8 +2731,11 @@ function buildDivAssignGrid(year, containerId) {
   wrap.className = 'div-dnd-wrap';
   container.appendChild(wrap);
 
+  const recs = computeStandings();
+  const hasResults = Object.keys(recs).length > 0;
   DIV_NAMES_ORDER.forEach(divName => {
-    const assigned = (DIVISIONS[year] || {})[divName] || [];
+    const raw = (DIVISIONS[year] || {})[divName] || [];
+    const assigned = hasResults ? [...raw].sort(standingsSortFn(recs)) : raw;
     wrap.appendChild(buildDndColumn(divName, assigned, year));
   });
 }
@@ -2752,10 +2798,13 @@ function buildDndItem(key, idx, divName, year) {
   item.dataset.div = divName;
   item.dataset.idx = idx;
 
+  const recs = computeStandings();
+  const r = recs[key];
+  const recTag = r ? ` <span style="font-size:10px;color:var(--text-3)">${r.W}-${r.L}${r.T ? `-${r.T}` : ''}</span>` : '';
   item.innerHTML = `
     <span class="drag-handle">⠿</span>
     <span class="dnd-pos">${idx + 1}</span>
-    <span class="dnd-name">${OWNER_MAP[key] || key}</span>
+    <span class="dnd-name">${OWNER_MAP[key] || key}${recTag}</span>
     <button class="dnd-remove" onclick="dndRemoveTeam(event,'${year}','${divName}','${key}')" title="Remove">✕</button>
   `;
 
@@ -6028,11 +6077,12 @@ function renderMatchupsWeek(week) {
   let html = '<table style="width:100%;border-collapse:collapse">';
   html += `<thead><tr>
     <th style="text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);padding:6px 10px;border-bottom:1px solid var(--border)">Home</th>
-    <th style="text-align:center;font-size:11px;color:var(--text-3);padding:6px 4px;border-bottom:1px solid var(--border)"></th>
+    <th style="text-align:center;font-size:11px;color:var(--text-3);padding:6px 8px;border-bottom:1px solid var(--border)">Score</th>
     <th style="text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);padding:6px 10px;border-bottom:1px solid var(--border)">Visitor</th>
     <th style="border-bottom:1px solid var(--border)"></th>
   </tr></thead><tbody>`;
 
+  const recs = computeStandings();
   typeOrder.forEach(type => {
     if (!groups[type]) return;
     groups[type].forEach((m, i) => {
@@ -6040,10 +6090,16 @@ function renderMatchupsWeek(week) {
       const visitName = OWNER_MAP[m.visitor] || m.visitor;
       const badge     = i === 0 ? (typeBadge[type] || '') : '';
       const stripe    = i % 2 === 1 ? 'background:var(--bg-2,var(--bg))' : '';
+      const hasScore  = m.homeScore != null && m.visitorScore != null;
+      const homeWon   = hasScore && m.homeScore > m.visitorScore;
+      const visitWon  = hasScore && m.visitorScore > m.homeScore;
+      const scoreCell = hasScore
+        ? `<span style="font-weight:700;color:var(--text)">${m.homeScore}</span>–<span style="font-weight:700;color:var(--text)">${m.visitorScore}</span>`
+        : `<span style="color:var(--text-3)">–</span>`;
       html += `<tr style="${stripe}">
-        <td style="padding:9px 10px;font-size:13px;font-weight:600">${homeName}</td>
-        <td style="padding:9px 4px;text-align:center;font-size:11px;color:var(--text-3);font-weight:700">vs</td>
-        <td style="padding:9px 10px;font-size:13px">${visitName}</td>
+        <td style="padding:9px 10px;font-size:13px;font-weight:${homeWon ? '700' : '400'};color:${homeWon ? 'var(--text)' : 'inherit'}">${homeName}</td>
+        <td style="padding:9px 8px;text-align:center;font-size:12px;white-space:nowrap">${scoreCell}</td>
+        <td style="padding:9px 10px;font-size:13px;font-weight:${visitWon ? '700' : '400'};color:${visitWon ? 'var(--text)' : 'inherit'}">${visitName}</td>
         <td style="padding:9px 10px">${badge}</td>
       </tr>`;
     });

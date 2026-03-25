@@ -928,17 +928,21 @@ function getMatchups(ss) {
   const sheet = ss.getSheetByName('Matchups');
   if (!sheet || sheet.getLastRow() < 2) return [];
   const [headers, ...rows] = sheet.getDataRange().getValues();
-  const wi = headers.indexOf('Week');
-  const hi = headers.indexOf('Home');
-  const vi = headers.indexOf('Visitor');
-  const ti = headers.indexOf('Type');
+  const wi  = headers.indexOf('Week');
+  const hi  = headers.indexOf('Home');
+  const vi  = headers.indexOf('Visitor');
+  const ti  = headers.indexOf('Type');
+  const hsi = headers.indexOf('HomeScore');
+  const vsi = headers.indexOf('VisitorScore');
   return rows
     .filter(r => r[wi] !== '' && r[wi] != null)
     .map(r => ({
-      week:    Number(r[wi]),
-      home:    String(r[hi] || '').trim(),
-      visitor: String(r[vi] || '').trim(),
-      type:    String(r[ti] || 'Regular Season').trim(),
+      week:         Number(r[wi]),
+      home:         String(r[hi] || '').trim(),
+      visitor:      String(r[vi] || '').trim(),
+      type:         String(r[ti] || 'Regular Season').trim(),
+      homeScore:    hsi >= 0 && r[hsi] !== '' && r[hsi] != null ? Number(r[hsi]) : null,
+      visitorScore: vsi >= 0 && r[vsi] !== '' && r[vsi] != null ? Number(r[vsi]) : null,
     }));
 }
 
@@ -951,7 +955,7 @@ function setupMatchupsSheet() {
     Logger.log('Created Matchups sheet.');
   }
   sheet.clearContents();
-  sheet.getRange(1, 1, 1, 4).setValues([['Week','Home','Visitor','Type']]);
+  sheet.getRange(1, 1, 1, 6).setValues([['Week','Home','Visitor','Type','HomeScore','VisitorScore']]);
 
   const seed = [
       ['1','reid','prayers','Regular Season'],
