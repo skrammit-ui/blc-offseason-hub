@@ -6228,11 +6228,24 @@ function renderMatchupsWeek(week) {
   const groups = {};
   rows.forEach(m => { const t = m.type || 'Regular Season'; if (!groups[t]) groups[t] = []; groups[t].push(m); });
 
+  // Sort each group so the current manager's matchup comes first
+  const myKey = window._currentOwnerKey;
+  Object.keys(groups).forEach(type => {
+    groups[type].sort((a, b) => {
+      const aHasMe = myKey && (a.home === myKey || a.visitor === myKey) ? -1 : 0;
+      const bHasMe = myKey && (b.home === myKey || b.visitor === myKey) ? 1 : 0;
+      return aHasMe + bHasMe;
+    });
+  });
+
   const catHeaders = SCORING_CATS.map(c => `<th>${c.label}</th>`).join('');
 
   let html = '';
   typeOrder.forEach(type => {
     if (!groups[type]) return;
+    if (type !== 'Regular Season' && typeBadge[type]) {
+      html += `<div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);padding:4px 2px 6px">${type}</div>`;
+    }
     groups[type].forEach((m, idx) => {
       const homeName  = OWNER_MAP[m.home]    || m.home;
       const visitName = OWNER_MAP[m.visitor] || m.visitor;
@@ -6241,7 +6254,6 @@ function renderMatchupsWeek(week) {
       const hasScore  = m.homeScore != null && m.visitorScore != null;
       const homeWon   = hasScore && m.homeScore  > m.visitorScore;
       const visitWon  = hasScore && m.visitorScore > m.homeScore;
-      const badge = typeBadge[type] || '';
 
       // Season W-L-T records
       const hRec = standings[m.home]    || { W:0, L:0, T:0 };
@@ -6268,11 +6280,6 @@ function renderMatchupsWeek(week) {
       const cardId = `mu-${week}-${idx}`;
 
       html += `<div class="mu-card">
-        <div class="mu-card-hdr">
-          <span class="mu-card-team" style="color:${homeWon?'var(--green)':'var(--text)'}">${homeName}</span>
-          <span style="font-size:11px;color:var(--text-3)">vs${badge}</span>
-          <span class="mu-card-team right" style="color:${visitWon?'var(--green)':'var(--text)'}">${visitName}</span>
-        </div>
         <div class="mu-stats-wrap"><table class="mu-stats-tbl">
           <thead><tr>
             <th></th>
