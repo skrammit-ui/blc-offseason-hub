@@ -50,54 +50,61 @@ body {
 }
 
 /* ── Layout ── */
-.app { display: flex; flex-direction: column; min-height: 100vh; }
+.app { display: flex; flex-direction: row; min-height: 100vh; }
 
-/* ── Top nav bar ── */
+/* ── Left sidebar nav ── */
 .topbar {
   background: var(--navy);
-  display: flex; align-items: center; gap: 0;
-  padding: 0 24px;
-  position: sticky; top: 0; z-index: 100;
-  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  display: flex; flex-direction: column; align-items: center;
+  width: 88px; flex-shrink: 0;
+  padding: 16px 0 20px;
+  position: sticky; top: 0; left: 0; height: 100vh;
+  overflow-y: auto; z-index: 100;
+  box-shadow: 2px 0 12px rgba(0,0,0,.3);
+  gap: 0;
 }
 .brand-logo {
-  width: 34px; height: 34px; border-radius: 6px;
+  width: 46px; height: 46px; border-radius: 10px;
   object-fit: cover; border: 1.5px solid var(--gold);
-  flex-shrink: 0;
+  flex-shrink: 0; margin-bottom: 6px;
 }
 .brand-name {
   font-family: var(--head); font-weight: 800;
-  font-size: 15px; line-height: 1.1;
-  color: #fff; letter-spacing: 0.02em;
-  margin: 0 6px 0 10px; white-space: nowrap;
+  font-size: 9px; line-height: 1.3;
+  color: #fff; letter-spacing: 0.04em; text-transform: uppercase;
+  text-align: center; padding: 0 6px; margin: 0;
 }
 .brand-sub {
-  font-size: 10px; color: var(--gold); font-weight: 600;
+  font-size: 8px; color: var(--gold); font-weight: 600;
   letter-spacing: 0.08em; text-transform: uppercase;
-  margin-right: 20px; white-space: nowrap;
+  text-align: center; margin: 2px 0 0; padding: 0 4px;
 }
-.nav-divider { width: 1px; height: 28px; background: var(--navy-3); margin: 0 4px; }
+.nav-divider { width: 52px; height: 1px; background: var(--navy-3); margin: 10px 0; flex-shrink: 0; }
+.nav-group { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; padding: 0 7px; box-sizing: border-box; }
 .nav-item {
-  display: flex; align-items: center; gap: 7px;
-  padding: 0 14px; height: 52px; cursor: pointer;
-  font-size: 12.5px; font-weight: 600; color: #8aa0bc;
-  transition: all .12s; border-bottom: 3px solid transparent;
-  white-space: nowrap;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 74px; min-height: 66px; padding: 8px 4px; box-sizing: border-box;
+  cursor: pointer; gap: 5px; text-align: center; line-height: 1.2;
+  font-size: 10px; font-weight: 600; color: #8aa0bc;
+  border-radius: 10px; border: 1.5px solid transparent;
+  background: rgba(255,255,255,.04);
+  box-shadow: 0 2px 6px rgba(0,0,0,.25);
+  transition: all .15s; white-space: normal;
 }
-.nav-item:hover { color: #fff; background: var(--navy-2); }
-.nav-item.active { color: #fff; border-bottom-color: var(--gold); }
-.nav-item .nav-icon { font-size: 14px; }
-.nav-item .nav-icon-img { width: 22px; height: 22px; object-fit: contain; vertical-align: middle; display: inline-block; }
-.nav-group { display: contents; } /* transparent to flex on desktop */
+.nav-item:hover { color: #fff; background: rgba(255,255,255,.09); box-shadow: 0 4px 14px rgba(0,0,0,.35); transform: translateY(-1px); }
+.nav-item.active { color: #fff; background: rgba(212,175,55,.13); border-color: var(--gold); box-shadow: 0 2px 10px rgba(0,0,0,.3); }
+.nav-item .nav-icon { font-size: 18px; }
+.nav-item .nav-icon-img { width: 26px; height: 26px; object-fit: contain; display: block; }
+.nav-item .nav-label { font-size: 9.5px; font-weight: 600; line-height: 1.2; }
 .commish-badge {
-  display: inline-flex; align-items: center; gap: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
   background: var(--gold); color: var(--navy);
-  font-size: 10px; font-weight: 700; letter-spacing: .06em;
-  text-transform: uppercase; padding: 2px 7px; border-radius: 3px;
-  margin-left: auto; white-space: nowrap;
+  font-size: 8px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; padding: 3px 6px; border-radius: 4px;
+  margin-top: auto; white-space: nowrap; text-align: center;
 }
 
-.main { flex: 1; padding: 20px 24px; width: 100%; box-sizing: border-box; }
+.main { flex: 1; min-width: 0; padding: 20px 24px; box-sizing: border-box; }
 
 /* ── Cards & surfaces ── */
 .card {
@@ -537,25 +544,32 @@ input[type=file] { display: none; }
 /* ── Mobile ── */
 @media (max-width:768px) {
   /* Nav: three-row layout on mobile */
+  /* ── Mobile: revert to top horizontal bar ── */
+  .app { flex-direction: column; }
   .topbar {
-    padding: 2px 12px 0;
-    flex-wrap: wrap;
-    height: auto;
-    overflow-x: visible;
-    gap: 0;
+    width: 100%; height: auto; flex-direction: row; flex-wrap: wrap;
+    padding: 2px 10px 0; position: sticky; top: 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    overflow-y: visible; gap: 0;
   }
-  /* Row 1: brand logo + name + team select */
-  .brand-logo { order: 1; margin: 4px 8px 4px 0; }
-  .brand-name { order: 1; flex: 0 0 auto; margin: 0; font-size: 14px; }
+  .brand-logo { order: 1; width: 30px; height: 30px; border-radius: 6px; margin: 5px 6px 5px 0; }
+  .brand-name { order: 1; flex: 0 0 auto; font-size: 13px; text-align: left; padding: 0; margin: 0 0 0 0; }
   .brand-sub  { display: none; }
   .commish-badge { display: none; }
-  /* Row 2: Rosters · Keepers · Rule 5 */
-  .nav-group-1 { order: 2; display: flex; width: 100%; border-top: 1px solid var(--navy-3); }
-  /* Row 3: Draft · Rules · Commissioner */
-  .nav-group-2 { order: 3; display: flex; width: 100%; border-top: 1px solid var(--navy-3); }
-  .nav-group .nav-item { height: 34px; padding: 0 11px; font-size: 12px; }
-  /* Hide dividers — row breaks handle separation */
   .nav-divider { display: none; }
+  /* Row 2: Rosters nav group */
+  .nav-group-1 { order: 2; flex-direction: row; width: 100%; border-top: 1px solid var(--navy-3); padding: 0; gap: 0; }
+  /* Row 3: Stats/tools nav group */
+  .nav-group-2 { order: 3; flex-direction: row; width: 100%; border-top: 1px solid var(--navy-3); padding: 0; gap: 0; }
+  .nav-group .nav-item {
+    flex-direction: row; flex: 1; min-height: 36px; height: 36px;
+    width: auto; border-radius: 0; border: none; box-shadow: none;
+    background: none; transform: none; font-size: 11px; padding: 0 8px; gap: 5px; justify-content: center;
+  }
+  .nav-group .nav-item.active { background: rgba(212,175,55,.12); border-bottom: 2px solid var(--gold); }
+  .nav-group .nav-item:hover { transform: none; box-shadow: none; }
+  .nav-group .nav-item .nav-icon-img { width: 18px; height: 18px; }
+  .nav-group .nav-item .nav-label { font-size: 11px; }
 
   /* Main content padding */
   .main { padding: 8px 12px; }
@@ -753,8 +767,9 @@ input[type=file] { display: none; }
 }
 
 @media (max-width:480px) {
-  .nav-item { padding: 0 8px; font-size: 11.5px; }
-  .brand-name { font-size: 13px; }
+  .nav-group .nav-item .nav-label { display: none; }
+  .nav-group .nav-item { padding: 0 6px; }
+  .brand-name { font-size: 12px; }
   .page-title { font-size: 18px; }
 }
 
@@ -1177,34 +1192,34 @@ input[type=file] { display: none; }
   <div class="nav-divider"></div>
   <div class="nav-group nav-group-1">
     <div class="nav-item active" onclick="nav('rosters',this)">
-      <img class="nav-icon-img" src="icons/teamroster.png" alt=""> Team Roster
+      <img class="nav-icon-img" src="icons/teamroster.png" alt=""><span class="nav-label">Team Roster</span>
     </div>
     <div class="nav-item" onclick="nav('allrosters',this)">
-      <img class="nav-icon-img" src="icons/allrosters.png" alt=""> All Rosters
+      <img class="nav-icon-img" src="icons/allrosters.png" alt=""><span class="nav-label">All Rosters</span>
     </div>
     <div class="nav-item" onclick="nav('keepers',this)">
-      <img class="nav-icon-img" src="icons/keepers.png" alt=""> Keepers
+      <img class="nav-icon-img" src="icons/keepers.png" alt=""><span class="nav-label">Keepers</span>
     </div>
     <div class="nav-item" onclick="nav('rule5',this)">
-      <img class="nav-icon-img" src="icons/rule5.png" alt=""> Rule 5
+      <img class="nav-icon-img" src="icons/rule5.png" alt=""><span class="nav-label">Rule 5</span>
     </div>
   </div>
   <div class="nav-divider"></div>
   <div class="nav-group nav-group-2">
     <div class="nav-item" onclick="nav('draft',this)">
-      <img class="nav-icon-img" src="icons/draft.png" alt=""> Draft
+      <img class="nav-icon-img" src="icons/draft.png" alt=""><span class="nav-label">Draft</span>
     </div>
     <div class="nav-item" onclick="nav('standings',this)">
-      <img class="nav-icon-img" src="icons/standings.png" alt=""> Standings
+      <img class="nav-icon-img" src="icons/standings.png" alt=""><span class="nav-label">Standings</span>
     </div>
     <div class="nav-item" id="nav-matchups" onclick="nav('matchups',this)">
-      <img class="nav-icon-img" src="icons/matchups.png" alt=""> Matchups
+      <img class="nav-icon-img" src="icons/matchups.png" alt=""><span class="nav-label">Matchups</span>
     </div>
     <div class="nav-item" onclick="nav('rules',this)">
-      <img class="nav-icon-img" src="icons/rules.png" alt=""> Rules
+      <img class="nav-icon-img" src="icons/rules.png" alt=""><span class="nav-label">Rules</span>
     </div>
     <div class="nav-item" id="nav-commish" onclick="nav('commish',this)">
-      <img class="nav-icon-img" src="icons/commissioner.png" alt=""> Commissioner
+      <img class="nav-icon-img" src="icons/commissioner.png" alt=""><span class="nav-label">Commissioner</span>
     </div>
   </div>
   <span class="commish-badge">⭐ Commissioner</span>
