@@ -6023,6 +6023,124 @@ function executeTrade() {
   if (document.getElementById('page-rosters')?.classList.contains('active')) loadTeam(currentTeam);
 }
 
+// ── Matchup stat helpers ───────────────────────────────────────────────────
+
+const SCORING_CATS = [
+  { key:'R',    label:'R',    lower:false, fmt: v => v != null ? Math.round(v) : '—' },
+  { key:'HR',   label:'HR',   lower:false, fmt: v => v != null ? Math.round(v) : '—' },
+  { key:'RBI',  label:'RBI',  lower:false, fmt: v => v != null ? Math.round(v) : '—' },
+  { key:'SB',   label:'SB',   lower:false, fmt: v => v != null ? Math.round(v) : '—' },
+  { key:'OBP',  label:'OBP',  lower:false, fmt: v => v != null ? v.toFixed(3).replace(/^0/, '') : '—' },
+  { key:'QA',   label:'QA',   lower:false, fmt: v => v != null ? Math.round(v) : '—' },
+  { key:'SVH',  label:'SVH',  lower:false, fmt: v => v != null ? Math.round(v) : '—' },
+  { key:'K',    label:'K',    lower:false, fmt: v => v != null ? Math.round(v) : '—' },
+  { key:'ERA',  label:'ERA',  lower:true,  fmt: v => v != null ? v.toFixed(2) : '—' },
+  { key:'WHIP', label:'WHIP', lower:true,  fmt: v => v != null ? v.toFixed(2) : '—' },
+];
+
+function aggregateTeamStats(ownerKey) {
+  const teamName = OWNER_MAP[ownerKey];
+  if (!teamName) return null;
+  const players = LEAGUE[teamName] || [];
+
+  let R=0, HR=0, RBI=0, SB=0, QA=0, SVH=0, K=0;
+  let obpNum=0, obpDen=0, eraER=0, eraIP=0, whipNum=0, whipIP=0;
+
+  players.forEach(p => {
+    const s = STATS[p.id] || STATS[p.player] || {};
+    const hasHit = s.R != null || s.HR != null || s.RBI != null;
+    const hasPit = s.ERA != null || s.WHIP != null || s.IP != null;
+
+    if (hasHit) {
+      R   += parseFloat(s.R)   || 0;
+      HR  += parseFloat(s.HR)  || 0;
+      RBI += parseFloat(s.RBI) || 0;
+      SB  += parseFloat(s.SB)  || 0;
+      const ab = parseFloat(s.AB) || 0;
+      if (s.OBP && ab > 0) { obpNum += (parseFloat(s.OBP) || 0) * ab; obpDen += ab; }
+    }
+    if (hasPit) {
+      QA  += parseFloat(s.QA)  || 0;
+      SVH += parseFloat(s.SVH) || 0;
+      K   += parseFloat(s.K)   || 0;
+      const ip = parseFloat(s.IP) || 0;
+      if (ip > 0) {
+        eraER   += (parseFloat(s.ERA)  || 0) * ip / 9;
+        eraIP   += ip;
+        whipNum += (parseFloat(s.WHIP) || 0) * ip;
+        whipIP  += ip;
+      }
+    }
+  });
+
+  return {
+    R, HR, RBI, SB,
+    OBP:  obpDen > 0 ? obpNum / obpDen : null,
+    QA, SVH, K,
+    ERA:  eraIP  > 0 ? eraER  * 9 / eraIP  : null,
+    WHIP: whipIP > 0 ? whipNum / whipIP : null,
+  };
+}
+
+function renderMatchupDetail(homeKey, visitorKey) {
+  const hs = aggregateTeamStats(homeKey);
+  const vs = aggregateTeamStats(visitorKey);
+  const homeName  = OWNER_MAP[homeKey]    || homeKey;
+  const visitName = OWNER_MAP[visitorKey] || visitorKey;
+  if (!hs || !vs) return '<div style="padding:12px;color:var(--text-3);font-size:12px">No roster data.</div>';
+
+  let homeWins = 0, visitWins = 0;
+  const catRows = SCORING_CATS.map(cat => {
+    const hv = hs[cat.key], vv = vs[cat.key];
+    const hStr = cat.fmt(hv), vStr = cat.fmt(vv);
+    let hWin = false, vWin = false;
+    if (hv != null && vv != null && hv !== vv) {
+      hWin = cat.lower ? hv < vv : hv > vv;
+      vWin = !hWin;
+    }
+    if (hWin) homeWins++;
+    if (vWin) visitWins++;
+    return `<tr>
+      <td style="text-align:right;padding:5px 12px;font-size:13px;font-weight:${hWin?'700':'400'};color:${hWin?'var(--green)':'var(--text-2)'}">${hStr}</td>
+      <td style="text-align:center;padding:5px 10px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);white-space:nowrap">${cat.label}</td>
+      <td style="text-align:left;padding:5px 12px;font-size:13px;font-weight:${vWin?'700':'400'};color:${vWin?'var(--green)':'var(--text-2)'}">${vStr}</td>
+    </tr>`;
+  }).join('');
+
+  const scoreColor = h => h > visitWins ? 'var(--green)' : h < visitWins ? 'var(--red)' : 'var(--text-3)';
+  return `<div style="padding:0 0 10px">
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="border-bottom:1px solid var(--border)">
+        <th style="text-align:right;padding:7px 12px;font-size:11px;font-weight:700;color:var(--text-3)">${homeName}</th>
+        <th style="width:60px"></th>
+        <th style="text-align:left;padding:7px 12px;font-size:11px;font-weight:700;color:var(--text-3)">${visitName}</th>
+      </tr></thead>
+      <tbody>
+        ${catRows}
+        <tr style="border-top:2px solid var(--border)">
+          <td style="text-align:right;padding:8px 12px;font-size:15px;font-weight:700;color:${scoreColor(homeWins)}">${homeWins}</td>
+          <td style="text-align:center;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)">Score</td>
+          <td style="text-align:left;padding:8px 12px;font-size:15px;font-weight:700;color:${scoreColor(visitWins)}">${visitWins}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function toggleMatchupDetail(el) {
+  event && event.stopPropagation && event.stopPropagation();
+  const detail = el.nextElementSibling;
+  if (!detail || !detail.classList.contains('mu-detail')) return;
+  const open = detail.style.display !== 'none';
+  if (open) { detail.style.display = 'none'; el.querySelector('.mu-chevron').textContent = '▼'; return; }
+  if (!detail.dataset.rendered) {
+    detail.innerHTML = renderMatchupDetail(el.dataset.home, el.dataset.visitor);
+    detail.dataset.rendered = '1';
+  }
+  detail.style.display = '';
+  el.querySelector('.mu-chevron').textContent = '▲';
+}
+
 function initMatchupsPage() {
   const sel = document.getElementById('matchup-week-select');
   if (!sel) return;
@@ -6057,55 +6175,49 @@ function renderMatchupsWeek(week) {
     return;
   }
 
-  // Group by type
-  const groups = {};
-  rows.forEach(m => {
-    const t = m.type || 'Regular Season';
-    if (!groups[t]) groups[t] = [];
-    groups[t].push(m);
-  });
-
   const typeOrder = ['Regular Season','Wild Card','Championship','Consolation','Rule 5'];
   const typeBadge = {
-    'Regular Season': '',
-    'Wild Card':      '<span style="font-size:10px;font-weight:700;color:var(--orange);background:var(--orange-lt);border:1px solid #fed7aa;border-radius:3px;padding:1px 5px;margin-left:6px">Wild Card</span>',
-    'Championship':   '<span style="font-size:10px;font-weight:700;color:var(--green);background:var(--green-lt);border:1px solid #a8d5bc;border-radius:3px;padding:1px 5px;margin-left:6px">Championship</span>',
-    'Consolation':    '<span style="font-size:10px;font-weight:700;color:var(--blue);background:var(--blue-lt);border:1px solid #b5d4f4;border-radius:3px;padding:1px 5px;margin-left:6px">Consolation</span>',
-    'Rule 5':         '<span style="font-size:10px;font-weight:700;color:var(--purple);background:var(--purple-lt);border:1px solid #c4b5fd;border-radius:3px;padding:1px 5px;margin-left:6px">Rule 5</span>',
+    'Wild Card':    '<span style="font-size:10px;font-weight:700;color:var(--orange);background:var(--orange-lt);border:1px solid #fed7aa;border-radius:3px;padding:1px 5px">Wild Card</span>',
+    'Championship': '<span style="font-size:10px;font-weight:700;color:var(--green);background:var(--green-lt);border:1px solid #a8d5bc;border-radius:3px;padding:1px 5px">Championship</span>',
+    'Consolation':  '<span style="font-size:10px;font-weight:700;color:var(--blue);background:var(--blue-lt);border:1px solid #b5d4f4;border-radius:3px;padding:1px 5px">Consolation</span>',
+    'Rule 5':       '<span style="font-size:10px;font-weight:700;color:var(--purple);background:var(--purple-lt);border:1px solid #c4b5fd;border-radius:3px;padding:1px 5px">Rule 5</span>',
   };
 
-  let html = '<table style="width:100%;border-collapse:collapse">';
-  html += `<thead><tr>
-    <th style="text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);padding:6px 10px;border-bottom:1px solid var(--border)">Home</th>
-    <th style="text-align:center;font-size:11px;color:var(--text-3);padding:6px 8px;border-bottom:1px solid var(--border)">Score</th>
-    <th style="text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);padding:6px 10px;border-bottom:1px solid var(--border)">Visitor</th>
-    <th style="border-bottom:1px solid var(--border)"></th>
-  </tr></thead><tbody>`;
+  const groups = {};
+  rows.forEach(m => { const t = m.type || 'Regular Season'; if (!groups[t]) groups[t] = []; groups[t].push(m); });
 
-  const recs = computeStandings();
+  let html = '<div style="display:flex;flex-direction:column;gap:1px">';
   typeOrder.forEach(type => {
     if (!groups[type]) return;
-    groups[type].forEach((m, i) => {
+    groups[type].forEach(m => {
       const homeName  = OWNER_MAP[m.home]    || m.home;
       const visitName = OWNER_MAP[m.visitor] || m.visitor;
-      const badge     = i === 0 ? (typeBadge[type] || '') : '';
-      const stripe    = i % 2 === 1 ? 'background:var(--bg-2,var(--bg))' : '';
       const hasScore  = m.homeScore != null && m.visitorScore != null;
       const homeWon   = hasScore && m.homeScore > m.visitorScore;
       const visitWon  = hasScore && m.visitorScore > m.homeScore;
       const scoreCell = hasScore
-        ? `<span style="font-weight:700;color:var(--text)">${m.homeScore}</span>–<span style="font-weight:700;color:var(--text)">${m.visitorScore}</span>`
-        : `<span style="color:var(--text-3)">–</span>`;
-      html += `<tr style="${stripe}">
-        <td style="padding:9px 10px;font-size:13px;font-weight:${homeWon ? '700' : '400'};color:${homeWon ? 'var(--text)' : 'inherit'}">${homeName}</td>
-        <td style="padding:9px 8px;text-align:center;font-size:12px;white-space:nowrap">${scoreCell}</td>
-        <td style="padding:9px 10px;font-size:13px;font-weight:${visitWon ? '700' : '400'};color:${visitWon ? 'var(--text)' : 'inherit'}">${visitName}</td>
-        <td style="padding:9px 10px">${badge}</td>
-      </tr>`;
+        ? `<span style="font-size:13px;font-weight:700">${m.homeScore}–${m.visitorScore}</span>`
+        : `<span style="color:var(--text-3);font-size:13px">vs</span>`;
+      const badge = typeBadge[type] ? `<span style="margin-left:6px">${typeBadge[type]}</span>` : '';
+
+      html += `
+      <div class="mu-row" data-home="${m.home}" data-visitor="${m.visitor}"
+           onclick="toggleMatchupDetail(this)"
+           style="display:grid;grid-template-columns:1fr auto 1fr auto;align-items:center;gap:8px;padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border);user-select:none">
+        <span style="font-size:13px;font-weight:${homeWon?'700':'400'};color:${homeWon?'var(--green)':'var(--text)'}">
+          ${homeName}
+        </span>
+        <span style="text-align:center;min-width:48px">${scoreCell}</span>
+        <span style="font-size:13px;font-weight:${visitWon?'700':'400'};color:${visitWon?'var(--green)':'var(--text)'};text-align:right">
+          ${visitName}${badge}
+        </span>
+        <span class="mu-chevron" style="font-size:10px;color:var(--text-3);width:14px;text-align:right">▼</span>
+      </div>
+      <div class="mu-detail" style="display:none;border-bottom:1px solid var(--border);background:var(--bg)"></div>`;
     });
   });
 
-  html += '</tbody></table>';
+  html += '</div>';
   body.innerHTML = html;
 }
 
