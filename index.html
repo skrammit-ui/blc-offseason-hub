@@ -6285,20 +6285,17 @@ function renderMatchupsWeek(week) {
             <th></th>
             <th style="border-right:1px solid var(--border)">W-L-T</th>
             ${catHeaders}
-            <th class="mu-score-col">Cats</th>
           </tr></thead>
           <tbody>
             <tr>
               <td>${homeName}</td>
               <td style="color:var(--text-3);font-size:12px;border-right:1px solid var(--border)">${recStr(hRec)}</td>
               ${catCells.map(c => `<td class="${c.hWin?'mu-win':''}">${c.hStr}</td>`).join('')}
-              <td class="mu-score-col" style="font-size:14px;color:${homeScoreColor}">${homeWins}</td>
             </tr>
             <tr>
               <td>${visitName}</td>
               <td style="color:var(--text-3);font-size:12px;border-right:1px solid var(--border)">${recStr(vRec)}</td>
               ${catCells.map(c => `<td class="${c.vWin?'mu-win':''}">${c.vStr}</td>`).join('')}
-              <td class="mu-score-col" style="font-size:14px;color:${visitScoreColor}">${visitWins}</td>
             </tr>
           </tbody>
         </table></div>
