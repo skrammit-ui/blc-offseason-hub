@@ -583,10 +583,11 @@ input[type=file] { display: none; }
   }
   #nav-overlay.nav-open { display: block; }
 
-  /* Nav tiles stay the same as desktop on mobile */
-  .brand-logo { width: 40px; height: 40px; }
-  .brand-name { font-size: 9px; }
-  .brand-sub  { font-size: 8px; }
+  /* Hide logo/name in mobile sidebar — shown in mobile topbar instead */
+  .topbar .brand-logo { display: none; }
+  .topbar .brand-name { display: none; }
+  .topbar .brand-sub  { display: none; }
+  .topbar { padding-top: 8px; }
   .commish-badge { font-size: 8px; padding: 2px 5px; }
 
   /* Main content: full width, with top bar offset */
