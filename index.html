@@ -543,35 +543,53 @@ input[type=file] { display: none; }
 
 /* ── Mobile ── */
 @media (max-width:768px) {
-  /* Nav: three-row layout on mobile */
-  /* ── Mobile: revert to top horizontal bar ── */
+  /* ── Mobile: slide-in left sidebar ── */
   .app { flex-direction: column; }
-  .topbar {
-    width: 100%; height: auto; flex-direction: row; flex-wrap: wrap;
-    padding: 2px 10px 0; position: sticky; top: 0;
-    box-shadow: 0 2px 8px rgba(0,0,0,.25);
-    overflow-y: visible; gap: 0;
-  }
-  .brand-logo { order: 1; width: 30px; height: 30px; border-radius: 6px; margin: 5px 6px 5px 0; }
-  .brand-name { order: 1; flex: 0 0 auto; font-size: 13px; text-align: left; padding: 0; margin: 0 0 0 0; }
-  .brand-sub  { display: none; }
-  .commish-badge { display: none; }
-  .nav-divider { display: none; }
-  /* Row 2: Rosters nav group */
-  .nav-group-1 { order: 2; flex-direction: row; width: 100%; border-top: 1px solid var(--navy-3); padding: 0; gap: 0; }
-  /* Row 3: Stats/tools nav group */
-  .nav-group-2 { order: 3; flex-direction: row; width: 100%; border-top: 1px solid var(--navy-3); padding: 0; gap: 0; }
-  .nav-group .nav-item {
-    flex-direction: row; flex: 1; min-height: 36px; height: 36px;
-    width: auto; border-radius: 0; border: none; box-shadow: none;
-    background: none; transform: none; font-size: 11px; padding: 0 8px; gap: 5px; justify-content: center;
-  }
-  .nav-group .nav-item.active { background: rgba(212,175,55,.12); border-bottom: 2px solid var(--gold); }
-  .nav-group .nav-item:hover { transform: none; box-shadow: none; }
-  .nav-group .nav-item .nav-icon-img { width: 18px; height: 18px; }
-  .nav-group .nav-item .nav-label { font-size: 11px; }
 
-  /* Main content padding */
+  /* Sidebar slides in from left as overlay */
+  .topbar {
+    position: fixed; top: 0; left: 0; height: 100vh; width: 88px;
+    transform: translateX(-100%); transition: transform .28s cubic-bezier(.4,0,.2,1);
+    z-index: 300; padding: 16px 0 20px;
+    flex-direction: column; align-items: center;
+    box-shadow: 4px 0 20px rgba(0,0,0,.45);
+  }
+  .topbar.nav-open { transform: translateX(0); }
+
+  /* Mobile top bar: hamburger + brand */
+  #mobile-topbar {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--navy); padding: 0 14px;
+    height: 48px; position: sticky; top: 0; z-index: 200;
+    box-shadow: 0 2px 8px rgba(0,0,0,.25); flex-shrink: 0;
+  }
+  #mobile-topbar .mob-hamburger {
+    background: none; border: none; cursor: pointer;
+    color: #fff; font-size: 20px; padding: 4px; line-height: 1;
+  }
+  #mobile-topbar .mob-brand {
+    font-family: var(--head); font-weight: 800; font-size: 14px;
+    color: #fff; letter-spacing: .02em;
+  }
+  #mobile-topbar .mob-brand-sub {
+    font-size: 9px; color: var(--gold); font-weight: 600;
+    letter-spacing: .08em; text-transform: uppercase;
+  }
+
+  /* Tap-outside overlay */
+  #nav-overlay {
+    display: none; position: fixed; inset: 0; z-index: 299;
+    background: rgba(0,0,0,.45);
+  }
+  #nav-overlay.nav-open { display: block; }
+
+  /* Nav tiles stay the same as desktop on mobile */
+  .brand-logo { width: 40px; height: 40px; }
+  .brand-name { font-size: 9px; }
+  .brand-sub  { font-size: 8px; }
+  .commish-badge { font-size: 8px; padding: 2px 5px; }
+
+  /* Main content: full width, with top bar offset */
   .main { padding: 8px 12px; }
 
   /* Legend bar: wrap so keeper hint drops below the tiles */
@@ -1182,6 +1200,18 @@ input[type=file] { display: none; }
 </style>
 </head>
 <body>
+<!-- ── Mobile top bar (hidden on desktop) ── -->
+<div id="mobile-topbar" style="display:none">
+  <button class="mob-hamburger" onclick="openNav()" aria-label="Open menu">&#9776;</button>
+  <div>
+    <div class="mob-brand">Bush League Chew</div>
+    <div class="mob-brand-sub">Offseason Hub</div>
+  </div>
+</div>
+
+<!-- ── Nav overlay (mobile tap-to-close) ── -->
+<div id="nav-overlay" onclick="closeNav()"></div>
+
 <div class="app">
 
 <!-- ── Sidebar ── -->
@@ -2013,7 +2043,37 @@ let IS_COMMISH = true;
 let currentTeam = 'Wetherholt 45s';
 
 // ── Navigation ────────────────────────────────────────────────────────────────
+// ── Mobile nav ───────────────────────────────────────────────────────────────
+function openNav() {
+  document.querySelector('.topbar').classList.add('nav-open');
+  document.getElementById('nav-overlay').classList.add('nav-open');
+}
+function closeNav() {
+  document.querySelector('.topbar').classList.remove('nav-open');
+  document.getElementById('nav-overlay').classList.remove('nav-open');
+}
+
+// Swipe right from left edge to open; swipe left to close
+(function() {
+  let tx = 0;
+  document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - tx;
+    if (dx > 55 && tx < 28) openNav();
+    else if (dx < -55) closeNav();
+  }, { passive: true });
+})();
+
+// Show/hide mobile topbar based on viewport
+function syncMobileTopbar() {
+  const mob = document.getElementById('mobile-topbar');
+  if (mob) mob.style.display = window.innerWidth <= 768 ? 'flex' : 'none';
+}
+window.addEventListener('resize', syncMobileTopbar);
+document.addEventListener('DOMContentLoaded', syncMobileTopbar);
+
 function nav(page, el) {
+  closeNav(); // close sidebar on mobile when navigating
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
