@@ -63,11 +63,11 @@ body {
   box-shadow: 2px 0 12px rgba(0,0,0,.3);
   gap: 0;
 }
-.brand-logo {
-  width: 60px; height: 60px; border-radius: 12px;
-  object-fit: cover;
-  flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0,0,0,.18);
+.site-logo-corner {
+  position: absolute; top: 16px; right: 24px;
+  width: 52px; height: 52px; border-radius: 12px;
+  object-fit: cover; box-shadow: 0 2px 8px rgba(0,0,0,.18);
+  pointer-events: none; z-index: 10;
 }
 .brand-name {
   font-family: var(--head); font-weight: 800;
@@ -105,7 +105,7 @@ body {
   margin-top: auto; white-space: nowrap; text-align: center;
 }
 
-.main { flex: 1; min-width: 0; padding: 20px 24px; box-sizing: border-box; }
+.main { flex: 1; min-width: 0; padding: 20px 24px; box-sizing: border-box; position: relative; }
 
 /* ── Cards & surfaces ── */
 .card {
@@ -1214,7 +1214,6 @@ input[type=file] { display: none; }
 
 <!-- ── Sidebar ── -->
 <nav class="topbar">
-  <img src="iphone web app tile.png" class="brand-logo" alt="Bush League Chew">
   <div class="nav-group nav-group-1">
     <div class="nav-item active" onclick="nav('rosters',this)">
       <img class="nav-icon-img" src="icons/teamroster.png" alt=""><span class="nav-label">Team Roster</span>
@@ -1292,6 +1291,7 @@ input[type=file] { display: none; }
 
 <!-- ── Main ── -->
 <main class="main">
+  <img src="iphone web app tile.png" alt="Bush League Chew" class="site-logo-corner">
 
 <!-- ════════════════════════════════════════
      RULES PAGE
