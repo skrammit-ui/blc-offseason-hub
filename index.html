@@ -1959,6 +1959,8 @@ input[type=file] { display: none; }
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-primary" style="font-size:12px;padding:7px 18px;background:#22a366;border-color:#22a366" onclick="doFantraxRefresh()">⚡ Refresh from Fantrax</button>
         <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="doFantraxTest()">Test Connection</button>
+        <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="doFantraxDebug('getTeamRosters')">Debug Rosters</button>
+        <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="doFantraxDebug('getLeagueMatchupListVX',{scoringPeriod:1})">Debug Matchups</button>
         <span id="fantrax-refresh-status" style="font-size:11px;color:var(--text-3)"></span>
       </div>
       <div id="fantrax-refresh-results" style="display:none;margin-top:14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:12px"></div>
@@ -6520,6 +6522,23 @@ async function doFantraxTest() {
       statusEl.style.color = '#c0392b';
       resultsEl.innerHTML = `<div style="color:#c0392b">${escHtml(res.error || 'Unknown error')}</div>`;
     }
+    resultsEl.style.display = 'block';
+  } catch(e) {
+    statusEl.textContent = '⚠ ' + e.message;
+    statusEl.style.color = '#c0392b';
+  }
+}
+
+async function doFantraxDebug(endpoint, params) {
+  const statusEl  = document.getElementById('fantrax-refresh-status');
+  const resultsEl = document.getElementById('fantrax-refresh-results');
+  statusEl.textContent = '⏳ Fetching ' + endpoint + '…';
+  resultsEl.style.display = 'none';
+  try {
+    const res = await remotePost({ action: 'debugFantrax', endpoint, params: params || {} });
+    statusEl.textContent = res.ok ? '✓ Got response' : '⚠ ' + res.error;
+    statusEl.style.color = res.ok ? '#22a366' : '#c0392b';
+    resultsEl.innerHTML = `<pre style="font-size:10px;font-family:var(--mono);white-space:pre-wrap;overflow-x:auto;color:var(--text)">${escHtml(JSON.stringify(res, null, 2))}</pre>`;
     resultsEl.style.display = 'block';
   } catch(e) {
     statusEl.textContent = '⚠ ' + e.message;
