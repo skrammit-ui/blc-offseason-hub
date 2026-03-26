@@ -1194,9 +1194,6 @@ input[type=file] { display: none; }
     <div class="nav-item active" onclick="nav('rosters',this)">
       <img class="nav-icon-img" src="icons/teamroster.png" alt=""><span class="nav-label">Team Roster</span>
     </div>
-    <div class="nav-item" onclick="nav('allrosters',this)">
-      <img class="nav-icon-img" src="icons/allrosters.png" alt=""><span class="nav-label">All Rosters</span>
-    </div>
     <div class="nav-item" onclick="nav('keepers',this)">
       <img class="nav-icon-img" src="icons/keepers.png" alt=""><span class="nav-label">Keepers</span>
     </div>
@@ -1462,18 +1459,31 @@ input[type=file] { display: none; }
 <!-- ════════════════════════════════════════
      KEEPERS PAGE
 ════════════════════════════════════════ -->
-<div class="page" id="page-allrosters">
-  <div class="page-title"><img class="page-title-icon" src="icons/allrosters.png" alt="">All Rosters</div>
-  <div class="page-sub">All 20 teams &middot; Full rosters sorted by draft round</div>
-
-  <div id="allrosters-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px"></div>
-</div>
-
 <div class="page" id="page-keepers">
-  <div class="page-title"><img class="page-title-icon" src="icons/keepers.png" alt="">Keeper Declarations</div>
-  <div class="page-sub">All 20 teams &middot; Players marked as keepers in the Rosters tab appear here</div>
+  <div class="page-title"><img class="page-title-icon" src="icons/keepers.png" alt="">League Rosters</div>
+  <div class="page-sub">All 20 teams &middot; 2026 Season</div>
 
-  <div id="keepers-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px"></div>
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">All Teams</span>
+      <div style="display:flex;gap:6px">
+        <button class="view-tab active" id="kp-tab-all" onclick="switchKeepersView('all',this)">All Players</button>
+        <button class="view-tab" id="kp-tab-keepers" onclick="switchKeepersView('keepers',this)">Keepers</button>
+      </div>
+    </div>
+    <div style="padding:8px 18px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;align-items:center;gap:12px;font-size:12px;color:var(--text-3)">
+      <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:#edf7f1;border:1px solid var(--green);display:inline-block"></span>MLB Keeper</span>
+      <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:#e8f2fd;border:1px solid var(--blue);display:inline-block"></span>MiLB Keeper</span>
+      <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:#f0ebff;border:1px solid var(--purple);display:inline-block"></span>Rule 5 Keeper</span>
+      <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:#fff0e6;border:1px solid var(--orange);display:inline-block"></span>Trade Keeper</span>
+    </div>
+    <div id="kp-view-all">
+      <div id="allrosters-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;padding:16px"></div>
+    </div>
+    <div id="kp-view-keepers" style="display:none">
+      <div id="keepers-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;padding:16px"></div>
+    </div>
+  </div>
 </div>
 
 <!-- ════════════════════════════════════════
@@ -2011,8 +2021,7 @@ function nav(page, el) {
   if (page === 'rosters') loadTeam(currentTeam);
   if (page === 'standings') buildStandingsPage();
   if (page === 'rule5') r5InitPage();
-  if (page === 'keepers') buildKeepersPage();
-  if (page === 'allrosters') buildAllRostersPage();
+  if (page === 'keepers') initLeagueRostersPage();
   if (page === 'draft') initDraftBoardPage();
   if (page === 'commish') initCommishPage();
   if (page === 'matchups') initMatchupsPage();
@@ -3460,7 +3469,11 @@ async function toggleKeeper(btn) {
   const manager = row.dataset.manager || currentTeam;
   const kept    = !isKept;
   toast(kept ? `✓ ${player} marked as keeper` : `${player} removed from keepers`);
-  if (document.getElementById('page-keepers').classList.contains('active')) buildKeepersPage();
+  if (document.getElementById('page-keepers').classList.contains('active')) {
+    const keepersSubVisible = document.getElementById('kp-view-keepers').style.display !== 'none';
+    if (keepersSubVisible) buildKeepersPage();
+    else buildAllRostersPage();
+  }
   if (document.getElementById('page-draft').classList.contains('active')) buildDraftBoard();
 
   // Persist keeper state to global store
@@ -5419,6 +5432,25 @@ function initDraftBoardPage() {
   buildDraftBoard();
 }
 
+function initLeagueRostersPage() {
+  document.querySelectorAll('#page-keepers .view-tab').forEach(b => b.classList.remove('active'));
+  const allTab = document.getElementById('kp-tab-all');
+  if (allTab) allTab.classList.add('active');
+  document.getElementById('kp-view-all').style.display = '';
+  document.getElementById('kp-view-keepers').style.display = 'none';
+  buildAllRostersPage();
+}
+
+function switchKeepersView(view, btn) {
+  document.querySelectorAll('#page-keepers .view-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const showAll = view === 'all';
+  document.getElementById('kp-view-all').style.display = showAll ? '' : 'none';
+  document.getElementById('kp-view-keepers').style.display = showAll ? 'none' : '';
+  if (showAll) buildAllRostersPage();
+  else buildKeepersPage();
+}
+
 // ── KEEPERS PAGE ──────────────────────────────────────────────────────────────
 function buildKeepersPage() {
   const grid = document.getElementById('keepers-grid');
@@ -5517,7 +5549,9 @@ function buildAllRostersPage() {
         : ` style="cursor:default;white-space:nowrap"`;
       const stagHtml = `<span class="stag ${sm.cls}"${toggleAttr}>${sm.label}</span>`;
 
-      return `<tr style="border-bottom:1px solid var(--border)"
+      const keeperType = (keeperStore[team] || {})[p.player];
+      const keeperClass = keeperType ? `keeper-${keeperType}` : '';
+      return `<tr class="${keeperClass}" style="border-bottom:1px solid var(--border)"
           data-player="${p.player.replace(/"/g,'&quot;')}"
           data-manager="${team.replace(/"/g,'&quot;')}"
           data-status-norm="${normStatus}">
