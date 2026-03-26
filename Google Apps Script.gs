@@ -28,6 +28,7 @@ function doGet(e) {
       divisions:          getDivisions(ss),
       playoffs:           getPlayoffsData(ss),
       matchups:           getMatchups(ss),
+      fantraxConnected:   isFantraxConfigured(),
     };
     return corsResponse({ ok: true, data });
   } catch(err) {
@@ -97,6 +98,10 @@ function doPost(e) {
       case 'savePlayoffs':
         savePlayoffs(ss, payload.year, payload.playoffs);
         break;
+      case 'refreshFantrax':
+        return corsResponse(refreshFantrax(ss, payload.targets || ['matchups','rosters','draft']));
+      case 'testFantraxConnection':
+        return corsResponse(testFantraxConnection());
       default:
         return corsResponse({ ok: false, error: 'Unknown action: ' + payload.action });
     }
@@ -1151,4 +1156,311 @@ function setupMatchupsSheet() {
   ];
   sheet.getRange(2, 1, seed.length, 4).setValues(seed);
   Logger.log('Seeded ' + seed.length + ' matchup rows into Matchups sheet.');
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  FANTRAX API INTEGRATION
+//  Before use, set Script Properties (Project Settings → Script Properties):
+//    FANTRAX_LEAGUE_ID  → your Fantrax league ID (from the URL)
+//    FANTRAX_COOKIE     → full Cookie header value copied from browser DevTools
+//                         (open Fantrax, F12 → Network → any request → copy Cookie header)
+// ════════════════════════════════════════════════════════════════════════════
+
+const FANTRAX_BASE = 'https://www.fantrax.com/fxea/general/';
+
+function getFantraxProps() {
+  const props = PropertiesService.getScriptProperties();
+  return {
+    leagueId: props.getProperty('FANTRAX_LEAGUE_ID') || '',
+    cookie:   props.getProperty('FANTRAX_COOKIE')    || '',
+  };
+}
+
+function isFantraxConfigured() {
+  const { leagueId, cookie } = getFantraxProps();
+  return !!(leagueId && cookie);
+}
+
+// ── Core HTTP helper ──────────────────────────────────────────────────────────
+function fetchFantrax(endpoint, params) {
+  const { leagueId, cookie } = getFantraxProps();
+  if (!leagueId || !cookie) throw new Error('Fantrax credentials not configured. Set FANTRAX_LEAGUE_ID and FANTRAX_COOKIE in Script Properties.');
+
+  const qp = Object.assign({ leagueId }, params || {});
+  const qs = Object.entries(qp).map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(v)).join('&');
+  const url = FANTRAX_BASE + endpoint + '?' + qs;
+
+  const response = UrlFetchApp.fetch(url, {
+    method: 'GET',
+    headers: {
+      'Cookie': cookie,
+      'Accept': 'application/json',
+      'User-Agent': 'Mozilla/5.0 (compatible; GoogleAppsScript)',
+    },
+    muteHttpExceptions: true,
+  });
+
+  const code = response.getResponseCode();
+  if (code !== 200) throw new Error('Fantrax API returned HTTP ' + code + ' for ' + endpoint);
+
+  try {
+    return JSON.parse(response.getContentText());
+  } catch(e) {
+    throw new Error('Fantrax API returned non-JSON for ' + endpoint + ': ' + response.getContentText().substring(0, 200));
+  }
+}
+
+// ── Test connection ───────────────────────────────────────────────────────────
+function testFantraxConnection() {
+  try {
+    const data = fetchFantrax('getLeagueInfo');
+    Logger.log('Fantrax connection OK: ' + JSON.stringify(data).substring(0, 500));
+    return { ok: true, message: 'Connected', preview: JSON.stringify(data).substring(0, 500) };
+  } catch(e) {
+    Logger.log('Fantrax connection FAILED: ' + e.message);
+    return { ok: false, error: e.message };
+  }
+}
+
+// ── Refresh dispatcher ────────────────────────────────────────────────────────
+function refreshFantrax(ss, targets) {
+  const results = {};
+  if (targets.includes('matchups')) {
+    try { results.matchups = refreshFantraxMatchups(ss); }
+    catch(e) { results.matchups = { ok: false, error: e.message }; }
+  }
+  if (targets.includes('rosters')) {
+    try { results.rosters = refreshFantraxRosters(ss); }
+    catch(e) { results.rosters = { ok: false, error: e.message }; }
+  }
+  if (targets.includes('draft')) {
+    try { results.draft = refreshFantraxDraft(ss); }
+    catch(e) { results.draft = { ok: false, error: e.message }; }
+  }
+  return { ok: true, results };
+}
+
+// ── Refresh matchup scores ────────────────────────────────────────────────────
+// Updates HomeScore and VisitorScore columns in the Matchups sheet for
+// any week that Fantrax has scoring data for.
+function refreshFantraxMatchups(ss) {
+  const sheet = ss.getSheetByName('Matchups');
+  if (!sheet) throw new Error('Matchups sheet not found');
+
+  const [headers, ...rows] = sheet.getDataRange().getValues();
+  const weekIdx    = headers.indexOf('Week');
+  const homeIdx    = headers.indexOf('Home');
+  const visIdx     = headers.indexOf('Visitor');
+  const hScoreIdx  = headers.indexOf('HomeScore');
+  const vScoreIdx  = headers.indexOf('VisitorScore');
+  if (weekIdx < 0 || homeIdx < 0 || visIdx < 0) throw new Error('Matchups sheet missing required columns (Week/Home/Visitor)');
+
+  // Get unique weeks present in the sheet
+  const weeks = [...new Set(rows.map(r => String(r[weekIdx] || '').trim()).filter(Boolean))];
+  let updated = 0;
+
+  weeks.forEach(week => {
+    let data;
+    try {
+      data = fetchFantrax('getLeagueMatchupListVX', { scoringPeriod: week });
+    } catch(e) {
+      Logger.log('refreshFantraxMatchups: skipping week ' + week + ': ' + e.message);
+      return;
+    }
+
+    // Fantrax response shape: data.matchupList[].{homeTeamId, awayTeamId, homeScore, awayScore}
+    // or nested under data.data. Try both shapes.
+    const matchupList = (data.matchupList || (data.data && data.data.matchupList) || []);
+    if (!matchupList.length) return;
+
+    // Build a lookup: normalize team IDs → scores
+    // Fantrax uses numeric team IDs; we'll try to map via ownerMap names or just log raw
+    const scoreLookup = {};
+    matchupList.forEach(m => {
+      // Store by both home and away so we can look up either side
+      const hId = String(m.homeTeamId || m.homeRosterId || '').toLowerCase();
+      const vId = String(m.awayTeamId || m.awayRosterId || m.visitorTeamId || '').toLowerCase();
+      if (hId) scoreLookup[hId] = { homeScore: m.homeScore || m.homePoints || 0, awayScore: m.awayScore || m.awayPoints || 0, partnerId: vId };
+      if (vId) scoreLookup[vId] = { homeScore: m.awayScore || m.awayPoints || 0, awayScore: m.homeScore || m.homePoints || 0, partnerId: hId };
+    });
+
+    // Update rows matching this week
+    rows.forEach((row, i) => {
+      if (String(row[weekIdx] || '').trim() !== week) return;
+      const homeKey = String(row[homeIdx] || '').toLowerCase().trim();
+      const visKey  = String(row[visIdx]  || '').toLowerCase().trim();
+      const entry   = scoreLookup[homeKey] || scoreLookup[visKey];
+      if (!entry) return;
+
+      const rowNum = i + 2; // +1 for header, +1 for 1-indexed
+      if (hScoreIdx >= 0) sheet.getRange(rowNum, hScoreIdx + 1).setValue(entry.homeScore);
+      if (vScoreIdx >= 0) sheet.getRange(rowNum, vScoreIdx + 1).setValue(entry.awayScore);
+      updated++;
+    });
+  });
+
+  Logger.log('refreshFantraxMatchups: updated ' + updated + ' rows');
+  return { ok: true, updated };
+}
+
+// ── Refresh rosters ───────────────────────────────────────────────────────────
+// Pulls current team rosters from Fantrax and upserts into the Rosters sheet.
+// Only updates position and mlb_team; preserves salary/contract/status.
+function refreshFantraxRosters(ss) {
+  const data = fetchFantrax('getTeamRosters');
+  // Shape: data.rosters[teamId] = { teamName, roster: [{ playerName, positions, nflTeam/mlbTeam, ... }] }
+  // or nested under data.data
+  const rostersObj = data.rosters || (data.data && data.data.rosters) || {};
+  const teamList   = Array.isArray(data.teams || (data.data && data.data.teams) || []) ? (data.teams || (data.data && data.data.teams) || []) : [];
+
+  const sheet = ss.getSheetByName('Rosters');
+  if (!sheet) throw new Error('Rosters sheet not found');
+
+  const [headers, ...rows] = sheet.getDataRange().getValues();
+  const playerIdx   = headers.indexOf('player');
+  const teamIdx     = headers.indexOf('teamKey');
+  const posIdx      = headers.indexOf('position');
+  const mlbTeamIdx  = headers.indexOf('mlb_team');
+  if (playerIdx < 0 || teamIdx < 0) throw new Error('Rosters sheet missing player/teamKey columns');
+
+  // Build ownerMap for Fantrax teamId → ownerKey matching
+  const ownerMap = getOwnerMap(ss); // ownerKey → teamName
+
+  // Build existing player lookup: normalize(player) → row index
+  const normalize = s => String(s || '').toLowerCase().trim();
+  const rowLookup = {};
+  rows.forEach((r, i) => {
+    const key = normalize(r[playerIdx]) + '|' + normalize(r[teamIdx]);
+    rowLookup[key] = i;
+  });
+
+  let updated = 0;
+  let added = 0;
+
+  // Try to map Fantrax team entries to ownerKeys
+  const fantraxTeams = {};
+  teamList.forEach(t => {
+    const tid = String(t.id || t.teamId || '').trim();
+    const tname = String(t.name || t.teamName || '').trim().toLowerCase();
+    // Try to match by team name against ownerMap values
+    for (const [key, name] of Object.entries(ownerMap)) {
+      if (name.toLowerCase() === tname) { fantraxTeams[tid] = key; break; }
+    }
+  });
+
+  Object.entries(rostersObj).forEach(([teamId, teamData]) => {
+    const ownerKey = fantraxTeams[teamId];
+    if (!ownerKey) return; // skip teams we can't map
+
+    const roster = teamData.roster || teamData.players || [];
+    roster.forEach(p => {
+      const playerName = String(p.playerName || p.name || p.player || '').trim();
+      const pos        = String(p.positions || p.position || p.pos || '').trim();
+      const mlbTeam    = String(p.mlbTeam || p.nflTeam || p.team || p.proTeam || '').trim();
+      if (!playerName) return;
+
+      const lookupKey = normalize(playerName) + '|' + normalize(ownerKey);
+      const rowIdx = rowLookup[lookupKey];
+      if (rowIdx !== undefined) {
+        // Update position and mlb_team in existing row
+        const rowNum = rowIdx + 2;
+        if (posIdx >= 0 && pos)     sheet.getRange(rowNum, posIdx + 1).setValue(pos);
+        if (mlbTeamIdx >= 0 && mlbTeam) sheet.getRange(rowNum, mlbTeamIdx + 1).setValue(mlbTeam);
+        updated++;
+      } else {
+        // Append new row
+        const newRow = headers.map(h => {
+          if (h === 'teamKey')   return ownerKey;
+          if (h === 'player')    return playerName;
+          if (h === 'position')  return pos;
+          if (h === 'mlb_team')  return mlbTeam;
+          return '';
+        });
+        sheet.appendRow(newRow);
+        added++;
+      }
+    });
+  });
+
+  Logger.log('refreshFantraxRosters: updated=' + updated + ' added=' + added);
+  return { ok: true, updated, added };
+}
+
+// ── Refresh draft results ─────────────────────────────────────────────────────
+// Pulls completed draft picks from Fantrax and writes/updates the Picks sheet.
+function refreshFantraxDraft(ss) {
+  const data = fetchFantrax('getDraftResults');
+  // Shape: data.draftResults = [{ round, pick, teamId, playerName, position, proTeam, ... }]
+  const picks = data.draftResults || (data.data && data.data.draftResults) || data.picks || [];
+  if (!picks.length) return { ok: true, updated: 0, message: 'No draft results from Fantrax' };
+
+  const ownerMap  = getOwnerMap(ss);
+  const teamList  = data.teams || (data.data && data.data.teams) || [];
+  const fantraxTeams = {};
+  teamList.forEach(t => {
+    const tid = String(t.id || t.teamId || '').trim();
+    const tname = String(t.name || t.teamName || '').trim().toLowerCase();
+    for (const [key, name] of Object.entries(ownerMap)) {
+      if (name.toLowerCase() === tname) { fantraxTeams[tid] = key; break; }
+    }
+  });
+
+  const sheet = ss.getSheetByName('Picks') || ss.insertSheet('Picks');
+  if (sheet.getLastRow() === 0) {
+    const hdr = ['round','pick','team','player','mlb_team','position','salary','contract','key'];
+    sheet.appendRow(hdr);
+    sheet.getRange(1, 1, 1, hdr.length).setFontWeight('bold').setBackground('#0d1b2a').setFontColor('#c9a84c');
+  }
+
+  const [headers, ...existingRows] = sheet.getDataRange().getValues();
+  const roundIdx = headers.indexOf('round');
+  const pickIdx  = headers.indexOf('pick');
+  const teamIdx  = headers.indexOf('team');
+  const playerIdx = headers.indexOf('player');
+  const mlbIdx   = headers.indexOf('mlb_team');
+  const posIdx   = headers.indexOf('position');
+
+  // Build existing lookup: round|pick → row number (2-indexed)
+  const existing = {};
+  existingRows.forEach((r, i) => {
+    const k = String(r[roundIdx] || '') + '|' + String(r[pickIdx] || '');
+    existing[k] = i + 2;
+  });
+
+  let updated = 0; let added = 0;
+  picks.forEach(p => {
+    const round  = String(p.round || p.roundNum || '').trim();
+    const pick   = String(p.pick  || p.pickNum  || p.overallPick || '').trim();
+    const teamId = String(p.teamId || p.rosterId || '').trim();
+    const ownerKey = fantraxTeams[teamId] || '';
+    const player  = String(p.playerName || p.name || p.player || '').trim();
+    const mlbTeam = String(p.proTeam || p.mlbTeam || p.team || '').trim();
+    const pos     = String(p.positions || p.position || '').trim();
+    if (!round || !pick || !player) return;
+
+    const lookupKey = round + '|' + pick;
+    if (existing[lookupKey]) {
+      const rowNum = existing[lookupKey];
+      if (teamIdx >= 0 && ownerKey) sheet.getRange(rowNum, teamIdx + 1).setValue(ownerKey);
+      if (playerIdx >= 0 && player) sheet.getRange(rowNum, playerIdx + 1).setValue(player);
+      if (mlbIdx >= 0 && mlbTeam)   sheet.getRange(rowNum, mlbIdx + 1).setValue(mlbTeam);
+      if (posIdx >= 0 && pos)       sheet.getRange(rowNum, posIdx + 1).setValue(pos);
+      updated++;
+    } else {
+      const newRow = headers.map(h => {
+        if (h === 'round')    return round;
+        if (h === 'pick')     return pick;
+        if (h === 'team')     return ownerKey;
+        if (h === 'player')   return player;
+        if (h === 'mlb_team') return mlbTeam;
+        if (h === 'position') return pos;
+        return '';
+      });
+      sheet.appendRow(newRow);
+      added++;
+    }
+  });
+
+  Logger.log('refreshFantraxDraft: updated=' + updated + ' added=' + added);
+  return { ok: true, updated, added };
 }
