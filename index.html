@@ -11,11 +11,11 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --navy:    #0d1b2a;
-  --navy-2:  #162236;
-  --navy-3:  #1e3050;
-  --gold:    #c9a84c;
-  --gold-2:  #e8c96a;
+  --navy:    #1a2744;
+  --navy-2:  #243258;
+  --navy-3:  #2e3f6e;
+  --gold:    #d4a843;
+  --gold-2:  #eec96a;
   --red:     #c0392b;
   --red-lt:  #fdecea;
   --green:   #1a7a4a;
@@ -29,15 +29,15 @@
   --orange:  #ea580c;
   --orange-lt:#fff4ed;
   --surface: #ffffff;
-  --bg:      #f4f2ee;
-  --border:  #e0dbd2;
-  --text:    #0d1b2a;
-  --text-2:  #4a5568;
-  --text-3:  #9aa5b4;
+  --bg:      #f5f3ee;
+  --border:  #e6e0d5;
+  --text:    #1c1a17;
+  --text-2:  #4a4540;
+  --text-3:  #9a9590;
   --mono:    'DM Mono', monospace;
   --head:    'Barlow Condensed', sans-serif;
   --body:    'Barlow', sans-serif;
-  --r:       6px;
+  --r:       10px;
 }
 
 body {
@@ -114,11 +114,11 @@ body {
 .card-header {
   padding: 10px 14px; border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
-  background: var(--surface);
+  background: var(--bg);
 }
 .card-title {
   font-family: var(--head); font-weight: 700; font-size: 14px;
-  letter-spacing: .06em; text-transform: uppercase; color: var(--text-2);
+  letter-spacing: .06em; text-transform: uppercase; color: var(--text);
 }
 
 /* ── Team logo ── */
@@ -136,6 +136,7 @@ body {
   font-family: var(--head); font-weight: 800; font-size: 28px;
   letter-spacing: -.01em; color: var(--text); margin-bottom: 4px;
   display: flex; align-items: center; gap: 10px;
+  border-left: 4px solid var(--gold); padding-left: 12px;
 }
 .page-title-icon { width: 36px; height: 36px; object-fit: contain; flex-shrink: 0; }
 .page-sub { font-size: 13px; color: var(--text-3); margin-bottom: 24px; }
