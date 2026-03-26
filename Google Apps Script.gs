@@ -102,6 +102,8 @@ function doPost(e) {
         return corsResponse(refreshFantrax(ss, payload.targets || ['matchups','rosters','draft']));
       case 'testFantraxConnection':
         return corsResponse(testFantraxConnection());
+      case 'debugFantrax':
+        return corsResponse(debugFantrax(payload.endpoint, payload.params));
       default:
         return corsResponse({ ok: false, error: 'Unknown action: ' + payload.action });
     }
@@ -1463,4 +1465,30 @@ function refreshFantraxDraft(ss) {
 
   Logger.log('refreshFantraxDraft: updated=' + updated + ' added=' + added);
   return { ok: true, updated, added };
+}
+
+// ── Debug: return raw Fantrax API response ────────────────────────────────────
+// Hits a Fantrax endpoint and returns the raw parsed JSON so we can
+// inspect the actual field names and response structure.
+function debugFantrax(endpoint, params) {
+  try {
+    const data = fetchFantrax(endpoint || 'getTeamRosters', params || {});
+    // Return just the top-level keys and a truncated sample to avoid hitting response limits
+    const keys = Object.keys(data);
+    const sample = {};
+    keys.forEach(k => {
+      const val = data[k];
+      if (Array.isArray(val)) {
+        sample[k] = val.slice(0, 2); // first 2 items
+      } else if (val && typeof val === 'object') {
+        const subKeys = Object.keys(val);
+        sample[k] = { _keys: subKeys, _sample: subKeys.slice(0, 3).reduce((o, sk) => { o[sk] = val[sk]; return o; }, {}) };
+      } else {
+        sample[k] = val;
+      }
+    });
+    return { ok: true, topLevelKeys: keys, sample };
+  } catch(e) {
+    return { ok: false, error: e.message };
+  }
 }
