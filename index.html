@@ -1190,8 +1190,10 @@ input[type=file] { display: none; }
 .mu-player-row { display:grid; grid-template-columns:1fr 36px 1fr; gap:6px; align-items:start; padding:4px 0; border-bottom:1px dotted var(--border); }
 .mu-player-row:last-child { border-bottom:none; }
 .mu-player-pos { text-align:center; font-size:10px; font-weight:700; color:var(--text-3); padding-top:3px; }
-.mu-player-name { font-size:12px; font-weight:600; color:var(--text); }
-.mu-player-stats { font-size:11px; color:var(--text-3); }
+.mu-player-cell { display:flex; align-items:baseline; gap:5px; flex-wrap:wrap; }
+.mu-player-cell.right { justify-content:flex-end; }
+.mu-player-name { font-size:12px; font-weight:600; color:var(--text); white-space:nowrap; }
+.mu-player-stats { font-size:11px; color:var(--text-3); white-space:nowrap; }
 .mu-player-right { text-align:right; }
 </style>
 </head>
@@ -6241,11 +6243,11 @@ function renderPlayerComparison(homeKey, visitorKey) {
       if (hp) usedH.add(hp.player);
       if (vp) usedV.add(vp.player);
       const hCell = hp
-        ? `<div class="mu-player-name">${hp.player}</div><div class="mu-player-stats">${playerStatLine(hp)}</div>`
-        : `<div class="mu-player-stats">—</div>`;
+        ? `<div class="mu-player-cell"><span class="mu-player-name">${hp.player}</span><span class="mu-player-stats">${playerStatLine(hp)}</span></div>`
+        : `<span class="mu-player-stats">—</span>`;
       const vCell = vp
-        ? `<div class="mu-player-name">${vp.player}</div><div class="mu-player-stats">${playerStatLine(vp)}</div>`
-        : `<div class="mu-player-stats">—</div>`;
+        ? `<div class="mu-player-cell right"><span class="mu-player-stats">${playerStatLine(vp)}</span><span class="mu-player-name">${vp.player}</span></div>`
+        : `<span class="mu-player-stats">—</span>`;
       html += `<div class="mu-player-row">
         <div>${hCell}</div>
         <div class="mu-player-pos">${pos}</div>
