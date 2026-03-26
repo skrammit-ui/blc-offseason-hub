@@ -584,11 +584,7 @@ input[type=file] { display: none; }
   }
   #nav-overlay.nav-open { display: block; }
 
-  /* Hide logo/name in mobile sidebar — shown in mobile topbar instead */
-  .topbar .brand-logo { display: none; }
-  .topbar .brand-name { display: none; }
   .topbar .brand-sub  { display: none; }
-  .topbar { padding-top: 8px; }
   .commish-badge { font-size: 8px; padding: 2px 5px; }
 
   /* Main content: full width, with top bar offset */
@@ -1203,7 +1199,6 @@ input[type=file] { display: none; }
 <!-- ── Mobile top bar (hidden on desktop) ── -->
 <div id="mobile-topbar" style="display:none">
   <button class="mob-hamburger" onclick="openNav()" aria-label="Open menu">&#9776;</button>
-  <img id="mob-logo" src="" alt="Logo" style="width:32px;height:32px;border-radius:6px;object-fit:cover;border:1.5px solid var(--gold);display:none">
   <div>
     <div class="mob-brand">Bush League Chew</div>
   </div>
@@ -2062,15 +2057,7 @@ function closeNav() {
 // Show/hide mobile topbar based on viewport
 function syncMobileTopbar() {
   const mob = document.getElementById('mobile-topbar');
-  if (!mob) return;
-  mob.style.display = window.innerWidth <= 768 ? 'flex' : 'none';
-  // Mirror the sidebar brand-logo src into the mobile top bar logo
-  const sidebarLogo = document.querySelector('.topbar .brand-logo');
-  const mobLogo = document.getElementById('mob-logo');
-  if (sidebarLogo && mobLogo) {
-    mobLogo.src = sidebarLogo.src;
-    mobLogo.style.display = sidebarLogo.src ? 'block' : 'none';
-  }
+  if (mob) mob.style.display = window.innerWidth <= 768 ? 'flex' : 'none';
 }
 window.addEventListener('resize', syncMobileTopbar);
 document.addEventListener('DOMContentLoaded', syncMobileTopbar);
