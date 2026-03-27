@@ -1583,7 +1583,10 @@ function populateFantraxPlayerIds(ss) {
   const idIdx      = headers.indexOf('id');
   const mlbTeamIdx = headers.indexOf('mlb_team');
   const posIdx     = headers.indexOf('position');
-  if (playerIdx < 0 || idIdx < 0) return { ok: false, error: 'Rosters sheet missing player or id column' };
+  // Debug: return header/row info so we can diagnose column mismatches
+  const debugHeaders = headers.map((h, i) => i + ':' + String(h));
+  const debugRows = rows.slice(0, 3).map(r => r.slice(0, 8).map(String));
+  if (playerIdx < 0 || idIdx < 0) return { ok: false, error: 'Rosters sheet missing player or id column', debugHeaders, debugRows };
 
   let matched = 0, unmatched = 0;
   rows.forEach((r, i) => {
@@ -1602,7 +1605,8 @@ function populateFantraxPlayerIds(ss) {
   });
 
   Logger.log('populateFantraxPlayerIds: matched=' + matched + ' unmatched=' + unmatched + ' playerMapSize=' + Object.keys(playerMap).length);
-  return { ok: true, matched, unmatched, playerMapSize: Object.keys(playerMap).length };
+  const sampleNames = rows.slice(0, 5).map(r => String(r[playerIdx] || '(empty)'));
+  return { ok: true, matched, unmatched, playerMapSize: Object.keys(playerMap).length, totalRows: rows.length, playerIdx, idIdx, debugHeaders, sampleNames };
 }
 
 function normName(s) {
