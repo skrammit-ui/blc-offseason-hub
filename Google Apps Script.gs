@@ -116,6 +116,8 @@ function doPost(e) {
         return corsResponse(debugGetPlayerIds());
       case 'debugFantraxPlayerEndpoints':
         return corsResponse(debugFantraxPlayerEndpoints());
+      case 'debugFantraxStatsEndpoints':
+        return corsResponse(debugFantraxStatsEndpoints());
       default:
         return corsResponse({ ok: false, error: 'Unknown action: ' + payload.action });
     }
@@ -1706,6 +1708,33 @@ function debugFantraxPlayerEndpoints() {
     }
   });
 
+  return { ok: true, results };
+}
+
+// ── Debug: probe candidate stats endpoints ────────────────────────────────────
+function debugFantraxStatsEndpoints() {
+  const results = {};
+  const candidates = [
+    { endpoint: 'getPlayerStats',        params: { season: 2025 } },
+    { endpoint: 'getPlayerStats',        params: { year: 2025 } },
+    { endpoint: 'getPlayerStats',        params: { season: 2025, statType: 'SEASON' } },
+    { endpoint: 'getSeasonStats',        params: { season: 2025 } },
+    { endpoint: 'getLeaguePlayerStats',  params: { season: 2025 } },
+    { endpoint: 'getPlayerInfo',         params: { season: 2025 } },
+    { endpoint: 'getPlayerScores',       params: { season: 2025 } },
+    { endpoint: 'getScoringStats',       params: { season: 2025 } },
+    { endpoint: 'getPlayerStatsAndInfo', params: { season: 2025 } },
+    { endpoint: 'getAdp',               params: {} },
+  ];
+  candidates.forEach(c => {
+    const key = c.endpoint;
+    try {
+      const data = fetchFantrax(c.endpoint, c.params);
+      results[key] = { ok: true, raw: JSON.stringify(data).substring(0, 500) };
+    } catch(e) {
+      results[key] = { ok: false, error: e.message.substring(0, 150) };
+    }
+  });
   return { ok: true, results };
 }
 
