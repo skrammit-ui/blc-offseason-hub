@@ -1259,62 +1259,59 @@ function refreshFantrax(ss, targets) {
 }
 
 // ── Refresh matchup scores ────────────────────────────────────────────────────
-// Updates HomeScore and VisitorScore columns in the Matchups sheet for
-// any week that Fantrax has scoring data for.
+// Uses getLeagueInfo which returns all periods' matchups with team names.
+// Matches teams by name (with aliases) and updates HomeScore/VisitorScore.
 function refreshFantraxMatchups(ss) {
   const sheet = ss.getSheetByName('Matchups');
   if (!sheet) throw new Error('Matchups sheet not found');
 
   const [headers, ...rows] = sheet.getDataRange().getValues();
-  const weekIdx    = headers.indexOf('Week');
-  const homeIdx    = headers.indexOf('Home');
-  const visIdx     = headers.indexOf('Visitor');
-  const hScoreIdx  = headers.indexOf('HomeScore');
-  const vScoreIdx  = headers.indexOf('VisitorScore');
-  if (weekIdx < 0 || homeIdx < 0 || visIdx < 0) throw new Error('Matchups sheet missing required columns (Week/Home/Visitor)');
+  const weekIdx   = headers.indexOf('Week');
+  const homeIdx   = headers.indexOf('Home');
+  const visIdx    = headers.indexOf('Visitor');
+  const hScoreIdx = headers.indexOf('HomeScore');
+  const vScoreIdx = headers.indexOf('VisitorScore');
+  if (weekIdx < 0 || homeIdx < 0 || visIdx < 0) throw new Error('Matchups sheet missing required columns');
 
-  // Get unique weeks present in the sheet
-  const weeks = [...new Set(rows.map(r => String(r[weekIdx] || '').trim()).filter(Boolean))];
+  // Build ownerKey → Fantrax team id map from getLeagueInfo matchup data
+  const ownerMap = getOwnerMap(ss);
+  const nameToKey = {};
+  Object.entries(ownerMap).forEach(([key, name]) => { nameToKey[name.toLowerCase()] = key; });
+  Object.entries(FANTRAX_TEAM_ALIASES).forEach(([alias, key]) => { nameToKey[alias] = key; });
+
+  // getLeagueInfo returns { matchups: [{ period, matchupList: [{ home:{name,id,score}, away:{name,id,score} }] }] }
+  const leagueInfo = fetchFantrax('getLeagueInfo');
+  const periods = leagueInfo.matchups || [];
+
+  // Build lookup: "week|homeKey|visKey" → { homeScore, visScore }
+  // Also build: ownerKey → fantraxTeamId for score lookup
+  const scoreLookup = {}; // "period|ownerKey" → { asHome: score, asAway: score }
+  periods.forEach(periodData => {
+    const week = String(periodData.period || '');
+    (periodData.matchupList || []).forEach(m => {
+      const homeKey = nameToKey[(m.home && m.home.name || '').toLowerCase()];
+      const awayKey = nameToKey[(m.away && m.away.name || '').toLowerCase()];
+      const homeScore = (m.home && (m.home.score || m.home.points)) || '';
+      const awayScore = (m.away && (m.away.score || m.away.points)) || '';
+      if (homeKey) scoreLookup[week + '|' + homeKey] = { score: homeScore, isHome: true,  partner: awayKey,  partnerScore: awayScore };
+      if (awayKey) scoreLookup[week + '|' + awayKey] = { score: awayScore, isHome: false, partner: homeKey, partnerScore: homeScore };
+    });
+  });
+
   let updated = 0;
+  rows.forEach((row, i) => {
+    const week    = String(row[weekIdx] || '').trim();
+    const homeKey = String(row[homeIdx] || '').trim();
+    const visKey  = String(row[visIdx]  || '').trim();
+    const entry   = scoreLookup[week + '|' + homeKey] || scoreLookup[week + '|' + visKey];
+    if (!entry || entry.score === '') return;
 
-  weeks.forEach(week => {
-    let data;
-    try {
-      data = fetchFantrax('getLeagueMatchupListVX', { scoringPeriod: week });
-    } catch(e) {
-      Logger.log('refreshFantraxMatchups: skipping week ' + week + ': ' + e.message);
-      return;
-    }
-
-    // Fantrax response shape: data.matchupList[].{homeTeamId, awayTeamId, homeScore, awayScore}
-    // or nested under data.data. Try both shapes.
-    const matchupList = (data.matchupList || (data.data && data.data.matchupList) || []);
-    if (!matchupList.length) return;
-
-    // Build a lookup: normalize team IDs → scores
-    // Fantrax uses numeric team IDs; we'll try to map via ownerMap names or just log raw
-    const scoreLookup = {};
-    matchupList.forEach(m => {
-      // Store by both home and away so we can look up either side
-      const hId = String(m.homeTeamId || m.homeRosterId || '').toLowerCase();
-      const vId = String(m.awayTeamId || m.awayRosterId || m.visitorTeamId || '').toLowerCase();
-      if (hId) scoreLookup[hId] = { homeScore: m.homeScore || m.homePoints || 0, awayScore: m.awayScore || m.awayPoints || 0, partnerId: vId };
-      if (vId) scoreLookup[vId] = { homeScore: m.awayScore || m.awayPoints || 0, awayScore: m.homeScore || m.homePoints || 0, partnerId: hId };
-    });
-
-    // Update rows matching this week
-    rows.forEach((row, i) => {
-      if (String(row[weekIdx] || '').trim() !== week) return;
-      const homeKey = String(row[homeIdx] || '').toLowerCase().trim();
-      const visKey  = String(row[visIdx]  || '').toLowerCase().trim();
-      const entry   = scoreLookup[homeKey] || scoreLookup[visKey];
-      if (!entry) return;
-
-      const rowNum = i + 2; // +1 for header, +1 for 1-indexed
-      if (hScoreIdx >= 0) sheet.getRange(rowNum, hScoreIdx + 1).setValue(entry.homeScore);
-      if (vScoreIdx >= 0) sheet.getRange(rowNum, vScoreIdx + 1).setValue(entry.awayScore);
-      updated++;
-    });
+    const rowNum = i + 2;
+    const hScore = entry.isHome ? entry.score : entry.partnerScore;
+    const vScore = entry.isHome ? entry.partnerScore : entry.score;
+    if (hScoreIdx >= 0 && hScore !== '') sheet.getRange(rowNum, hScoreIdx + 1).setValue(hScore);
+    if (vScoreIdx >= 0 && vScore !== '') sheet.getRange(rowNum, vScoreIdx + 1).setValue(vScore);
+    updated++;
   });
 
   Logger.log('refreshFantraxMatchups: updated ' + updated + ' rows');
@@ -1534,66 +1531,60 @@ function debugFantraxRosterMatch() {
 }
 
 // ── One-time: populate the id column in Rosters sheet from Fantrax ─────────────
-// Fetches all roster player IDs, calls getPlayersInfo to get names,
-// then matches names to existing rows and writes the Fantrax id into the id column.
+// Since Fantrax has no player-name endpoint, we match within each team by
+// salary + contract year. Rows with duplicate salary+contract on the same team
+// are skipped (ambiguous) and left for manual entry.
 function populateFantraxPlayerIds(ss) {
-  // Step 1: collect all unique player IDs from all rosters
-  const rostersData = fetchFantrax('getTeamRosters');
-  const rostersObj  = rostersData.rosters || {};
-  const allIds = [];
-  Object.values(rostersObj).forEach(teamData => {
-    (teamData.rosterItems || []).forEach(item => { if (item.id) allIds.push(item.id); });
-  });
-  if (!allIds.length) return { ok: false, error: 'No player IDs found in Fantrax rosters' };
+  const data = fetchFantrax('getTeamRosters');
+  const rostersObj = data.rosters || {};
 
-  // Step 2: fetch player info in batches of 50 (Fantrax limit)
-  const playerNames = {}; // fantraxId → playerName
-  const batchSize = 50;
-  for (let i = 0; i < allIds.length; i += batchSize) {
-    const batch = allIds.slice(i, i + batchSize);
-    try {
-      const info = fetchFantrax('getPlayersInfo', { playerIds: batch.join(',') });
-      // Response shape varies; try common structures
-      const players = info.players || info.playerInfo || info.data || {};
-      if (Array.isArray(players)) {
-        players.forEach(p => { if (p.id && p.name) playerNames[p.id] = p.name; });
-      } else {
-        Object.entries(players).forEach(([id, p]) => {
-          const name = p.name || p.playerName || p.fullName || '';
-          if (name) playerNames[id] = name;
-        });
-      }
-    } catch(e) {
-      Logger.log('populateFantraxPlayerIds: batch ' + i + ' failed: ' + e.message);
-    }
-  }
+  // Build team name → ownerKey mapping (with aliases)
+  const ownerMap = getOwnerMap(ss);
+  const nameToKey = {};
+  Object.entries(ownerMap).forEach(([key, name]) => { nameToKey[name.toLowerCase()] = key; });
+  Object.entries(FANTRAX_TEAM_ALIASES).forEach(([alias, key]) => { nameToKey[alias] = key; });
 
-  if (!Object.keys(playerNames).length) {
-    return { ok: false, error: 'getPlayersInfo returned no names. Raw sample logged.', allIdsSample: allIds.slice(0,5) };
-  }
-
-  // Step 3: match names to Rosters sheet rows and write id
   const sheet = ss.getSheetByName('Rosters');
+  if (!sheet) return { ok: false, error: 'Rosters sheet not found' };
   const [headers, ...rows] = sheet.getDataRange().getValues();
-  const playerIdx = headers.indexOf('player');
-  const idIdx     = headers.indexOf('id');
-  if (playerIdx < 0 || idIdx < 0) return { ok: false, error: 'Rosters sheet missing player or id column' };
+  const idIdx       = headers.indexOf('id');
+  const teamIdx     = headers.indexOf('teamKey');
+  const salIdx      = headers.indexOf('salary');
+  const contractIdx = headers.indexOf('contract');
+  if (idIdx < 0 || teamIdx < 0 || salIdx < 0 || contractIdx < 0)
+    return { ok: false, error: 'Rosters sheet missing required columns (id/teamKey/salary/contract)' };
 
-  // Build name lookup: normalize(name) → row index
-  const normalize = s => String(s || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
-  const nameLookup = {};
-  rows.forEach((r, i) => { nameLookup[normalize(r[playerIdx])] = i; });
-
-  let matched = 0; let unmatched = 0;
-  Object.entries(playerNames).forEach(([fantraxId, name]) => {
-    const rowIdx = nameLookup[normalize(name)];
-    if (rowIdx === undefined) { unmatched++; return; }
-    sheet.getRange(rowIdx + 2, idIdx + 1).setValue(fantraxId);
-    matched++;
+  // Build lookup: "ownerKey|salary|contractYear" → [row indices without an id yet]
+  const matchKey = (team, sal, con) => team + '|' + String(sal).trim() + '|' + String(con).trim();
+  const rowsByKey = {};
+  rows.forEach((r, i) => {
+    if (String(r[idIdx] || '').trim()) return; // already has an ID
+    const k = matchKey(String(r[teamIdx] || '').trim(), r[salIdx], r[contractIdx]);
+    if (!rowsByKey[k]) rowsByKey[k] = [];
+    rowsByKey[k].push(i);
   });
 
-  Logger.log('populateFantraxPlayerIds: matched=' + matched + ' unmatched=' + unmatched);
-  return { ok: true, matched, unmatched, totalIds: allIds.length, namesReturned: Object.keys(playerNames).length };
+  let matched = 0, skippedAmbiguous = 0, skippedNoMatch = 0;
+
+  Object.entries(rostersObj).forEach(([, teamData]) => {
+    const ownerKey = nameToKey[String(teamData.teamName || '').toLowerCase()];
+    if (!ownerKey) return;
+
+    (teamData.rosterItems || []).forEach(item => {
+      const contractYear = item.contract ? String(item.contract.name || '') : '';
+      const k = matchKey(ownerKey, item.salary, contractYear);
+      const candidates = rowsByKey[k];
+      if (!candidates || candidates.length === 0) { skippedNoMatch++; return; }
+      if (candidates.length > 1) { skippedAmbiguous++; return; } // can't tell which player
+
+      sheet.getRange(candidates[0] + 2, idIdx + 1).setValue(item.id);
+      matched++;
+    });
+  });
+
+  Logger.log('populateFantraxPlayerIds: matched=' + matched + ' ambiguous=' + skippedAmbiguous + ' noMatch=' + skippedNoMatch);
+  return { ok: true, matched, skippedAmbiguous, skippedNoMatch,
+           note: skippedAmbiguous + ' players skipped (same salary+contract on same team — usually $25/2050 prospects)' };
 }
 
 // ── Debug: probe candidate player-info endpoints with a few known IDs ──────────
