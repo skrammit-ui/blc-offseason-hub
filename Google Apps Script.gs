@@ -1539,6 +1539,7 @@ function debugFantraxRosterMatch() {
 // Uses getPlayerIds?sport=MLB which returns every Fantrax player name → id.
 // Matches by normalized name to rows in the Rosters sheet and writes the id column.
 function populateFantraxPlayerIds(ss) {
+  if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
   // Step 1: fetch complete MLB player ID list
   // Response shape: { "fantraxId": { name: "Last, First", fantraxId: "...", team: "BAL", position: "SS" }, ... }
   const data = fetchFantrax('getPlayerIds');
