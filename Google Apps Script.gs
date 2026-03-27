@@ -1601,13 +1601,17 @@ function debugFantraxPlayerEndpoints() {
   const sampleIds = ['02hfr', '02jh6', '02c47'];
   const results = {};
 
+  const { leagueId } = getFantraxProps();
   const candidates = [
-    { endpoint: 'getPlayerInfo',       params: { playerId: sampleIds[0] } },
-    { endpoint: 'getPlayerInfo',       params: { playerIds: sampleIds.join(',') } },
-    { endpoint: 'getPlayersInfo',      params: { ids: sampleIds.join(',') } },
-    { endpoint: 'getFantasyPlayers',   params: { playerIds: sampleIds.join(',') } },
-    { endpoint: 'getLeaguePlayers',    params: {} },
-    { endpoint: 'getAdpPlayers',       params: {} },
+    { endpoint: 'getTeamRosters',        params: { addPlayerInfo: true } },
+    { endpoint: 'getTeamRosters',        params: { includePlayerName: true } },
+    { endpoint: 'getTeamRosterStats',    params: {} },
+    { endpoint: 'getLeagueRosters',      params: {} },
+    { endpoint: 'getScoreboard',         params: {} },
+    { endpoint: 'getLeagueScoreboard',   params: {} },
+    { endpoint: 'getTeamRoster',         params: {} },
+    { endpoint: 'getLeagueStandings',    params: {} },
+    { endpoint: 'getLeagueInfo',         params: {} },
   ];
 
   candidates.forEach(c => {
