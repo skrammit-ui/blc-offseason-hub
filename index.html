@@ -6370,158 +6370,165 @@ function renderPickCompare() {
   const dataA = getPickData(teamA);
   const dataB = getPickData(teamB);
 
-  // ── Cell renderers ──────────────────────────────────────────────────────────
-  const BG_KEEPER = 'background:#edf7f1';
-  const BG_OPEN   = '';
-  const BG_BLANK  = 'background:var(--bg)';
+  const thS = `font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:4px 8px;border-bottom:1px solid var(--border)`;
 
-  function keeperCells(pick, teamName, side) {
-    const k  = keeperBySlot[pick.key];
-    const p  = k ? (LEAGUE[teamName] || []).find(x => x.player === k.player) : null;
-    const ovr = (pick.round - 1) * numTeams + pick.pick;
-    const sm  = p ? (STATUS_META[STATUS_MAP[p.status] || 'MLB'] || STATUS_META['MLB']) : null;
+  // ── Team pick card (Keepers All Teams style) ────────────────────────────────
+  function buildTeamCard(teamName, pickData) {
+    const rows = pickData.all.map(pick => {
+      const k = keeperBySlot[pick.key];
+      const p = k ? (LEAGUE[teamName] || []).find(x => x.player === k.player) : null;
+      if (k && p) {
+        const sm = STATUS_META[STATUS_MAP[p.status] || 'MLB'] || STATUS_META['MLB'];
+        return `<tr style="border-bottom:1px solid var(--border);background:#edf7f1">
+          <td style="padding:3px 6px;text-align:center;font-size:11px;font-weight:700;color:var(--text-2);width:28px">${pick.round}</td>
+          <td style="padding:3px 4px;text-align:center;font-size:11px;font-weight:700;color:var(--green);width:24px">${pick.pick}</td>
+          <td style="padding:3px 8px;max-width:150px">
+            <div style="display:flex;align-items:center;gap:4px;overflow:hidden">
+              <span style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1">${escHtml(p.player)}</span>
+              <span style="font-size:10px;color:var(--text-3);white-space:nowrap;flex-shrink:0">${escHtml(p.mlb_team||'')}${p.mlb_team&&p.position?' · ':''}${escHtml(p.position||'')}</span>
+            </div>
+          </td>
+          <td style="padding:3px 4px;text-align:center;white-space:nowrap">${sm ? `<span class="stag ${sm.cls}" style="cursor:default">${sm.label}</span>` : ''}</td>
+          <td style="padding:3px 4px;text-align:center;width:40px">${rdTile(p.salary, false)}</td>
+          <td style="padding:3px 4px;text-align:center">${conTag(p.contract, false)}</td>
+        </tr>`;
+      } else {
+        return `<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:3px 6px;text-align:center;font-size:11px;font-weight:700;color:var(--text-2);width:28px">${pick.round}</td>
+          <td style="padding:3px 4px;text-align:center;font-size:11px;color:var(--text-3);width:24px">${pick.pick}</td>
+          <td style="padding:3px 8px" colspan="4"><span style="font-size:11px;font-style:italic;color:var(--text-3)">Open</span></td>
+        </tr>`;
+      }
+    }).join('');
 
-    const bg   = BG_KEEPER;
-    const stag = sm ? `<span class="stag ${sm.cls}" style="cursor:default;white-space:nowrap">${sm.label}</span>` : '';
-    const playerDiv = k ? `<div style="display:flex;align-items:center;gap:4px;overflow:hidden">
-      <span style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1">${escHtml(k.player)}</span>
-      <span style="font-size:10px;color:var(--text-3);white-space:nowrap;flex-shrink:0">${escHtml(k.mlb_team||'')}${k.mlb_team&&k.position?' · ':''}${escHtml(k.position||'')}</span>
-    </div>` : '';
-
-    const tdP   = `<td style="padding:3px 8px;max-width:150px;${bg}">${playerDiv}</td>`;
-    const tdSt  = `<td style="padding:3px 6px;text-align:center;${bg}">${stag}</td>`;
-    const tdSal = `<td style="padding:3px 4px;text-align:center;width:44px;${bg}">${p ? rdTile(p.salary, false) : ''}</td>`;
-    const tdCon = `<td style="padding:3px 4px;text-align:center;${bg}">${p ? conTag(p.contract, false) : ''}</td>`;
-    const tdPk  = `<td style="padding:3px 4px;text-align:center;font-size:11px;font-weight:700;color:var(--green);width:30px;${bg}">${pick.pick}</td>`;
-    const tdOvr = `<td style="padding:3px 4px;text-align:center;font-size:11px;color:var(--green);width:36px;${bg}">${ovr}</td>`;
-
-    return side === 'left'
-      ? tdP + tdSt + tdSal + tdCon + tdPk + tdOvr
-      : tdPk + tdOvr + tdP + tdSt + tdSal + tdCon;  // NOTE: pk/ovr on left for right team
-  }
-
-  function openCells(pick, side) {
-    const ovr = (pick.round - 1) * numTeams + pick.pick;
-    const label = `<span style="font-size:11px;font-style:italic;color:var(--text-3)">Open</span>`;
-    const tdP   = `<td style="padding:3px 8px">${label}</td>`;
-    const tdSt  = `<td style="padding:3px 4px;text-align:center"></td>`;
-    const tdSal = `<td style="padding:3px 4px;text-align:center;width:44px"></td>`;
-    const tdCon = `<td style="padding:3px 4px;text-align:center"></td>`;
-    const tdPk  = `<td style="padding:3px 4px;text-align:center;font-size:11px;color:var(--text-2);font-weight:600;width:30px">${pick.pick}</td>`;
-    const tdOvr = `<td style="padding:3px 4px;text-align:center;font-size:11px;color:var(--text-3);width:36px">${ovr}</td>`;
-
-    return side === 'left'
-      ? tdP + tdSt + tdSal + tdCon + tdPk + tdOvr
-      : tdPk + tdOvr + tdP + tdSt + tdSal + tdCon;
-  }
-
-  function blankCells() {
-    return `<td style="${BG_BLANK}"></td>`.repeat(6);
-  }
-
-  function pickCellsFor(pick, teamName, side) {
-    if (!pick) return blankCells();
-    return keeperBySlot[pick.key]
-      ? keeperCells(pick, teamName, side)
-      : openCells(pick, side);
-  }
-
-  // ── Per-round opportunity badges (inline in the middle column) ─────────────
-  function getRoundOppBadge(rd) {
-    const aO = dataA.open.filter(p => p.round === rd);
-    const bO = dataB.open.filter(p => p.round === rd);
-    const aA = dataA.assigned.filter(p => p.round === rd);
-    const bA = dataB.assigned.filter(p => p.round === rd);
-
-    let bestAGain = 0, bestBGain = 0;
-    aO.forEach(ap => bA.forEach(bp => { if (bp.pick < ap.pick) bestAGain = Math.max(bestAGain, ap.pick - bp.pick); }));
-    bO.forEach(bp => aA.forEach(ap => { if (ap.pick < bp.pick) bestBGain = Math.max(bestBGain, bp.pick - ap.pick); }));
-    const hasBothOpen = aO.length > 0 && bO.length > 0;
-
-    let badges = '';
-    if (bestAGain) {
-      const c = bestAGain >= 10 ? 'var(--green)' : bestAGain >= 5 ? '#2a9' : 'var(--text-2)';
-      badges += `<div style="font-size:9px;font-weight:800;color:${c};line-height:1.2;white-space:nowrap">&#8592; +${bestAGain}</div>`;
-    }
-    if (bestBGain) {
-      const c = bestBGain >= 10 ? 'var(--green)' : bestBGain >= 5 ? '#2a9' : 'var(--text-2)';
-      badges += `<div style="font-size:9px;font-weight:800;color:${c};line-height:1.2;white-space:nowrap">+${bestBGain} &#8594;</div>`;
-    }
-    if (hasBothOpen && !bestAGain && !bestBGain) {
-      badges += `<div style="font-size:9px;font-weight:700;color:var(--orange);line-height:1.2">&#8596;</div>`;
-    }
-    return badges;
-  }
-
-  // ── Build rows for all 30 rounds ────────────────────────────────────────────
-  const thS  = `font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:4px 6px;border-bottom:1px solid var(--border)`;
-  const thSC = `${thS};text-align:center`;
-  const thSL = `${thS};text-align:left;padding-left:10px`;
-  const thPk = `${thS};text-align:center;width:30px`;
-  const thOv = `${thS};text-align:center;width:36px`;
-  const thMid = `${thS};text-align:center;width:52px;border-left:2px solid var(--border);border-right:2px solid var(--border)`;
-
-  let bodyHtml = '';
-  for (let rd = 1; rd <= 30; rd++) {
-    const aPicks = dataA.all.filter(p => p.round === rd).sort((a,b) => a.pick - b.pick);
-    const bPicks = dataB.all.filter(p => p.round === rd).sort((a,b) => a.pick - b.pick);
-    const rowCount = Math.max(aPicks.length, bPicks.length, 1);
-    const oppBadge = getRoundOppBadge(rd);
-
-    for (let i = 0; i < rowCount; i++) {
-      const ap = aPicks[i] || null;
-      const bp = bPicks[i] || null;
-      const midTd = i === 0 ? `<td rowspan="${rowCount}" style="text-align:center;padding:2px 4px;border-left:2px solid var(--border);border-right:2px solid var(--border);vertical-align:middle;width:52px">
-        <div style="font-size:12px;font-weight:700;color:var(--text-2);line-height:1.3">${rd}</div>
-        ${oppBadge}
-      </td>` : '';
-
-      const rowBg = (!ap && !bp) ? 'background:var(--bg);opacity:.45' : '';
-      bodyHtml += `<tr style="border-bottom:1px solid var(--border);${rowBg}">
-        ${pickCellsFor(ap, teamA, 'left')}
-        ${midTd}
-        ${pickCellsFor(bp, teamB, 'right')}
-      </tr>`;
-    }
-  }
-
-  const aCount = dataA.all.length, aOpen = dataA.open.length, aAssn = dataA.assigned.length;
-  const bCount = dataB.all.length, bOpen = dataB.open.length, bAssn = dataB.assigned.length;
-
-  el.innerHTML = `
-    <div class="card" style="overflow:hidden">
-      <table style="width:100%;border-collapse:collapse">
-        <thead>
-          <tr>
-            <th colspan="6" style="${thS};background:var(--navy);color:#fff;padding:8px 12px;text-align:left">
-              <span style="font-family:var(--head);font-size:13px;letter-spacing:.04em">${escHtml(teamA)}</span>
-              <span style="font-size:11px;font-weight:400;opacity:.6;margin-left:8px">${aCount} picks · ${aAssn} keepers · ${aOpen} open</span>
-            </th>
-            <th style="${thMid};background:var(--navy)"></th>
-            <th colspan="6" style="${thS};background:var(--navy);color:#fff;padding:8px 12px;text-align:right">
-              <span style="font-size:11px;font-weight:400;opacity:.6;margin-right:8px">${bCount} picks · ${bAssn} keepers · ${bOpen} open</span>
-              <span style="font-family:var(--head);font-size:13px;letter-spacing:.04em">${escHtml(teamB)}</span>
-            </th>
-          </tr>
-          <tr style="background:var(--bg)">
-            <th style="${thSL}">Player / Team / Pos</th>
-            <th style="${thSC}">Status</th>
-            <th style="${thSC};width:44px">SAL</th>
-            <th style="${thSC}">CON</th>
-            <th style="${thPk}">Pk</th>
-            <th style="${thOv}">Ovr</th>
-            <th style="${thMid}">Rd</th>
-            <th style="${thPk}">Pk</th>
-            <th style="${thOv}">Ovr</th>
-            <th style="${thSL}">Player / Team / Pos</th>
-            <th style="${thSC}">Status</th>
-            <th style="${thSC};width:44px">SAL</th>
-            <th style="${thSC}">CON</th>
-          </tr>
-        </thead>
-        <tbody>${bodyHtml}</tbody>
-      </table>
+    const { all, open, assigned } = pickData;
+    return `<div class="card" style="overflow:hidden">
+      <div class="card-header" style="background:var(--navy);padding:8px 12px">
+        <span style="font-family:var(--head);font-weight:700;font-size:13px;letter-spacing:.04em;color:#fff">${escHtml(teamName)}</span>
+        <span style="font-size:11px;color:rgba(255,255,255,.55);margin-left:auto">${all.length} picks &middot; ${assigned.length} keepers &middot; ${open.length} open</span>
+      </div>
+      ${all.length === 0
+        ? `<div style="padding:16px 12px;font-size:12px;color:var(--text-3);font-style:italic">No picks found</div>`
+        : `<table style="width:100%;border-collapse:collapse">
+            <thead><tr style="background:var(--bg)">
+              <th style="${thS};text-align:center;width:28px">Rd</th>
+              <th style="${thS};text-align:center;width:24px">Pk</th>
+              <th style="${thS};text-align:left;padding-left:10px">Player / Team / Pos</th>
+              <th style="${thS};text-align:center">Status</th>
+              <th style="${thS};text-align:center;width:40px">SAL</th>
+              <th style="${thS};text-align:center">CON</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>`
+      }
     </div>`;
+  }
+
+  // ── Middle comparison card ──────────────────────────────────────────────────
+  function buildComparisonCard() {
+    // Upgrades for A: A has pick, B has open pick at earlier position in same round
+    //   - assigned: A's pick has a keeper (B's open pick gives keeper a better slot)
+    //   - open: A's pick is also open (straight pick swap, A gets earlier slot)
+    // Upgrades for B: symmetric
+    const upForA = { assigned: [], open: [] };
+    const upForB = { assigned: [], open: [] };
+
+    for (let rd = 1; rd <= 30; rd++) {
+      const aAll  = dataA.all.filter(p => p.round === rd);
+      const bOpen = dataB.open.filter(p => p.round === rd);
+      const bAll  = dataB.all.filter(p => p.round === rd);
+      const aOpen = dataA.open.filter(p => p.round === rd);
+
+      // A has a pick, B has an open pick earlier in same round
+      aAll.forEach(ap => bOpen.forEach(bp => {
+        if (bp.pick < ap.pick) {
+          const gain = ap.pick - bp.pick;
+          const isAssigned = !!keeperBySlot[ap.key];
+          const keeper = isAssigned ? keeperBySlot[ap.key] : null;
+          const bucket = isAssigned ? upForA.assigned : upForA.open;
+          bucket.push({ rd, myPk: ap.pick, theirPk: bp.pick, gain, keeper });
+        }
+      }));
+
+      // B has a pick, A has an open pick earlier in same round
+      bAll.forEach(bp => aOpen.forEach(ap => {
+        if (ap.pick < bp.pick) {
+          const gain = bp.pick - ap.pick;
+          const isAssigned = !!keeperBySlot[bp.key];
+          const keeper = isAssigned ? keeperBySlot[bp.key] : null;
+          const bucket = isAssigned ? upForB.assigned : upForB.open;
+          bucket.push({ rd, myPk: bp.pick, theirPk: ap.pick, gain, keeper });
+        }
+      }));
+    }
+
+    upForA.assigned.sort((a,b) => b.gain - a.gain);
+    upForA.open.sort((a,b) => b.gain - a.gain);
+    upForB.assigned.sort((a,b) => b.gain - a.gain);
+    upForB.open.sort((a,b) => b.gain - a.gain);
+
+    function gainColor(n) { return n >= 10 ? 'var(--green)' : n >= 5 ? '#2a9' : 'var(--text-2)'; }
+
+    function oppRows(items, isAssigned) {
+      if (!items.length) return `<tr><td colspan="4" style="padding:6px 10px;font-size:11px;font-style:italic;color:var(--text-3)">None</td></tr>`;
+      return items.map(r => {
+        const keeperCell = isAssigned && r.keeper
+          ? `<div style="font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(r.keeper.player)}</div>`
+          : '';
+        return `<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:4px 8px;text-align:center;font-size:11px;font-weight:700;color:var(--text-2);width:28px">${r.rd}</td>
+          <td style="padding:4px 6px;text-align:center;font-size:11px;color:var(--text-3);width:40px">${r.myPk} → <strong style="color:${gainColor(r.gain)}">${r.theirPk}</strong></td>
+          <td style="padding:4px 6px;font-size:10px;font-weight:700;color:${gainColor(r.gain)};text-align:center;width:32px">+${r.gain}</td>
+          <td style="padding:4px 8px;max-width:100px;overflow:hidden">${keeperCell}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    function section(teamName, buckets) {
+      const total = buckets.assigned.length + buckets.open.length;
+      if (!total) return `<div style="padding:10px 12px;font-size:11px;color:var(--text-3);font-style:italic;border-bottom:1px solid var(--border)">No upgrades available for ${escHtml(teamName)}</div>`;
+
+      const subTh = `font-family:var(--head);font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);padding:3px 8px;border-bottom:1px solid var(--border)`;
+      const colHeaders = `<tr style="background:var(--bg)">
+        <th style="${subTh};text-align:center;width:28px">Rd</th>
+        <th style="${subTh};text-align:center;width:40px">Pk</th>
+        <th style="${subTh};text-align:center;width:32px">+</th>
+        <th style="${subTh};text-align:left">Keeper</th>
+      </tr>`;
+
+      return `<div style="border-bottom:1px solid var(--border)">
+        <div style="padding:7px 10px 4px;font-size:11px;font-weight:700;color:#fff;background:var(--navy);letter-spacing:.03em">
+          Upgrades for ${escHtml(teamName)}
+          <span style="font-weight:400;opacity:.6;margin-left:6px">${total}</span>
+        </div>
+        ${buckets.assigned.length ? `
+          <div style="padding:5px 10px 2px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--green)">Assigned picks</div>
+          <table style="width:100%;border-collapse:collapse"><thead>${colHeaders}</thead><tbody>${oppRows(buckets.assigned, true)}</tbody></table>
+        ` : ''}
+        ${buckets.open.length ? `
+          <div style="padding:5px 10px 2px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3)">Open picks</div>
+          <table style="width:100%;border-collapse:collapse"><thead>${colHeaders}</thead><tbody>${oppRows(buckets.open, false)}</tbody></table>
+        ` : ''}
+        ${!buckets.assigned.length && !buckets.open.length ? `<div style="padding:6px 10px;font-size:11px;color:var(--text-3);font-style:italic">None</div>` : ''}
+      </div>`;
+    }
+
+    const totalOpps = upForA.assigned.length + upForA.open.length + upForB.assigned.length + upForB.open.length;
+    return `<div class="card" style="overflow:hidden">
+      <div class="card-header" style="background:var(--navy);padding:8px 12px">
+        <span style="font-family:var(--head);font-weight:700;font-size:13px;letter-spacing:.04em;color:#fff">Pick Comparison</span>
+        <span style="font-size:11px;color:rgba(255,255,255,.55);margin-left:auto">${totalOpps} upgrade${totalOpps !== 1 ? 's' : ''}</span>
+      </div>
+      ${section(teamA, upForA)}
+      ${section(teamB, upForB)}
+    </div>`;
+  }
+
+  el.innerHTML = `<div style="display:grid;grid-template-columns:1fr minmax(200px,260px) 1fr;gap:16px;align-items:start">
+    ${buildTeamCard(teamA, dataA)}
+    ${buildComparisonCard()}
+    ${buildTeamCard(teamB, dataB)}
+  </div>`;
 }
 
 function pcGetNumTeams() {
