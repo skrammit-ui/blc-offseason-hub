@@ -108,6 +108,8 @@ function doPost(e) {
         return corsResponse(debugFantraxRosterMatch());
       case 'populateFantraxPlayerIds':
         return corsResponse(populateFantraxPlayerIds(ss));
+      case 'debugFantraxPlayerEndpoints':
+        return corsResponse(debugFantraxPlayerEndpoints());
       default:
         return corsResponse({ ok: false, error: 'Unknown action: ' + payload.action });
     }
@@ -1592,4 +1594,39 @@ function populateFantraxPlayerIds(ss) {
 
   Logger.log('populateFantraxPlayerIds: matched=' + matched + ' unmatched=' + unmatched);
   return { ok: true, matched, unmatched, totalIds: allIds.length, namesReturned: Object.keys(playerNames).length };
+}
+
+// ── Debug: probe candidate player-info endpoints with a few known IDs ──────────
+function debugFantraxPlayerEndpoints() {
+  const sampleIds = ['02hfr', '02jh6', '02c47'];
+  const results = {};
+
+  const candidates = [
+    { endpoint: 'getPlayerInfo',       params: { playerId: sampleIds[0] } },
+    { endpoint: 'getPlayerInfo',       params: { playerIds: sampleIds.join(',') } },
+    { endpoint: 'getPlayersInfo',      params: { ids: sampleIds.join(',') } },
+    { endpoint: 'getFantasyPlayers',   params: { playerIds: sampleIds.join(',') } },
+    { endpoint: 'getLeaguePlayers',    params: {} },
+    { endpoint: 'getAdpPlayers',       params: {} },
+  ];
+
+  candidates.forEach(c => {
+    const key = c.endpoint + '?' + JSON.stringify(c.params);
+    try {
+      const data = fetchFantrax(c.endpoint, c.params);
+      const topKeys = Object.keys(data);
+      // Grab a small sample of the first array/object value
+      let sample = null;
+      for (const k of topKeys) {
+        const v = data[k];
+        if (Array.isArray(v) && v.length) { sample = v.slice(0, 2); break; }
+        if (v && typeof v === 'object') { const sk = Object.keys(v); sample = { _keys: sk.slice(0,5) }; break; }
+      }
+      results[key] = { ok: true, topKeys, sample };
+    } catch(e) {
+      results[key] = { ok: false, error: e.message.substring(0, 120) };
+    }
+  });
+
+  return { ok: true, results };
 }
