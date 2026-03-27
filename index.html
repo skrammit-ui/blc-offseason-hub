@@ -6376,16 +6376,22 @@ function renderPickCompare() {
   const dataA = getPickData(teamA);
   const dataB = getPickData(teamB);
 
-  // Persist selection across re-renders
-  if (!window.pcSelectedRounds) window.pcSelectedRounds = new Set();
+  // Per-team independent selections (persist across re-renders)
+  if (!window.pcSelA) window.pcSelA = new Set();
+  if (!window.pcSelB) window.pcSelB = new Set();
+
+  // Clear stale keys when teams change
+  const validA = new Set(dataA.all.map(p => p.key));
+  const validB = new Set(dataB.all.map(p => p.key));
+  window.pcSelA.forEach(k => { if (!validA.has(k)) window.pcSelA.delete(k); });
+  window.pcSelB.forEach(k => { if (!validB.has(k)) window.pcSelB.delete(k); });
 
   const thS = `font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:4px 8px;border-bottom:1px solid var(--border)`;
 
   // ── Team pick card ──────────────────────────────────────────────────────────
-  function buildTeamCard(teamName, pickData) {
+  function buildTeamCard(teamName, pickData, selSet, side) {
     const rows = pickData.all.map(pick => {
-      const rd  = pick.round;
-      const sel = window.pcSelectedRounds.has(rd);
+      const sel = selSet.has(pick.key);
       const k   = keeperBySlot[pick.key];
       const p   = k ? (LEAGUE[teamName] || []).find(x => x.player === k.player) : null;
 
@@ -6395,13 +6401,13 @@ function renderPickCompare() {
 
       if (k && p) {
         const sm = STATUS_META[STATUS_MAP[p.status] || 'MLB'] || STATUS_META['MLB'];
-        return `<tr style="border-bottom:1px solid var(--border);${selStyle};cursor:pointer" onclick="pcToggleRound(${rd})">
-          <td style="padding:3px 6px;text-align:center;font-size:11px;font-weight:700;color:var(--text-2);width:28px">${rd}</td>
+        return `<tr style="border-bottom:1px solid var(--border);${selStyle};cursor:pointer" onclick="pcTogglePick('${side}','${pick.key}')">
+          <td style="padding:3px 6px;text-align:center;font-size:11px;font-weight:700;color:var(--text-2);width:28px">${pick.round}</td>
           <td style="padding:3px 4px;text-align:center;font-size:11px;font-weight:700;color:var(--green);width:24px">${pick.pick}</td>
           <td style="padding:3px 8px;max-width:140px">
             <div style="display:flex;align-items:center;gap:4px;overflow:hidden">
               <span style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1">${escHtml(p.player)}</span>
-              <span style="font-size:10px;color:var(--text-3);white-space:nowrap;flex-shrink:0">${escHtml(p.mlb_team||'')}${p.mlb_team&&p.position?' \u00b7 ':''}${escHtml(p.position||'')}</span>
+              <span style="font-size:10px;color:var(--text-3);white-space:nowrap;flex-shrink:0">${escHtml(p.mlb_team||'')}${p.mlb_team&&p.position?' &middot; ':''}${escHtml(p.position||'')}</span>
             </div>
           </td>
           <td style="padding:3px 4px;text-align:center;white-space:nowrap">${sm ? `<span class="stag ${sm.cls}" style="cursor:default">${sm.label}</span>` : ''}</td>
@@ -6409,8 +6415,8 @@ function renderPickCompare() {
           <td style="padding:3px 4px;text-align:center">${conTag(p.contract, false)}</td>
         </tr>`;
       } else {
-        return `<tr style="border-bottom:1px solid var(--border);${selStyle};cursor:pointer" onclick="pcToggleRound(${rd})">
-          <td style="padding:3px 6px;text-align:center;font-size:11px;font-weight:700;color:var(--text-2);width:28px">${rd}</td>
+        return `<tr style="border-bottom:1px solid var(--border);${selStyle};cursor:pointer" onclick="pcTogglePick('${side}','${pick.key}')">
+          <td style="padding:3px 6px;text-align:center;font-size:11px;font-weight:700;color:var(--text-2);width:28px">${pick.round}</td>
           <td style="padding:3px 4px;text-align:center;font-size:11px;color:var(--text-3);width:24px">${pick.pick}</td>
           <td style="padding:3px 8px;font-style:italic;color:var(--text-3);font-size:11px">Open</td>
           <td colspan="3"></td>
@@ -6443,145 +6449,103 @@ function renderPickCompare() {
 
   // ── Middle comparison panel ─────────────────────────────────────────────────
   function buildMiddlePanel() {
-    const selected = [...window.pcSelectedRounds].sort((a, b) => a - b);
+    const selA = dataA.all.filter(p => window.pcSelA.has(p.key)).sort((a,b) => a.round - b.round || a.pick - b.pick);
+    const selB = dataB.all.filter(p => window.pcSelB.has(p.key)).sort((a,b) => a.round - b.round || a.pick - b.pick);
+    const hasAny = selA.length || selB.length;
 
-    if (!selected.length) {
-      return `<div class="card" style="overflow:hidden">
-        <div class="card-header" style="background:var(--navy);padding:8px 12px">
-          <span style="font-family:var(--head);font-weight:700;font-size:13px;letter-spacing:.04em;color:#fff">Pick Comparison</span>
-        </div>
-        <div style="padding:32px 16px;text-align:center;color:var(--text-3);font-size:12px;font-style:italic;line-height:1.6">
-          Click any pick row<br>to compare rounds
-        </div>
-      </div>`;
-    }
-
-    function pickCard(pick, tName) {
-      if (!pick) return `<div style="padding:8px;font-size:11px;color:var(--text-4);font-style:italic">\u2014</div>`;
-      const k   = keeperBySlot[pick.key];
-      const p   = k ? (LEAGUE[tName] || []).find(x => x.player === k.player) : null;
+    function pickTile(pick, isKeeper) {
+      if (!pick) return `<div style="padding:6px 8px;color:var(--text-4);font-size:11px;font-style:italic">&mdash;</div>`;
       const ovr = (pick.round - 1) * numTeams + pick.pick;
-      if (k && p) {
-        const sm = STATUS_META[STATUS_MAP[p.status] || 'MLB'] || STATUS_META['MLB'];
-        return `<div style="background:#edf7f1;border-radius:4px;padding:6px 8px;margin:6px">
-          <div style="font-size:10px;font-weight:700;color:var(--green)">Pk ${pick.pick} <span style="color:var(--text-3);font-weight:400">(${ovr} ovr)</span></div>
-          <div style="font-size:12px;font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(p.player)}</div>
-          <div style="font-size:10px;color:var(--text-3)">${escHtml(p.mlb_team||'')}${p.mlb_team&&p.position?' \u00b7 ':''}${escHtml(p.position||'')}</div>
-          <div style="margin-top:4px;display:flex;gap:3px;align-items:center;flex-wrap:wrap">
-            ${sm ? `<span class="stag ${sm.cls}" style="cursor:default">${sm.label}</span>` : ''}
-            ${rdTile(p.salary, false)}
-            ${conTag(p.contract, false)}
-          </div>
-        </div>`;
-      } else {
-        return `<div style="padding:6px 8px;margin:6px">
-          <div style="font-size:10px;font-weight:700;color:var(--text-2)">Pk ${pick.pick} <span style="color:var(--text-3);font-weight:400">(${ovr} ovr)</span></div>
-          <div style="font-size:11px;font-style:italic;color:var(--text-3);margin-top:2px">Open</div>
-        </div>`;
-      }
-    }
-
-    // From Team A's perspective:
-    //   RECEIVE = picks Team A would acquire (B's open picks that are earlier than A's open picks)
-    //   OFFER   = picks Team A would give (A's assigned/keeper picks offered to B's later open picks)
-    function buildSubsections(rd) {
-      const aOpen   = dataA.open.filter(p => p.round === rd);
-      const bOpen   = dataB.open.filter(p => p.round === rd);
-      const aAssign = dataA.assigned.filter(p => p.round === rd);
-
-      // RECEIVE: B has an open pick earlier than any of A's open picks
-      const receivePairs = [];
-      aOpen.forEach(ap => bOpen.forEach(bp => {
-        if (bp.pick < ap.pick) receivePairs.push({ mine: ap, theirs: bp });
-      }));
-
-      // OFFER: A has a keeper pick that's earlier than B's open picks
-      const offerPairs = [];
-      aAssign.forEach(ap => bOpen.forEach(bp => {
-        if (ap.pick < bp.pick) offerPairs.push({ mine: ap, theirs: bp });
-      }));
-
-      function pairRow(myPick, theirPick, tName) {
-        return `<div style="display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--border)">
-          ${pickCard(myPick, teamA)}
-          <div style="border-left:1px solid var(--border)">${pickCard(theirPick, tName)}</div>
-        </div>`;
-      }
-
-      const subTitleStyle = `font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:4px 10px 3px;border-bottom:1px solid var(--border)`;
-      const teamRowStyle  = `display:grid;grid-template-columns:1fr 1fr;background:var(--bg);border-bottom:1px solid var(--border)`;
-      const teamLabelL    = `font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3);padding:2px 8px 2px 10px`;
-      const teamLabelR    = `font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3);padding:2px 8px;border-left:1px solid var(--border)`;
-
-      let html = '';
-
-      if (receivePairs.length) {
-        html += `<div style="${subTitleStyle};color:var(--green);background:#f0faf4">&#8595; Receive from ${escHtml(teamB)}</div>
-          <div style="${teamRowStyle}">
-            <div style="${teamLabelL}">${escHtml(teamA)} (open)</div>
-            <div style="${teamLabelR}">${escHtml(teamB)} (open, earlier)</div>
-          </div>
-          ${receivePairs.map(r => pairRow(r.mine, r.theirs, teamB)).join('')}`;
-      }
-
-      if (offerPairs.length) {
-        html += `<div style="${subTitleStyle};color:var(--blue);background:#f0f4ff">&#8593; Offer to ${escHtml(teamB)}</div>
-          <div style="${teamRowStyle}">
-            <div style="${teamLabelL}">${escHtml(teamA)} (keeper, earlier)</div>
-            <div style="${teamLabelR}">${escHtml(teamB)} (open)</div>
-          </div>
-          ${offerPairs.map(r => pairRow(r.mine, r.theirs, teamB)).join('')}`;
-      }
-
-      if (!html) {
-        // No opportunities — just show both teams' picks side by side
-        const aPicks = dataA.all.filter(p => p.round === rd).sort((a, b) => a.pick - b.pick);
-        const bPicks = dataB.all.filter(p => p.round === rd).sort((a, b) => a.pick - b.pick);
-        const count  = Math.max(aPicks.length, bPicks.length, 1);
-        html += `<div style="${teamRowStyle}">
-          <div style="${teamLabelL}">${escHtml(teamA)}</div>
-          <div style="${teamLabelR}">${escHtml(teamB)}</div>
-        </div>`;
-        for (let i = 0; i < count; i++) {
-          html += pairRow(aPicks[i] || null, bPicks[i] || null, teamB);
-        }
-      }
-
-      return html;
-    }
-
-    const pairCards = selected.map(rd => {
-      return `<div style="border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:8px">
-        <div style="background:var(--navy);padding:5px 10px;display:flex;align-items:center">
-          <span style="font-family:var(--head);font-weight:700;font-size:11px;color:#fff;letter-spacing:.04em">Round ${rd}</span>
-          <button onclick="pcToggleRound(${rd})" style="background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:14px;line-height:1;margin-left:auto;padding:0 2px" title="Remove">&times;</button>
-        </div>
-        ${buildSubsections(rd)}
+      const bg  = isKeeper ? 'background:#edf7f1' : '';
+      const pkColor = isKeeper ? 'color:var(--green)' : 'color:var(--text-2)';
+      return `<div style="padding:6px 10px;${bg}">
+        <span style="font-size:12px;font-weight:700;${pkColor}">${pick.round}.${pick.pick}</span>
+        <span style="font-size:10px;color:var(--text-3);margin-left:4px">(${ovr} ovr)</span>
+        ${isKeeper ? '' : '<span style="font-size:9px;color:var(--text-3);margin-left:4px;font-style:italic">open</span>'}
       </div>`;
-    }).join('');
+    }
+
+    const maxLen  = Math.max(selA.length, selB.length);
+    const subTh   = `font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);padding:4px 10px;border-bottom:1px solid var(--border)`;
+
+    // Group by section label only when there are selections
+    // OFFER = A's assigned picks offered to B (A is giving up keeper slot)
+    // RECEIVE = B's open picks A is acquiring
+    const offerA   = selA.filter(p =>  keeperBySlot[p.key]);
+    const receiveA = selA.filter(p => !keeperBySlot[p.key]);
+    const offerB   = selB.filter(p =>  keeperBySlot[p.key]);
+    const receiveB = selB.filter(p => !keeperBySlot[p.key]);
+
+    function section(label, color, bg, picksA, picksB) {
+      if (!picksA.length && !picksB.length) return '';
+      const count = Math.max(picksA.length, picksB.length);
+      let rows = '';
+      for (let i = 0; i < count; i++) {
+        const ap = picksA[i] || null;
+        const bp = picksB[i] || null;
+        rows += `<div style="display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--border)">
+          ${pickTile(ap, ap ? !!keeperBySlot[ap.key] : false)}
+          <div style="border-left:1px solid var(--border)">${pickTile(bp, bp ? !!keeperBySlot[bp.key] : false)}</div>
+        </div>`;
+      }
+      return `<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:4px 10px 3px;color:${color};background:${bg};border-top:1px solid var(--border)">${label}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;background:var(--bg);border-bottom:1px solid var(--border)">
+          <div style="${subTh}">${escHtml(teamA)}</div>
+          <div style="${subTh};border-left:1px solid var(--border)">${escHtml(teamB)}</div>
+        </div>
+        ${rows}`;
+    }
+
+    // Impact = net OVR change for Team A (positive = A gains overall pick value)
+    // Lower OVR is better, so: giving away low OVR (offer) hurts; getting low OVR (receive) helps
+    const ovrA = selA.reduce((s, p) => s + ((p.round - 1) * numTeams + p.pick), 0);
+    const ovrB = selB.reduce((s, p) => s + ((p.round - 1) * numTeams + p.pick), 0);
+    let impactBadge = '';
+    if (selA.length && selB.length) {
+      const delta = ovrB - ovrA; // positive = A receives picks with lower (better) OVR net
+      const sign  = delta > 0 ? '+' : '';
+      const color = delta > 0 ? 'var(--green)' : delta < 0 ? '#e05c5c' : 'var(--text-3)';
+      const label = delta > 0 ? 'favors you' : delta < 0 ? 'favors them' : 'even';
+      impactBadge = `<span style="font-size:10px;font-weight:700;color:${color};margin-left:auto;background:rgba(255,255,255,.1);border-radius:3px;padding:2px 7px">${sign}${delta} ovr &middot; ${label}</span>`;
+    }
+
+    const body = !hasAny
+      ? `<div style="padding:32px 16px;text-align:center;color:var(--text-3);font-size:12px;font-style:italic;line-height:1.6">Click picks on<br>either side to compare</div>`
+      : section('Offer', 'var(--blue)', '#f0f4ff', offerA, offerB)
+        + section('Receive', 'var(--green)', '#f0faf4', receiveA, receiveB);
+
+    const clearBtn = hasAny ? `<button onclick="pcClearSelection()" style="background:none;border:1px solid rgba(255,255,255,.3);color:rgba(255,255,255,.7);cursor:pointer;font-size:10px;border-radius:3px;padding:2px 7px;margin-left:${impactBadge ? '8px' : 'auto'}">Clear</button>` : '';
 
     return `<div class="card" style="overflow:hidden">
       <div class="card-header" style="background:var(--navy);padding:8px 12px">
         <span style="font-family:var(--head);font-weight:700;font-size:13px;letter-spacing:.04em;color:#fff">Pick Comparison</span>
-        <button onclick="pcClearSelection()" style="background:none;border:1px solid rgba(255,255,255,.3);color:rgba(255,255,255,.7);cursor:pointer;font-size:10px;border-radius:3px;padding:2px 7px;margin-left:auto">Clear</button>
+        ${impactBadge}${clearBtn}
       </div>
-      <div style="padding:10px">${pairCards}</div>
+      ${body}
     </div>`;
   }
 
-  el.innerHTML = `<div style="display:grid;grid-template-columns:1fr minmax(200px,260px) 1fr;gap:16px;align-items:start">
-    ${buildTeamCard(teamA, dataA)}
+  el.innerHTML = `<div style="display:grid;grid-template-columns:1fr minmax(180px,240px) 1fr;gap:16px;align-items:start">
+    ${buildTeamCard(teamA, dataA, window.pcSelA, 'A')}
     ${buildMiddlePanel()}
-    ${buildTeamCard(teamB, dataB)}
+    ${buildTeamCard(teamB, dataB, window.pcSelB, 'B')}
   </div>`;
 }
 
-function pcToggleRound(rd) {
-  if (!window.pcSelectedRounds) window.pcSelectedRounds = new Set();
-  if (window.pcSelectedRounds.has(rd)) window.pcSelectedRounds.delete(rd);
-  else window.pcSelectedRounds.add(rd);
+function pcTogglePick(side, key) {
+  if (!window.pcSelA) window.pcSelA = new Set();
+  if (!window.pcSelB) window.pcSelB = new Set();
+  const set = side === 'A' ? window.pcSelA : window.pcSelB;
+  if (set.has(key)) set.delete(key); else set.add(key);
   renderPickCompare();
 }
+
+function pcClearSelection() {
+  window.pcSelA = new Set();
+  window.pcSelB = new Set();
+  renderPickCompare();
+}
+
 
 function pcClearSelection() {
   window.pcSelectedRounds = new Set();
