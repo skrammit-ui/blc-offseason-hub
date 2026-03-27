@@ -1306,86 +1306,76 @@ function refreshFantraxMatchups(ss) {
 }
 
 // ── Refresh rosters ───────────────────────────────────────────────────────────
-// Pulls current team rosters from Fantrax and upserts into the Rosters sheet.
-// Only updates position and mlb_team; preserves salary/contract/status.
+// Pulls current team rosters from Fantrax and updates the Rosters sheet.
+// Matches players by Fantrax player id. Updates teamKey, position, salary,
+// status, and contract year for every matched player.
 function refreshFantraxRosters(ss) {
   const data = fetchFantrax('getTeamRosters');
-  // Shape: data.rosters[teamId] = { teamName, roster: [{ playerName, positions, nflTeam/mlbTeam, ... }] }
-  // or nested under data.data
+  // Response shape: { period, rosters: { [fantraxTeamId]: { teamName, rosterItems: [{id, position, salary, status, contract:{name}}] } } }
   const rostersObj = data.rosters || (data.data && data.data.rosters) || {};
-  const teamList   = Array.isArray(data.teams || (data.data && data.data.teams) || []) ? (data.teams || (data.data && data.data.teams) || []) : [];
 
   const sheet = ss.getSheetByName('Rosters');
   if (!sheet) throw new Error('Rosters sheet not found');
 
   const [headers, ...rows] = sheet.getDataRange().getValues();
-  const playerIdx   = headers.indexOf('player');
+  const idIdx       = headers.indexOf('id');
   const teamIdx     = headers.indexOf('teamKey');
   const posIdx      = headers.indexOf('position');
-  const mlbTeamIdx  = headers.indexOf('mlb_team');
-  if (playerIdx < 0 || teamIdx < 0) throw new Error('Rosters sheet missing player/teamKey columns');
+  const salIdx      = headers.indexOf('salary');
+  const statusIdx   = headers.indexOf('status');
+  const contractIdx = headers.indexOf('contract');
+  if (idIdx < 0) throw new Error('Rosters sheet missing id column — needed to match Fantrax players');
 
-  // Build ownerMap for Fantrax teamId → ownerKey matching
+  // Build reverse ownerMap: teamName (lowercase) → ownerKey
   const ownerMap = getOwnerMap(ss); // ownerKey → teamName
+  const nameToKey = {};
+  Object.entries(ownerMap).forEach(([key, name]) => { nameToKey[name.toLowerCase()] = key; });
 
-  // Build existing player lookup: normalize(player) → row index
-  const normalize = s => String(s || '').toLowerCase().trim();
-  const rowLookup = {};
+  // Build player lookup: fantraxPlayerId → row index (0-based, rows array)
+  const idLookup = {};
   rows.forEach((r, i) => {
-    const key = normalize(r[playerIdx]) + '|' + normalize(r[teamIdx]);
-    rowLookup[key] = i;
+    const pid = String(r[idIdx] || '').trim();
+    if (pid) idLookup[pid] = i;
   });
+
+  // Fantrax status → sheet status value
+  const STATUS_FANTRAX = {
+    'ACTIVE':          'Active',
+    'RESERVE':         'Reserve',
+    'INJURED_RESERVE': 'Inj Res',
+    'MINORS':          'Minors',
+  };
 
   let updated = 0;
-  let added = 0;
+  let notFound = 0;
 
-  // Try to map Fantrax team entries to ownerKeys
-  const fantraxTeams = {};
-  teamList.forEach(t => {
-    const tid = String(t.id || t.teamId || '').trim();
-    const tname = String(t.name || t.teamName || '').trim().toLowerCase();
-    // Try to match by team name against ownerMap values
-    for (const [key, name] of Object.entries(ownerMap)) {
-      if (name.toLowerCase() === tname) { fantraxTeams[tid] = key; break; }
-    }
-  });
+  Object.entries(rostersObj).forEach(([, teamData]) => {
+    const ownerKey = nameToKey[String(teamData.teamName || '').toLowerCase()];
+    if (!ownerKey) return; // couldn't match team name to an ownerKey
 
-  Object.entries(rostersObj).forEach(([teamId, teamData]) => {
-    const ownerKey = fantraxTeams[teamId];
-    if (!ownerKey) return; // skip teams we can't map
+    (teamData.rosterItems || []).forEach(item => {
+      const pid      = String(item.id || '').trim();
+      const pos      = String(item.position || '').trim();
+      const salary   = item.salary != null ? Number(item.salary) : null;
+      const status   = STATUS_FANTRAX[item.status] || '';
+      const contract = item.contract ? String(item.contract.name || '') : '';
+      if (!pid) return;
 
-    const roster = teamData.roster || teamData.players || [];
-    roster.forEach(p => {
-      const playerName = String(p.playerName || p.name || p.player || '').trim();
-      const pos        = String(p.positions || p.position || p.pos || '').trim();
-      const mlbTeam    = String(p.mlbTeam || p.nflTeam || p.team || p.proTeam || '').trim();
-      if (!playerName) return;
+      const rowIdx = idLookup[pid];
+      if (rowIdx === undefined) { notFound++; return; }
 
-      const lookupKey = normalize(playerName) + '|' + normalize(ownerKey);
-      const rowIdx = rowLookup[lookupKey];
-      if (rowIdx !== undefined) {
-        // Update position and mlb_team in existing row
-        const rowNum = rowIdx + 2;
-        if (posIdx >= 0 && pos)     sheet.getRange(rowNum, posIdx + 1).setValue(pos);
-        if (mlbTeamIdx >= 0 && mlbTeam) sheet.getRange(rowNum, mlbTeamIdx + 1).setValue(mlbTeam);
-        updated++;
-      } else {
-        // Append new row
-        const newRow = headers.map(h => {
-          if (h === 'teamKey')   return ownerKey;
-          if (h === 'player')    return playerName;
-          if (h === 'position')  return pos;
-          if (h === 'mlb_team')  return mlbTeam;
-          return '';
-        });
-        sheet.appendRow(newRow);
-        added++;
-      }
+      const rowNum = rowIdx + 2; // +1 for header row, +1 for 1-based index
+      if (teamIdx     >= 0)               sheet.getRange(rowNum, teamIdx     + 1).setValue(ownerKey);
+      if (posIdx      >= 0 && pos)        sheet.getRange(rowNum, posIdx      + 1).setValue(pos);
+      if (salIdx      >= 0 && salary != null) sheet.getRange(rowNum, salIdx  + 1).setValue(salary);
+      if (statusIdx   >= 0 && status)     sheet.getRange(rowNum, statusIdx   + 1).setValue(status);
+      if (contractIdx >= 0 && contract)   sheet.getRange(rowNum, contractIdx + 1).setValue(contract);
+      updated++;
     });
   });
 
-  Logger.log('refreshFantraxRosters: updated=' + updated + ' added=' + added);
-  return { ok: true, updated, added };
+  Logger.log('refreshFantraxRosters: updated=' + updated + ' notFound=' + notFound);
+  return { ok: true, updated, notFound };
 }
 
 // ── Refresh draft results ─────────────────────────────────────────────────────
