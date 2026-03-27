@@ -1593,7 +1593,6 @@ function debugFantraxPlayerEndpoints() {
   const results = {};
 
   const { leagueId } = getFantraxProps();
-  const sampleIds = ['02hfr', '02jh6', '02c47'];
   const candidates = [
     { endpoint: 'getPlayerIds',          params: { playerIds: sampleIds.join(',') } },
     { endpoint: 'getPlayerIds',          params: { ids: sampleIds.join(',') } },
