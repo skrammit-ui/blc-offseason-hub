@@ -1715,19 +1715,23 @@ function debugFantraxPlayerEndpoints() {
 function debugFantraxStatsEndpoints() {
   const results = {};
   const candidates = [
-    { endpoint: 'getPlayerStats',        params: { season: 2025 } },
-    { endpoint: 'getPlayerStats',        params: { year: 2025 } },
-    { endpoint: 'getPlayerStats',        params: { season: 2025, statType: 'SEASON' } },
-    { endpoint: 'getSeasonStats',        params: { season: 2025 } },
-    { endpoint: 'getLeaguePlayerStats',  params: { season: 2025 } },
-    { endpoint: 'getPlayerInfo',         params: { season: 2025 } },
-    { endpoint: 'getPlayerScores',       params: { season: 2025 } },
-    { endpoint: 'getScoringStats',       params: { season: 2025 } },
-    { endpoint: 'getPlayerStatsAndInfo', params: { season: 2025 } },
-    { endpoint: 'getAdp',               params: {} },
+    { endpoint: 'getLeagueRosterItems',      params: {} },
+    { endpoint: 'getLeagueStats',            params: {} },
+    { endpoint: 'getPlayersTable',           params: {} },
+    { endpoint: 'getRotoReport',             params: {} },
+    { endpoint: 'getReport',                 params: {} },
+    { endpoint: 'getPlayerRankings',         params: {} },
+    { endpoint: 'getLeaguePlayerRankings',   params: {} },
+    { endpoint: 'getPlayerSeasonStats',      params: {} },
+    { endpoint: 'getLeagueScoringPeriods',   params: {} },
+    { endpoint: 'getLeagueStandings',        params: {} },
+    { endpoint: 'getTeamRosterStats',        params: {} },
+    { endpoint: 'getPlayerStats',            params: { scoringPeriod: 0 } },
+    { endpoint: 'getPlayerStats',            params: {} },
+    { endpoint: 'getLeagueScoreboard',       params: {} },
   ];
   candidates.forEach(c => {
-    const key = c.endpoint;
+    const key = c.endpoint + (Object.keys(c.params).length ? '?' + JSON.stringify(c.params) : '');
     try {
       const data = fetchFantrax(c.endpoint, c.params);
       results[key] = { ok: true, raw: JSON.stringify(data).substring(0, 500) };
