@@ -1178,7 +1178,8 @@ function setupMatchupsSheet() {
 //                         (open Fantrax, F12 → Network → any request → copy Cookie header)
 // ════════════════════════════════════════════════════════════════════════════
 
-const FANTRAX_BASE = 'https://www.fantrax.com/fxea/general/';
+const FANTRAX_BASE  = 'https://www.fantrax.com/fxea/general/';
+const FANTRAX_SPORT = 'MLB';
 
 // Fantrax team names that differ from our ownerMap values → ownerKey
 const FANTRAX_TEAM_ALIASES = {
@@ -1208,7 +1209,7 @@ function fetchFantrax(endpoint, params) {
   const { leagueId, cookie } = getFantraxProps();
   if (!leagueId || !cookie) throw new Error('Fantrax credentials not configured. Set FANTRAX_LEAGUE_ID and FANTRAX_COOKIE in Script Properties.');
 
-  const qp = Object.assign({ leagueId }, params || {});
+  const qp = Object.assign({ leagueId, sport: FANTRAX_SPORT }, params || {});
   const qs = Object.entries(qp).map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(v)).join('&');
   const url = FANTRAX_BASE + endpoint + '?' + qs;
 
