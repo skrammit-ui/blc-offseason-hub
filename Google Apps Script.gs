@@ -1247,6 +1247,7 @@ function testFantraxConnection() {
 
 // ── Refresh dispatcher ────────────────────────────────────────────────────────
 function refreshFantrax(ss, targets) {
+  if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
   const results = {};
   if (targets.includes('matchups')) {
     try { results.matchups = refreshFantraxMatchups(ss); }
@@ -1267,6 +1268,7 @@ function refreshFantrax(ss, targets) {
 // Uses getLeagueInfo which returns all periods' matchups with team names.
 // Matches teams by name (with aliases) and updates HomeScore/VisitorScore.
 function refreshFantraxMatchups(ss) {
+  if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
   const sheet = ss.getSheetByName('Matchups');
   if (!sheet) throw new Error('Matchups sheet not found');
 
@@ -1328,6 +1330,7 @@ function refreshFantraxMatchups(ss) {
 // Matches players by Fantrax player id. Updates teamKey, position, salary,
 // status, and contract year for every matched player.
 function refreshFantraxRosters(ss) {
+  if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
   const data = fetchFantrax('getTeamRosters');
   // Response shape: { period, rosters: { [fantraxTeamId]: { teamName, rosterItems: [{id, position, salary, status, contract:{name}}] } } }
   const rostersObj = data.rosters || (data.data && data.data.rosters) || {};
@@ -1401,6 +1404,7 @@ function refreshFantraxRosters(ss) {
 // ── Refresh draft results ─────────────────────────────────────────────────────
 // Pulls completed draft picks from Fantrax and writes/updates the Picks sheet.
 function refreshFantraxDraft(ss) {
+  if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
   const data = fetchFantrax('getDraftResults');
   // Shape: data.draftResults = [{ round, pick, teamId, playerName, position, proTeam, ... }]
   const picks = data.draftResults || (data.data && data.data.draftResults) || data.picks || [];
@@ -1642,6 +1646,7 @@ function debugGetPlayerIds() {
 
 // ── Debug: compare sheet salary/contract format vs Fantrax ────────────────────
 function debugRosterValues(ss) {
+  if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
   const sheet = ss.getSheetByName('Rosters');
   const [headers, ...rows] = sheet.getDataRange().getValues();
   const teamIdx     = headers.indexOf('teamKey');
