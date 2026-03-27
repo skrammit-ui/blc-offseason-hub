@@ -6465,22 +6465,6 @@ function renderPickCompare() {
       </div>`;
     }
 
-    // delta from A's perspective: giving up ovrA, getting ovrB
-    // positive delta = A's picks have higher (worse) OVR than B's → A moves up → favors A
-    const ovrA  = selA.reduce((s, p) => s + ((p.round - 1) * numTeams + p.pick), 0);
-    const ovrB  = selB.reduce((s, p) => s + ((p.round - 1) * numTeams + p.pick), 0);
-    let deltaBadge = '';
-    if (selA.length && selB.length) {
-      const delta = ovrA - ovrB;
-      const sign  = delta > 0 ? '+' : '';
-      const color = delta > 0 ? 'var(--green)' : delta < 0 ? '#e05c5c' : 'var(--text-3)';
-      const label = delta > 0 ? 'favors you' : delta < 0 ? 'favors them' : 'even';
-      deltaBadge = `<div style="text-align:center;padding:6px 4px">
-        <span style="font-size:16px;font-weight:800;color:${color}">${sign}${delta}</span>
-        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${color};margin-top:1px">${label}</div>
-      </div>`;
-    }
-
     let body;
     if (!hasAny) {
       body = `<div style="padding:32px 16px;text-align:center;color:var(--text-3);font-size:12px;font-style:italic;line-height:1.6">Click picks on<br>either side to compare</div>`;
@@ -6491,10 +6475,20 @@ function renderPickCompare() {
       for (let i = 0; i < maxLen; i++) {
         const ap = selA[i] || null;
         const bp = selB[i] || null;
-        const midCell = (i === 0 && deltaBadge) ? deltaBadge : '';
+        let midCell = '';
+        if (ap && bp) {
+          const ovrAp = (ap.round - 1) * numTeams + ap.pick;
+          const ovrBp = (bp.round - 1) * numTeams + bp.pick;
+          const d     = ovrAp - ovrBp;
+          const sign  = d > 0 ? '+' : '';
+          const color = d > 0 ? 'var(--green)' : d < 0 ? '#e05c5c' : 'var(--text-3)';
+          midCell = `<div style="text-align:center;line-height:1.2">
+            <span style="font-size:13px;font-weight:800;color:${color}">${sign}${d}</span>
+          </div>`;
+        }
         rows += `<div style="display:grid;grid-template-columns:1fr 36px 1fr;align-items:center">
           <div>${pickTile(ap)}</div>
-          <div style="text-align:center;font-size:10px;color:var(--text-4)">${midCell}</div>
+          <div>${midCell}</div>
           <div>${pickTile(bp)}</div>
         </div>`;
       }
