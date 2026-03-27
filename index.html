@@ -6501,12 +6501,13 @@ function renderPickCompare() {
       </div>${rows}`;
     }
 
-    const clearBtn = hasAny ? `<button onclick="pcClearSelection()" style="background:none;border:1px solid rgba(255,255,255,.3);color:rgba(255,255,255,.7);cursor:pointer;font-size:10px;border-radius:3px;padding:2px 7px;margin-left:auto">Clear</button>` : '';
+    const optBtn   = `<button onclick="pcRunOptimization()" style="background:none;border:1px solid rgba(255,255,255,.3);color:rgba(255,255,255,.7);cursor:pointer;font-size:10px;border-radius:3px;padding:2px 7px;margin-left:auto">&#9881; Optimize</button>`;
+    const clearBtn = hasAny ? `<button onclick="pcClearSelection()" style="background:none;border:1px solid rgba(255,255,255,.3);color:rgba(255,255,255,.7);cursor:pointer;font-size:10px;border-radius:3px;padding:2px 7px;margin-left:4px">Clear</button>` : '';
 
     return `<div class="card" style="overflow:hidden">
       <div class="card-header" style="background:var(--navy);padding:8px 12px">
         <span style="font-family:var(--head);font-weight:700;font-size:13px;letter-spacing:.04em;color:#fff">Pick Comparison</span>
-        ${clearBtn}
+        ${optBtn}${clearBtn}
       </div>
       ${body}
     </div>`;
@@ -6533,9 +6534,57 @@ function pcClearSelection() {
   renderPickCompare();
 }
 
+function pcRunOptimization() {
+  const teamA = document.getElementById('pc-team-a')?.value;
+  const teamB = document.getElementById('pc-team-b')?.value;
+  if (!teamA || !teamB || teamA === teamB) return;
 
-function pcClearSelection() {
-  window.pcSelectedRounds = new Set();
+  const { keeperBySlot, keeperSlotByPlayer } = pcComputeKeeperData();
+  const numTeams = pcGetNumTeams();
+
+  function getOpenPicks(teamName) {
+    const assigned = new Set();
+    Object.entries(keeperStore[teamName] || {}).forEach(([player, type]) => {
+      if (type === 'milb') return;
+      const slot = keeperSlotByPlayer[`${teamName}|${player}`];
+      if (slot) assigned.add(slot);
+    });
+    return pcGetTeamPicks(teamName).filter(p => !assigned.has(p.key));
+  }
+
+  const openA = getOpenPicks(teamA);
+  const openB = getOpenPicks(teamB);
+
+  // For each round where both teams have open picks, find the best upgrade opportunity.
+  // An upgrade exists when one team's pick is earlier (lower pick#) than the other's.
+  // Collect all such opportunities sorted by gain (largest first).
+  const opps = [];
+  const rounds = [...new Set([...openA.map(p => p.round), ...openB.map(p => p.round)])];
+
+  rounds.forEach(rd => {
+    const aInRound = openA.filter(p => p.round === rd);
+    const bInRound = openB.filter(p => p.round === rd);
+    aInRound.forEach(ap => bInRound.forEach(bp => {
+      const gain = Math.abs(ap.pick - bp.pick);
+      if (gain > 0) opps.push({ ap, bp, gain, aOvr: (rd-1)*numTeams+ap.pick, bOvr: (rd-1)*numTeams+bp.pick });
+    }));
+  });
+
+  opps.sort((a, b) => b.gain - a.gain);
+
+  // De-duplicate: each pick can only appear once. Walk through sorted opps greedily.
+  const usedA = new Set(), usedB = new Set();
+  window.pcSelA = new Set();
+  window.pcSelB = new Set();
+
+  opps.forEach(({ ap, bp }) => {
+    if (usedA.has(ap.key) || usedB.has(bp.key)) return;
+    window.pcSelA.add(ap.key);
+    window.pcSelB.add(bp.key);
+    usedA.add(ap.key);
+    usedB.add(bp.key);
+  });
+
   renderPickCompare();
 }
 
