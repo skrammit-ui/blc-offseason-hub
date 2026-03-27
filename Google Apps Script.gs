@@ -106,6 +106,8 @@ function doPost(e) {
         return corsResponse(debugFantrax(payload.endpoint, payload.params));
       case 'debugFantraxRosterMatch':
         return corsResponse(debugFantraxRosterMatch());
+      case 'populateFantraxPlayerIds':
+        return corsResponse(populateFantraxPlayerIds(ss));
       default:
         return corsResponse({ ok: false, error: 'Unknown action: ' + payload.action });
     }
@@ -1172,6 +1174,16 @@ function setupMatchupsSheet() {
 
 const FANTRAX_BASE = 'https://www.fantrax.com/fxea/general/';
 
+// Fantrax team names that differ from our ownerMap values → ownerKey
+const FANTRAX_TEAM_ALIASES = {
+  'tortured owners dept':   'tortured',
+  "kiner's korner":         'kiners',
+  'iron_fists':             'ironfists',
+  'domingo shermán':        'domingo',
+  't&p':                    'prayers',
+  'dan rochat':             'danr',
+};
+
 function getFantraxProps() {
   const props = PropertiesService.getScriptProperties();
   return {
@@ -1328,10 +1340,11 @@ function refreshFantraxRosters(ss) {
   const contractIdx = headers.indexOf('contract');
   if (idIdx < 0) throw new Error('Rosters sheet missing id column — needed to match Fantrax players');
 
-  // Build reverse ownerMap: teamName (lowercase) → ownerKey
+  // Build reverse ownerMap: teamName (lowercase) → ownerKey, plus Fantrax aliases
   const ownerMap = getOwnerMap(ss); // ownerKey → teamName
   const nameToKey = {};
   Object.entries(ownerMap).forEach(([key, name]) => { nameToKey[name.toLowerCase()] = key; });
+  Object.entries(FANTRAX_TEAM_ALIASES).forEach(([alias, key]) => { nameToKey[alias] = key; });
 
   // Build player lookup: fantraxPlayerId → row index (0-based, rows array)
   const idLookup = {};
@@ -1489,6 +1502,7 @@ function debugFantraxRosterMatch() {
     const ownerMap = getOwnerMap(ss); // ownerKey → teamName
     const nameToKey = {};
     Object.entries(ownerMap).forEach(([key, name]) => { nameToKey[name.toLowerCase()] = key; });
+    Object.entries(FANTRAX_TEAM_ALIASES).forEach(([alias, key]) => { nameToKey[alias] = key; });
 
     const data = fetchFantrax('getTeamRosters');
     const rostersObj = data.rosters || {};
@@ -1515,4 +1529,67 @@ function debugFantraxRosterMatch() {
   } catch(e) {
     return { ok: false, error: e.message };
   }
+}
+
+// ── One-time: populate the id column in Rosters sheet from Fantrax ─────────────
+// Fetches all roster player IDs, calls getPlayersInfo to get names,
+// then matches names to existing rows and writes the Fantrax id into the id column.
+function populateFantraxPlayerIds(ss) {
+  // Step 1: collect all unique player IDs from all rosters
+  const rostersData = fetchFantrax('getTeamRosters');
+  const rostersObj  = rostersData.rosters || {};
+  const allIds = [];
+  Object.values(rostersObj).forEach(teamData => {
+    (teamData.rosterItems || []).forEach(item => { if (item.id) allIds.push(item.id); });
+  });
+  if (!allIds.length) return { ok: false, error: 'No player IDs found in Fantrax rosters' };
+
+  // Step 2: fetch player info in batches of 50 (Fantrax limit)
+  const playerNames = {}; // fantraxId → playerName
+  const batchSize = 50;
+  for (let i = 0; i < allIds.length; i += batchSize) {
+    const batch = allIds.slice(i, i + batchSize);
+    try {
+      const info = fetchFantrax('getPlayersInfo', { playerIds: batch.join(',') });
+      // Response shape varies; try common structures
+      const players = info.players || info.playerInfo || info.data || {};
+      if (Array.isArray(players)) {
+        players.forEach(p => { if (p.id && p.name) playerNames[p.id] = p.name; });
+      } else {
+        Object.entries(players).forEach(([id, p]) => {
+          const name = p.name || p.playerName || p.fullName || '';
+          if (name) playerNames[id] = name;
+        });
+      }
+    } catch(e) {
+      Logger.log('populateFantraxPlayerIds: batch ' + i + ' failed: ' + e.message);
+    }
+  }
+
+  if (!Object.keys(playerNames).length) {
+    return { ok: false, error: 'getPlayersInfo returned no names. Raw sample logged.', allIdsSample: allIds.slice(0,5) };
+  }
+
+  // Step 3: match names to Rosters sheet rows and write id
+  const sheet = ss.getSheetByName('Rosters');
+  const [headers, ...rows] = sheet.getDataRange().getValues();
+  const playerIdx = headers.indexOf('player');
+  const idIdx     = headers.indexOf('id');
+  if (playerIdx < 0 || idIdx < 0) return { ok: false, error: 'Rosters sheet missing player or id column' };
+
+  // Build name lookup: normalize(name) → row index
+  const normalize = s => String(s || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+  const nameLookup = {};
+  rows.forEach((r, i) => { nameLookup[normalize(r[playerIdx])] = i; });
+
+  let matched = 0; let unmatched = 0;
+  Object.entries(playerNames).forEach(([fantraxId, name]) => {
+    const rowIdx = nameLookup[normalize(name)];
+    if (rowIdx === undefined) { unmatched++; return; }
+    sheet.getRange(rowIdx + 2, idIdx + 1).setValue(fantraxId);
+    matched++;
+  });
+
+  Logger.log('populateFantraxPlayerIds: matched=' + matched + ' unmatched=' + unmatched);
+  return { ok: true, matched, unmatched, totalIds: allIds.length, namesReturned: Object.keys(playerNames).length };
 }
