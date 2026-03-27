@@ -1863,9 +1863,9 @@ input[type=file] { display: none; }
       <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <div>
           <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:4px">No order yet? Set a placeholder</div>
-          <div style="font-size:11px;color:var(--text-3)">Gives each team one pick per round (rounds 1–30) so managers can start planning. No order between teams — replace with the real CSV once the draft order is set.</div>
+          <div style="font-size:11px;color:var(--text-3)">Randomly shuffles teams and assigns a snake draft order (rounds 1–30) so managers can start planning. Replace with the real CSV once the draft order is finalised.</div>
         </div>
-        <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px;white-space:nowrap" onclick="confirmGenericPickOrder()">&#x1F500; Set Generic Order</button>
+        <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px;white-space:nowrap" onclick="confirmGenericPickOrder()">&#x1F500; Random Snake Order</button>
       </div>
       <div id="pickorder-status" style="font-size:13px;color:var(--text-3);margin-top:8px"></div>
     </div>
@@ -5108,31 +5108,37 @@ function handlePickOrderDrop(event) {
 function confirmGenericPickOrder() {
   const teamCount = Object.keys(LEAGUE).length;
   const confirmed = window.confirm(
-    `Set Generic Picks?\n\nThis will give each of the ${teamCount} managers one pick per round for rounds 1–30, with no ordering between teams.\n\nManagers can start planning their keepers right away. Replace with the real CSV once the draft order is set.\n\nContinue?`
+    `Set Random Snake Draft Order?\n\nThis will randomly shuffle the ${teamCount} teams and assign picks using a snake draft (odd rounds forward, even rounds reversed) for rounds 1–30.\n\nManagers can start planning their keepers right away. Replace with the real CSV once the draft order is finalised.\n\nContinue?`
   );
   if (confirmed) setGenericPickOrder();
 }
 
 function setGenericPickOrder() {
   const NUM_ROUNDS = 30;
+  // Shuffle teams randomly (Fisher-Yates)
   const teams = Object.keys(LEAGUE).sort();
+  for (let i = teams.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [teams[i], teams[j]] = [teams[j], teams[i]];
+  }
 
   const slots = [];
   pickOrder = {};
 
-  // Each team gets one pick per round — pick number = their index (no ordering implied)
-  teams.forEach((team, i) => {
-    const pk = i + 1;
-    for (let rd = 1; rd <= NUM_ROUNDS; rd++) {
+  // Snake draft: odd rounds pick 1→N, even rounds pick N→1
+  for (let rd = 1; rd <= NUM_ROUNDS; rd++) {
+    const order = (rd % 2 === 1) ? teams : [...teams].reverse();
+    order.forEach((team, i) => {
+      const pk = i + 1;
       pickOrder[pickKey(rd, pk)] = team;
       slots.push({ round: rd, pick: pk, team: ownerKeyFor(team) || team });
-    }
-  });
+    });
+  }
 
   const statusEl = document.getElementById('pickorder-status');
-  statusEl.textContent = `✓ Generic picks set — ${teams.length} teams × ${NUM_ROUNDS} rounds`;
+  statusEl.textContent = `✓ Random snake draft order set — ${teams.length} teams × ${NUM_ROUNDS} rounds`;
   statusEl.style.color = 'var(--green)';
-  toast(`Generic picks set — managers can now use the Draft Planner`);
+  toast(`Random snake draft order set — managers can now use the Draft Planner`);
 
   remotePost({ action: 'importPickOrder', slots }).then(r => {
     if (r && r.ok) statusEl.textContent += ' · saved to sheet';
