@@ -1614,17 +1614,10 @@ function debugFantraxPlayerEndpoints() {
     const key = c.endpoint + '?' + JSON.stringify(c.params);
     try {
       const data = fetchFantrax(c.endpoint, c.params);
-      const topKeys = Object.keys(data);
-      // Grab a small sample of the first array/object value
-      let sample = null;
-      for (const k of topKeys) {
-        const v = data[k];
-        if (Array.isArray(v) && v.length) { sample = v.slice(0, 2); break; }
-        if (v && typeof v === 'object') { const sk = Object.keys(v); sample = { _keys: sk.slice(0,5) }; break; }
-      }
-      results[key] = { ok: true, topKeys, sample };
+      // Return full raw response so we can see error codes/messages
+      results[key] = { ok: true, raw: JSON.stringify(data).substring(0, 600) };
     } catch(e) {
-      results[key] = { ok: false, error: e.message.substring(0, 120) };
+      results[key] = { ok: false, error: e.message.substring(0, 200) };
     }
   });
 
