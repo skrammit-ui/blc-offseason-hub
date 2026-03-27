@@ -1220,7 +1220,7 @@ input[type=file] { display: none; }
       <img class="nav-icon-img" src="icons/teamroster.png" alt=""><span class="nav-label">Team Roster</span>
     </div>
     <div class="nav-item" id="nav-matchups" onclick="nav('matchups',this)">
-      <img class="nav-icon-img" src="icons/matchups.png" alt=""><span class="nav-label">Matchups</span>
+      <img class="nav-icon-img" src="icons/matchups.png" alt=""><span class="nav-label">Pick Compare</span>
     </div>
     <div class="nav-item" onclick="nav('standings',this)">
       <img class="nav-icon-img" src="icons/standings.png" alt=""><span class="nav-label">Standings</span>
@@ -1959,15 +1959,7 @@ input[type=file] { display: none; }
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-primary" style="font-size:12px;padding:7px 18px;background:#22a366;border-color:#22a366" onclick="doFantraxRefresh()">⚡ Refresh from Fantrax</button>
         <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="doFantraxTest()">Test Connection</button>
-        <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="doFantraxDebug('getTeamRosters')">Debug Rosters</button>
-        <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="doFantraxDebug('getLeagueMatchupListVX',{scoringPeriod:1})">Debug Matchups</button>
-        <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="doFantraxDebugMatch()">Debug Match</button>
         <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px;border-color:#e06c00;color:#e06c00" onclick="doFantraxGenericPost('buildRostersFromFantrax')">Build Rosters Sheet</button>
-        <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px;border-color:#22a366;color:#22a366" onclick="doPopulateFantraxIds()">Populate Player IDs</button>
-        <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="doFantraxGenericPost('debugFantraxPlayerEndpoints')">Debug Player Endpoints</button>
-        <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="doFantraxGenericPost('debugGetPlayerIds')">Debug getPlayerIds</button>
-        <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="doFantraxGenericPost('debugRosterValues')">Debug Sheet Values</button>
-        <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="doFantraxGenericPost('debugFantraxStatsEndpoints')">Debug Stats Endpoints</button>
         <span id="fantrax-refresh-status" style="font-size:11px;color:var(--text-3)"></span>
       </div>
       <div id="fantrax-refresh-results" style="display:none;margin-top:14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:12px"></div>
@@ -1979,21 +1971,24 @@ input[type=file] { display: none; }
      MATCHUPS PAGE
 ════════════════════════════════════════ -->
 <div class="page" id="page-matchups">
-  <div class="page-title"><img class="page-title-icon" src="icons/matchups.png" alt="">Matchups</div>
-  <div class="page-sub">Weekly head-to-head matchups · 2026 Season</div>
+  <div class="page-title"><img class="page-title-icon" src="icons/matchups.png" alt="">Pick Compare</div>
+  <div class="page-sub">Compare draft picks, keeper commitments, and trade opportunities between two managers</div>
 
-  <div class="card" style="border-left:3px solid var(--gold)">
-    <div class="card-header">
-      <span class="card-title">Weekly Schedule</span>
+  <div class="card" style="margin-bottom:16px">
+    <div style="padding:14px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:8px">
-        <label style="font-size:12px;color:var(--text-3)">Week</label>
-        <select id="matchup-week-select" onchange="renderMatchupsWeek(this.value)"
-          style="font-family:var(--body);font-size:12px;padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
-        </select>
+        <label style="font-size:12px;font-weight:600;color:var(--text-2)">Team A</label>
+        <select id="pc-team-a" onchange="renderPickCompare()" style="font-family:var(--body);font-size:12px;padding:4px 8px;border-radius:5px;border:1px solid var(--border);background:var(--bg);color:var(--text)"></select>
+      </div>
+      <span style="font-weight:700;color:var(--text-3)">vs</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:12px;font-weight:600;color:var(--text-2)">Team B</label>
+        <select id="pc-team-b" onchange="renderPickCompare()" style="font-family:var(--body);font-size:12px;padding:4px 8px;border-radius:5px;border:1px solid var(--border);background:var(--bg);color:var(--text)"></select>
       </div>
     </div>
-    <div id="matchup-body" style="padding:16px 18px"></div>
   </div>
+
+  <div id="pc-results"></div>
 </div>
 
 <!-- ════════════════════════════════════════
@@ -2117,7 +2112,7 @@ function nav(page, el) {
   if (page === 'keepers') initLeagueRostersPage();
   if (page === 'draft') initDraftBoardPage();
   if (page === 'commish') initCommishPage();
-  if (page === 'matchups') initMatchupsPage();
+  if (page === 'matchups') initPickComparePage();
 }
 
 // ── Roster rendering ──────────────────────────────────────────────────────────
@@ -6331,128 +6326,218 @@ function togglePlayerView(btn, homeKey, visitorKey) {
   btn.textContent = '▲ Hide Players';
 }
 
-function initMatchupsPage() {
-  const sel = document.getElementById('matchup-week-select');
-  if (!sel) return;
-
-  // Build week options from MATCHUPS data (or fallback 1–19)
-  const weeks = MATCHUPS.length
-    ? [...new Set(MATCHUPS.map(m => m.week))].sort((a,b) => a - b)
-    : Array.from({length: 19}, (_, i) => i + 1);
-
-  sel.innerHTML = weeks.map(w => {
-    const hasPlayoff = MATCHUPS.some(m => m.week === w && m.type !== 'Regular Season');
-    const label = hasPlayoff ? `Week ${w} · Playoffs` : `Week ${w}`;
-    return `<option value="${w}">${label}</option>`;
-  }).join('');
-
-  // Default to current or first week
-  const now = new Date();
-  sel.value = weeks[0];
-  renderMatchupsWeek(weeks[0]);
+function initPickComparePage() {
+  const teams = Object.keys(LEAGUE).sort();
+  ['pc-team-a', 'pc-team-b'].forEach((id, i) => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = teams.map(t => `<option value="${escHtml(t)}">${escHtml(t)}</option>`).join('');
+    if (teams[i] !== undefined) sel.value = teams[i];
+  });
+  renderPickCompare();
 }
 
-function renderMatchupsWeek(week) {
-  const body = document.getElementById('matchup-body');
-  if (!body) return;
-  week = Number(week);
+function renderPickCompare() {
+  const teamA = document.getElementById('pc-team-a')?.value;
+  const teamB = document.getElementById('pc-team-b')?.value;
+  const el = document.getElementById('pc-results');
+  if (!el || !teamA || !teamB) return;
 
-  const rows = MATCHUPS.filter(m => m.week === week);
-  if (!rows.length) {
-    body.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-3);font-size:13px">No matchup data for Week ${week}.<br>Run <code>setupMatchupsSheet()</code> in Apps Script to seed the data.</div>`;
+  if (teamA === teamB) {
+    el.innerHTML = '<div style="text-align:center;padding:32px;color:var(--text-3)">Select two different teams to compare.</div>';
     return;
   }
 
-  const standings = computeStandings();
-  const typeOrder = ['Regular Season','Wild Card','Championship','Consolation','Rule 5'];
-  const typeBadge = {
-    'Wild Card':    '<span style="font-size:10px;font-weight:700;color:var(--orange);background:var(--orange-lt);border:1px solid #fed7aa;border-radius:3px;padding:1px 5px;margin-left:6px">Wild Card</span>',
-    'Championship': '<span style="font-size:10px;font-weight:700;color:var(--green);background:var(--green-lt);border:1px solid #a8d5bc;border-radius:3px;padding:1px 5px;margin-left:6px">Championship</span>',
-    'Consolation':  '<span style="font-size:10px;font-weight:700;color:var(--blue);background:var(--blue-lt);border:1px solid #b5d4f4;border-radius:3px;padding:1px 5px;margin-left:6px">Consolation</span>',
-    'Rule 5':       '<span style="font-size:10px;font-weight:700;color:var(--purple);background:var(--purple-lt);border:1px solid #c4b5fd;border-radius:3px;padding:1px 5px;margin-left:6px">Rule 5</span>',
-  };
+  const keeperBySlot = pcComputeKeeperBySlot();
+  const picksA = pcGetTeamPicks(teamA);
+  const picksB = pcGetTeamPicks(teamB);
+  const allRounds = [...new Set([...picksA.map(p => p.round), ...picksB.map(p => p.round)])].sort((a,b) => a-b);
 
-  const groups = {};
-  rows.forEach(m => { const t = m.type || 'Regular Season'; if (!groups[t]) groups[t] = []; groups[t].push(m); });
+  const styleCell   = 'padding:7px 10px;font-size:12px;border-bottom:1px solid var(--border)';
+  const styleHeader = 'padding:8px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid var(--border)';
 
-  // Sort each group so the current manager's matchup comes first
-  const myKey = window._currentOwnerKey;
-  Object.keys(groups).forEach(type => {
-    groups[type].sort((a, b) => {
-      const aHasMe = myKey && (a.home === myKey || a.visitor === myKey) ? -1 : 0;
-      const bHasMe = myKey && (b.home === myKey || b.visitor === myKey) ? 1 : 0;
-      return aHasMe + bHasMe;
+  let picksHtml;
+  if (!allRounds.length) {
+    picksHtml = '<div style="padding:24px;text-align:center;color:var(--text-3);font-size:13px">No pick order data loaded. Upload a pick order CSV in the Commissioner section.</div>';
+  } else {
+    const rows = allRounds.map(rd => {
+      const aPicks = picksA.filter(p => p.round === rd);
+      const bPicks = picksB.filter(p => p.round === rd);
+      const maxRows = Math.max(aPicks.length, bPicks.length, 1);
+      return Array.from({length: maxRows}, (_, i) => {
+        const ap = aPicks[i];
+        const bp = bPicks[i];
+        const rdCell = i === 0
+          ? `<td rowspan="${maxRows}" style="width:52px;text-align:center;${styleCell};font-size:13px;font-weight:700;color:var(--text-2);border-right:1px solid var(--border)">${rd}</td>`
+          : '';
+        return `<tr>${rdCell}
+          <td style="${styleCell}">${ap ? pcRenderPick(ap, keeperBySlot) : '<span style="color:var(--text-4)">—</span>'}</td>
+          <td style="${styleCell};border-left:1px solid var(--border)">${bp ? pcRenderPick(bp, keeperBySlot) : '<span style="color:var(--text-4)">—</span>'}</td>
+        </tr>`;
+      }).join('');
+    }).join('');
+
+    picksHtml = `<table style="width:100%;border-collapse:collapse">
+      <thead><tr>
+        <th style="width:52px;text-align:center;${styleHeader};color:var(--text-3)">Rd</th>
+        <th style="${styleHeader};color:var(--navy)">${escHtml(teamA)}</th>
+        <th style="${styleHeader};color:var(--navy);border-left:1px solid var(--border)">${escHtml(teamB)}</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  const rosterA  = LEAGUE[teamA] || [];
+  const rosterB  = LEAGUE[teamB] || [];
+  const keepersA = keeperStore[teamA] || {};
+  const keepersB = keeperStore[teamB] || {};
+
+  function renderRoster(players, keepers) {
+    if (!players.length) return '<div style="color:var(--text-3);font-size:12px;padding:8px 0">No roster data</div>';
+    const sorted = players.slice().sort((a,b) => {
+      return (keepers[a.player] ? 0 : 1) - (keepers[b.player] ? 0 : 1) || a.player.localeCompare(b.player);
     });
-  });
-
-  const catHeaders = SCORING_CATS.map(c => `<th>${c.label}</th>`).join('');
-
-  let html = '';
-  typeOrder.forEach(type => {
-    if (!groups[type]) return;
-    if (type !== 'Regular Season' && typeBadge[type]) {
-      html += `<div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);padding:4px 2px 6px">${type}</div>`;
-    }
-    groups[type].forEach((m, idx) => {
-      const homeName  = OWNER_MAP[m.home]    || m.home;
-      const visitName = OWNER_MAP[m.visitor] || m.visitor;
-      const hs = aggregateTeamStats(m.home);
-      const vs = aggregateTeamStats(m.visitor);
-      const hasScore  = m.homeScore != null && m.visitorScore != null;
-      const homeWon   = hasScore && m.homeScore  > m.visitorScore;
-      const visitWon  = hasScore && m.visitorScore > m.homeScore;
-
-      // Season W-L-T records
-      const hRec = standings[m.home]    || { W:0, L:0, T:0 };
-      const vRec = standings[m.visitor] || { W:0, L:0, T:0 };
-      const recStr = r => `${r.W}-${r.L}${r.T ? '-'+r.T : ''}`;
-
-      // Category stat comparison
-      let homeWins = 0, visitWins = 0;
-      const catCells = SCORING_CATS.map(cat => {
-        const hv = hs ? hs[cat.key] : null;
-        const vv = vs ? vs[cat.key] : null;
-        let hWin = false, vWin = false;
-        if (hv != null && vv != null && hv !== vv) {
-          hWin = cat.lower ? hv < vv : hv > vv;
-          vWin = !hWin;
-        }
-        if (hWin) homeWins++;
-        if (vWin) visitWins++;
-        return { hStr: cat.fmt(hv), vStr: cat.fmt(vv), hWin, vWin };
-      });
-
-      const homeScoreColor  = homeWins  > visitWins ? 'var(--green)' : homeWins  < visitWins ? 'var(--text-2)' : 'var(--text-3)';
-      const visitScoreColor = visitWins > homeWins  ? 'var(--green)' : visitWins < homeWins  ? 'var(--text-2)' : 'var(--text-3)';
-      const cardId = `mu-${week}-${idx}`;
-
-      html += `<div class="mu-card">
-        <div class="mu-stats-wrap"><table class="mu-stats-tbl">
-          <thead><tr>
-            <th></th>
-            <th style="border-right:1px solid var(--border)">W-L-T</th>
-            ${catHeaders}
-          </tr></thead>
-          <tbody>
-            <tr>
-              <td>${homeName}</td>
-              <td style="color:var(--text-3);font-size:12px;border-right:1px solid var(--border)">${recStr(hRec)}</td>
-              ${catCells.map(c => `<td class="${c.hWin?'mu-win':''}">${c.hStr}</td>`).join('')}
-            </tr>
-            <tr>
-              <td>${visitName}</td>
-              <td style="color:var(--text-3);font-size:12px;border-right:1px solid var(--border)">${recStr(vRec)}</td>
-              ${catCells.map(c => `<td class="${c.vWin?'mu-win':''}">${c.vStr}</td>`).join('')}
-            </tr>
-          </tbody>
-        </table></div>
-        <button class="mu-players-btn" onclick="togglePlayerView(this,'${m.home}','${m.visitor}')">▼ View Players</button>
-        <div class="mu-player-section" id="${cardId}-players" style="display:none"></div>
+    return sorted.map(p => {
+      const kType  = keepers[p.player];
+      const kColor = {mlb:'var(--green)',milb:'var(--blue)',rule5:'var(--purple)',trade:'var(--orange)'}[kType] || '';
+      const kLabel = {mlb:'K',milb:'MiLB',rule5:'R5',trade:'Trade'}[kType] || '';
+      const badge  = kType
+        ? `<span style="font-size:9px;font-weight:700;color:${kColor};border:1px solid ${kColor};border-radius:3px;padding:1px 4px;flex-shrink:0">${kLabel}</span>`
+        : '<span style="width:26px;flex-shrink:0"></span>';
+      return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border)">
+        ${badge}
+        <span style="flex:1;font-size:12px;font-weight:500">${escHtml(p.player)}</span>
+        <span style="font-size:11px;color:var(--text-3);width:34px;text-align:center">${escHtml(p.position||'')}</span>
+        <span style="font-size:11px;color:var(--text-2);width:26px;text-align:right;font-weight:600">$${escHtml(p.salary||'')}</span>
+        <span style="font-size:10px;color:var(--text-3);width:32px;text-align:right">'${escHtml(String(p.contract||'').slice(-2))}</span>
       </div>`;
-    });
-  });
+    }).join('');
+  }
 
-  body.innerHTML = html;
+  const aOpen = picksA.filter(p => !keeperBySlot[p.key]).length;
+  const bOpen = picksB.filter(p => !keeperBySlot[p.key]).length;
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header">
+        <span class="card-title">Draft Picks</span>
+        <div style="display:flex;gap:20px;font-size:11px;color:var(--text-3)">
+          <span>${escHtml(teamA)}: <strong>${picksA.length}</strong> picks · <strong style="color:var(--green)">${picksA.length - aOpen}</strong> keepers · <strong>${aOpen}</strong> open</span>
+          <span>${escHtml(teamB)}: <strong>${picksB.length}</strong> picks · <strong style="color:var(--green)">${picksB.length - bOpen}</strong> keepers · <strong>${bOpen}</strong> open</span>
+        </div>
+      </div>
+      <div style="overflow-x:auto">${picksHtml}</div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Rosters</span>
+        <div style="display:flex;gap:20px;font-size:11px;color:var(--text-3)">
+          <span>${escHtml(teamA)}: <strong>${rosterA.length}</strong> players · <strong style="color:var(--green)">${Object.keys(keepersA).length}</strong> keepers</span>
+          <span>${escHtml(teamB)}: <strong>${rosterB.length}</strong> players · <strong style="color:var(--green)">${Object.keys(keepersB).length}</strong> keepers</span>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr">
+        <div style="padding:14px 16px;border-right:1px solid var(--border)">
+          <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">${escHtml(teamA)}</div>
+          ${renderRoster(rosterA, keepersA)}
+        </div>
+        <div style="padding:14px 16px">
+          <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">${escHtml(teamB)}</div>
+          ${renderRoster(rosterB, keepersB)}
+        </div>
+      </div>
+    </div>`;
+}
+
+function pcRenderPick(pick, keeperBySlot) {
+  const k = keeperBySlot[pick.key];
+  if (k) {
+    return `<span style="color:var(--green);font-weight:600">&#x1F512; ${escHtml(k.player)}</span><span style="color:var(--text-3);font-size:11px;margin-left:6px">$${k.sal} · Pk ${pick.pick}</span>`;
+  }
+  const drafted = draftResults.find(d => String(d.round) === String(pick.round) && String(d.pick) === String(pick.pick) && d.manager === pick.team);
+  if (drafted) {
+    return `<span style="font-weight:500">${escHtml(drafted.player)}</span><span style="color:var(--text-3);font-size:11px;margin-left:6px">Pk ${pick.pick}</span>`;
+  }
+  return `<span style="color:var(--text-4);font-style:italic">Open · Pk ${pick.pick}</span>`;
+}
+
+function pcGetTeamPicks(teamName) {
+  const picks = [];
+  for (const [key, team] of Object.entries(pickOrder)) {
+    if (team !== teamName) continue;
+    const [rdStr, pkStr] = key.split('_');
+    picks.push({ round: parseInt(rdStr), pick: parseInt(pkStr), key, team: teamName });
+  }
+  return picks.sort((a,b) => a.round - b.round || a.pick - b.pick);
+}
+
+function pcComputeKeeperBySlot() {
+  const assignments = [];
+  const hasPickOrder = Object.keys(pickOrder).length > 0;
+  if (!hasPickOrder) return {};
+
+  for (const [team, keptMap] of Object.entries(keeperStore)) {
+    const keepers = [];
+    for (const [playerName, type] of Object.entries(keptMap)) {
+      if (type === 'milb') continue;
+      const p = (LEAGUE[team] || []).find(x => x.player === playerName);
+      if (!p) continue;
+      const sal = parseInt(p.salary);
+      if (!sal || sal > 30) continue;
+      keepers.push({ player: playerName, mlb_team: p.mlb_team, position: p.position, manager: team, contract: p.contract, sal });
+    }
+
+    const teamPicksByRd = {};
+    for (const [key, assignedTeam] of Object.entries(pickOrder)) {
+      if (assignedTeam !== team) continue;
+      const [rdStr, pkStr] = key.split('_');
+      const rd = parseInt(rdStr), pk = parseInt(pkStr);
+      if (!teamPicksByRd[rd]) teamPicksByRd[rd] = [];
+      teamPicksByRd[rd].push(pk);
+    }
+    for (const rd of Object.keys(teamPicksByRd)) teamPicksByRd[rd].sort((a,b) => a-b);
+
+    const teamCustom = (typeof customDraftSlots !== 'undefined' && customDraftSlots[ownerKeyFor(team)]) || {};
+    const occupied   = new Set();
+    keepers.sort((a,b) => b.sal - a.sal || a.player.localeCompare(b.player));
+
+    const needsAuto = [];
+    for (const k of keepers) {
+      const custom = teamCustom[k.player];
+      if (custom) {
+        const parts = custom.split('_');
+        const rd = parseInt(parts[0]);
+        const pk = parts[1] ? parseInt(parts[1]) : null;
+        const pks = teamPicksByRd[rd];
+        if (pks) {
+          const cands = (pk !== null && pks.includes(pk)) ? [pk] : pks;
+          let placed = false;
+          for (const p of cands) {
+            const slot = `${rd}_${p}`;
+            if (!occupied.has(slot)) { occupied.add(slot); assignments.push({...k, rd, pk: p}); placed = true; break; }
+          }
+          if (placed) continue;
+        }
+      }
+      needsAuto.push(k);
+    }
+    for (const k of needsAuto) {
+      for (let tryRd = k.sal; tryRd >= 1; tryRd--) {
+        const pks = teamPicksByRd[tryRd];
+        if (!pks) continue;
+        let placed = false;
+        for (let i = pks.length - 1; i >= 0; i--) {
+          const slot = `${tryRd}_${pks[i]}`;
+          if (!occupied.has(slot)) { occupied.add(slot); assignments.push({...k, rd: tryRd, pk: pks[i]}); placed = true; break; }
+        }
+        if (placed) break;
+      }
+    }
+  }
+
+  const bySlot = {};
+  assignments.forEach(k => { if (k.pk != null) bySlot[`${k.rd}_${k.pk}`] = k; });
+  return bySlot;
 }
 
 function initCommishPage() {
