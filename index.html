@@ -6327,7 +6327,6 @@ function togglePlayerView(btn, homeKey, visitorKey) {
 function initPickComparePage() {
   const teams = Object.keys(LEAGUE).sort();
   const myTeam = currentTeam || teams[0];
-
   ['pc-team-a', 'pc-team-b'].forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
@@ -6354,118 +6353,155 @@ function renderPickCompare() {
   const { keeperBySlot, keeperSlotByPlayer } = pcComputeKeeperData();
   const numTeams = pcGetNumTeams();
 
-  const thStyle  = `font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:4px 8px;border-bottom:1px solid var(--border)`;
-  const thPick   = `${thStyle};text-align:center;width:30px`;
-  const thCenter = `${thStyle};text-align:center`;
-  const thLeft   = `${thStyle};text-align:left;padding-left:10px`;
-
-  // ── Per-team pick data ──────────────────────────────────────────────────────
+  // ── Pick data per team ──────────────────────────────────────────────────────
   function getPickData(teamName) {
-    const keptPlayers = Object.entries(keeperStore[teamName] || {})
-      .filter(([, type]) => type !== 'milb');
     const assigned = new Set();
-    keptPlayers.forEach(([playerName]) => {
-      const slot = keeperSlotByPlayer[`${teamName}|${playerName}`];
+    Object.entries(keeperStore[teamName] || {}).forEach(([player, type]) => {
+      if (type === 'milb') return;
+      const slot = keeperSlotByPlayer[`${teamName}|${player}`];
       if (slot) assigned.add(slot);
     });
-    const all      = pcGetTeamPicks(teamName);
-    const open     = all.filter(p => !assigned.has(p.key));
-    const assnPks  = all.filter(p =>  assigned.has(p.key));
+    const all     = pcGetTeamPicks(teamName);
+    const open    = all.filter(p => !assigned.has(p.key));
+    const assnPks = all.filter(p =>  assigned.has(p.key));
     return { all, open, assigned: assnPks };
   }
 
   const dataA = getPickData(teamA);
   const dataB = getPickData(teamB);
 
-  // ── Team card (keepers only) ────────────────────────────────────────────────
-  function buildTeamCard(teamName, pickData, picksOnRight) {
-    const keptMap  = keeperStore[teamName] || {};
-    const players  = [...(LEAGUE[teamName] || [])]
-      .filter(p => keptMap[p.player] && keptMap[p.player] !== 'milb')
-      .sort((a, b) => (parseInt(a.salary) || 999) - (parseInt(b.salary) || 999));
+  // ── Cell renderers ──────────────────────────────────────────────────────────
+  const BG_KEEPER = 'background:#edf7f1';
+  const BG_OPEN   = '';
+  const BG_BLANK  = 'background:var(--bg)';
 
-    const rowsHtml = players.map(p => {
-      const normStatus = STATUS_MAP[p.status] || 'MLB';
-      const sm         = STATUS_META[normStatus] || STATUS_META['MLB'];
-      const stagHtml   = `<span class="stag ${sm.cls}" style="cursor:default;white-space:nowrap">${sm.label}</span>`;
-      const keeperType = keptMap[p.player];
-      const keeperClass = keeperType ? `keeper-${keeperType}` : '';
+  function keeperCells(pick, teamName, side) {
+    const k  = keeperBySlot[pick.key];
+    const p  = k ? (LEAGUE[teamName] || []).find(x => x.player === k.player) : null;
+    const ovr = (pick.round - 1) * numTeams + pick.pick;
+    const sm  = p ? (STATUS_META[STATUS_MAP[p.status] || 'MLB'] || STATUS_META['MLB']) : null;
 
-      const slotKey = keeperSlotByPlayer[`${teamName}|${p.player}`];
-      let rdCell = '<span style="color:var(--text-4)">—</span>';
-      let pkCell = '<span style="color:var(--text-4)">—</span>';
-      let ovrCell = '<span style="color:var(--text-4)">—</span>';
-      if (slotKey) {
-        const [rdStr, pkStr] = slotKey.split('_');
-        const rd  = parseInt(rdStr), pk = parseInt(pkStr);
-        const ovr = (rd - 1) * numTeams + pk;
-        rdCell  = `<strong style="color:var(--green)">${rd}</strong>`;
-        pkCell  = `<span style="color:var(--green)">${pk}</span>`;
-        ovrCell = `<span style="color:var(--green)">${ovr}</span>`;
-      }
+    const bg   = BG_KEEPER;
+    const stag = sm ? `<span class="stag ${sm.cls}" style="cursor:default;white-space:nowrap">${sm.label}</span>` : '';
+    const playerDiv = k ? `<div style="display:flex;align-items:center;gap:4px;overflow:hidden">
+      <span style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1">${escHtml(k.player)}</span>
+      <span style="font-size:10px;color:var(--text-3);white-space:nowrap;flex-shrink:0">${escHtml(k.mlb_team||'')}${k.mlb_team&&k.position?' · ':''}${escHtml(k.position||'')}</span>
+    </div>` : '';
 
-      const playerCell = `<td style="padding:3px 8px;max-width:160px">
-        <div style="display:flex;align-items:center;gap:4px;overflow:hidden">
-          <span style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1">${escHtml(p.player)}</span>
-          <span style="font-size:10px;color:var(--text-3);white-space:nowrap;flex-shrink:0">${escHtml(p.mlb_team||'')}${p.mlb_team&&p.position?' · ':''}${escHtml(p.position||'')}</span>
-        </div>
-      </td>`;
-      const statusCell = `<td style="padding:3px 6px;text-align:center;white-space:nowrap">${stagHtml}</td>`;
-      const salCell    = `<td style="padding:3px 6px;text-align:center;width:44px">${rdTile(p.salary, false)}</td>`;
-      const conCell    = `<td style="padding:3px 6px;text-align:center;white-space:nowrap">${conTag(p.contract, false)}</td>`;
-      const pickCells  = `<td style="padding:3px 4px;text-align:center;font-size:11px;width:30px">${rdCell}</td>
-        <td style="padding:3px 4px;text-align:center;font-size:11px;width:30px">${pkCell}</td>
-        <td style="padding:3px 4px;text-align:center;font-size:11px;width:36px">${ovrCell}</td>`;
+    const tdP   = `<td style="padding:3px 8px;max-width:150px;${bg}">${playerDiv}</td>`;
+    const tdSt  = `<td style="padding:3px 6px;text-align:center;${bg}">${stag}</td>`;
+    const tdSal = `<td style="padding:3px 4px;text-align:center;width:44px;${bg}">${p ? rdTile(p.salary, false) : ''}</td>`;
+    const tdCon = `<td style="padding:3px 4px;text-align:center;${bg}">${p ? conTag(p.contract, false) : ''}</td>`;
+    const tdPk  = `<td style="padding:3px 4px;text-align:center;font-size:11px;font-weight:700;color:var(--green);width:30px;${bg}">${pick.pick}</td>`;
+    const tdOvr = `<td style="padding:3px 4px;text-align:center;font-size:11px;color:var(--green);width:36px;${bg}">${ovr}</td>`;
 
-      const cells = picksOnRight
-        ? `${playerCell}${statusCell}${salCell}${conCell}${pickCells}`
-        : `${pickCells}${playerCell}${statusCell}${salCell}${conCell}`;
-      return `<tr class="${keeperClass}" style="border-bottom:1px solid var(--border)">${cells}</tr>`;
-    }).join('');
-
-    const { open: openPicks, all: allPicks, assigned: assnPicks } = pickData;
-    let openHtml = '';
-    if (openPicks.length) {
-      const chips = openPicks.map(p => {
-        const ovr = (p.round - 1) * numTeams + p.pick;
-        return `<span style="font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:2px 7px;white-space:nowrap;color:var(--text-2)">Rd ${p.round}, Pk ${p.pick} <span style="color:var(--text-3)">(${ovr})</span></span>`;
-      }).join('');
-      openHtml = `<div style="padding:10px 12px;border-top:2px dashed var(--border);display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-        <span style="font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;flex-shrink:0">Open picks</span>
-        ${chips}
-      </div>`;
-    }
-
-    const headers = picksOnRight
-      ? `<th style="${thLeft}">Player / Team / Pos</th><th style="${thCenter}">Status</th><th style="${thCenter};width:44px">SAL</th><th style="${thCenter}">CON</th><th style="${thPick}">Rd</th><th style="${thPick}">Pk</th><th style="${thPick};width:36px">Ovr</th>`
-      : `<th style="${thPick}">Rd</th><th style="${thPick}">Pk</th><th style="${thPick};width:36px">Ovr</th><th style="${thLeft}">Player / Team / Pos</th><th style="${thCenter}">Status</th><th style="${thCenter};width:44px">SAL</th><th style="${thCenter}">CON</th>`;
-
-    return `<div class="card" style="overflow:hidden">
-      <div class="card-header" style="background:var(--navy);padding:8px 12px">
-        <span style="font-family:var(--head);font-weight:700;font-size:13px;letter-spacing:.04em;color:#fff">${escHtml(teamName)}</span>
-        <span style="font-size:11px;color:rgba(255,255,255,.55);margin-left:auto">${players.length} keepers&ensp;·&ensp;${allPicks.length} picks&ensp;·&ensp;${openPicks.length} open</span>
-      </div>
-      <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse">
-          <thead><tr style="background:var(--bg)">${headers}</tr></thead>
-          <tbody>${rowsHtml}</tbody>
-        </table>
-      </div>
-      ${openHtml}
-    </div>`;
+    return side === 'left'
+      ? tdP + tdSt + tdSal + tdCon + tdPk + tdOvr
+      : tdPk + tdOvr + tdP + tdSt + tdSal + tdCon;  // NOTE: pk/ovr on left for right team
   }
 
-  // ── Trade opportunity analysis ──────────────────────────────────────────────
+  function openCells(pick, side) {
+    const ovr = (pick.round - 1) * numTeams + pick.pick;
+    const label = `<span style="font-size:11px;font-style:italic;color:var(--text-3)">Open</span>`;
+    const tdP   = `<td style="padding:3px 8px">${label}</td>`;
+    const tdSt  = `<td style="padding:3px 4px;text-align:center"></td>`;
+    const tdSal = `<td style="padding:3px 4px;text-align:center;width:44px"></td>`;
+    const tdCon = `<td style="padding:3px 4px;text-align:center"></td>`;
+    const tdPk  = `<td style="padding:3px 4px;text-align:center;font-size:11px;color:var(--text-2);font-weight:600;width:30px">${pick.pick}</td>`;
+    const tdOvr = `<td style="padding:3px 4px;text-align:center;font-size:11px;color:var(--text-3);width:36px">${ovr}</td>`;
+
+    return side === 'left'
+      ? tdP + tdSt + tdSal + tdCon + tdPk + tdOvr
+      : tdPk + tdOvr + tdP + tdSt + tdSal + tdCon;
+  }
+
+  function blankCells() {
+    return `<td style="${BG_BLANK}"></td>`.repeat(6);
+  }
+
+  function pickCellsFor(pick, teamName, side) {
+    if (!pick) return blankCells();
+    return keeperBySlot[pick.key]
+      ? keeperCells(pick, teamName, side)
+      : openCells(pick, side);
+  }
+
+  // ── Build rows for all 30 rounds ────────────────────────────────────────────
+  const thS  = `font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:4px 6px;border-bottom:1px solid var(--border)`;
+  const thSC = `${thS};text-align:center`;
+  const thSL = `${thS};text-align:left;padding-left:10px`;
+  const thPk = `${thS};text-align:center;width:30px`;
+  const thOv = `${thS};text-align:center;width:36px`;
+  const thRd = `${thS};text-align:center;width:38px;border-left:2px solid var(--border);border-right:2px solid var(--border)`;
+
+  let bodyHtml = '';
+  for (let rd = 1; rd <= 30; rd++) {
+    const aPicks = dataA.all.filter(p => p.round === rd).sort((a,b) => a.pick - b.pick);
+    const bPicks = dataB.all.filter(p => p.round === rd).sort((a,b) => a.pick - b.pick);
+    const rowCount = Math.max(aPicks.length, bPicks.length, 1);
+
+    for (let i = 0; i < rowCount; i++) {
+      const ap = aPicks[i] || null;
+      const bp = bPicks[i] || null;
+      const rdTd = i === 0
+        ? `<td rowspan="${rowCount}" style="text-align:center;font-size:12px;font-weight:700;color:var(--text-2);padding:0 8px;border-left:2px solid var(--border);border-right:2px solid var(--border);vertical-align:middle;width:38px">${rd}</td>`
+        : '';
+
+      const rowBg = (!ap && !bp) ? 'background:var(--bg);opacity:.45' : '';
+      bodyHtml += `<tr style="border-bottom:1px solid var(--border);${rowBg}">
+        ${pickCellsFor(ap, teamA, 'left')}
+        ${rdTd}
+        ${pickCellsFor(bp, teamB, 'right')}
+      </tr>`;
+    }
+  }
+
+  const aCount = dataA.all.length, aOpen = dataA.open.length, aAssn = dataA.assigned.length;
+  const bCount = dataB.all.length, bOpen = dataB.open.length, bAssn = dataB.assigned.length;
+
+  const picksTable = `
+    <div class="card" style="overflow:hidden;margin-bottom:16px">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr>
+            <th colspan="6" style="${thS};background:var(--navy);color:#fff;padding:8px 12px;text-align:left">
+              <span style="font-family:var(--head);font-size:13px;letter-spacing:.04em">${escHtml(teamA)}</span>
+              <span style="font-size:11px;font-weight:400;opacity:.6;margin-left:8px">${aCount} picks · ${aAssn} keepers · ${aOpen} open</span>
+            </th>
+            <th style="${thRd};background:var(--navy)"></th>
+            <th colspan="6" style="${thS};background:var(--navy);color:#fff;padding:8px 12px;text-align:right">
+              <span style="font-size:11px;font-weight:400;opacity:.6;margin-right:8px">${bCount} picks · ${bAssn} keepers · ${bOpen} open</span>
+              <span style="font-family:var(--head);font-size:13px;letter-spacing:.04em">${escHtml(teamB)}</span>
+            </th>
+          </tr>
+          <tr style="background:var(--bg)">
+            <th style="${thSL}">Player / Team / Pos</th>
+            <th style="${thSC}">Status</th>
+            <th style="${thSC};width:44px">SAL</th>
+            <th style="${thSC}">CON</th>
+            <th style="${thPk}">Pk</th>
+            <th style="${thOv}">Ovr</th>
+            <th style="${thRd}">Rd</th>
+            <th style="${thPk}">Pk</th>
+            <th style="${thOv}">Ovr</th>
+            <th style="${thSL}">Player / Team / Pos</th>
+            <th style="${thSC}">Status</th>
+            <th style="${thSC};width:44px">SAL</th>
+            <th style="${thSC}">CON</th>
+          </tr>
+        </thead>
+        <tbody>${bodyHtml}</tbody>
+      </table>
+    </div>`;
+
+  // ── Trade opportunity analysis (unchanged) ──────────────────────────────────
   function analyzeOpportunities() {
-    // For each round, categorize picks by team and status
     const rounds = [...new Set([
       ...dataA.all.map(p => p.round),
       ...dataB.all.map(p => p.round),
     ])].sort((a, b) => a - b);
 
-    const upgradesForA = []; // A has open, B has assigned with better (lower) pick #
-    const upgradesForB = []; // B has open, A has assigned with better (lower) pick #
-    const bothOpen     = []; // Both have open picks in same round
+    const upgradesForA = [], upgradesForB = [], bothOpen = [];
 
     rounds.forEach(rd => {
       const aOpen = dataA.open.filter(p => p.round === rd);
@@ -6473,62 +6509,41 @@ function renderPickCompare() {
       const aAssn = dataA.assigned.filter(p => p.round === rd);
       const bAssn = dataB.assigned.filter(p => p.round === rd);
 
-      // Upgrades for A: A open, B assigned at better pick
-      aOpen.forEach(ap => {
-        bAssn.forEach(bp => {
-          if (bp.pick < ap.pick) {
-            const keeper = keeperBySlot[bp.key];
-            upgradesForA.push({
-              rd, aPickNum: ap.pick, bPickNum: bp.pick,
-              gain: ap.pick - bp.pick,
-              aOvr: (rd-1)*numTeams + ap.pick,
-              bOvr: (rd-1)*numTeams + bp.pick,
-              keeper,
-            });
-          }
-        });
-      });
+      aOpen.forEach(ap => bAssn.forEach(bp => {
+        if (bp.pick < ap.pick) {
+          upgradesForA.push({ rd, aPickNum: ap.pick, bPickNum: bp.pick,
+            gain: ap.pick - bp.pick,
+            aOvr: (rd-1)*numTeams + ap.pick, bOvr: (rd-1)*numTeams + bp.pick,
+            keeper: keeperBySlot[bp.key] });
+        }
+      }));
 
-      // Upgrades for B: B open, A assigned at better pick
-      bOpen.forEach(bp => {
-        aAssn.forEach(ap => {
-          if (ap.pick < bp.pick) {
-            const keeper = keeperBySlot[ap.key];
-            upgradesForB.push({
-              rd, bPickNum: bp.pick, aPickNum: ap.pick,
-              gain: bp.pick - ap.pick,
-              bOvr: (rd-1)*numTeams + bp.pick,
-              aOvr: (rd-1)*numTeams + ap.pick,
-              keeper,
-            });
-          }
-        });
-      });
+      bOpen.forEach(bp => aAssn.forEach(ap => {
+        if (ap.pick < bp.pick) {
+          upgradesForB.push({ rd, bPickNum: bp.pick, aPickNum: ap.pick,
+            gain: bp.pick - ap.pick,
+            bOvr: (rd-1)*numTeams + bp.pick, aOvr: (rd-1)*numTeams + ap.pick,
+            keeper: keeperBySlot[ap.key] });
+        }
+      }));
 
-      // Both open in same round
       if (aOpen.length && bOpen.length) {
         aOpen.forEach(ap => bOpen.forEach(bp => {
-          bothOpen.push({
-            rd,
+          bothOpen.push({ rd,
             aPickNum: ap.pick, aOvr: (rd-1)*numTeams + ap.pick,
             bPickNum: bp.pick, bOvr: (rd-1)*numTeams + bp.pick,
-            better: ap.pick < bp.pick ? 'A' : bp.pick < ap.pick ? 'B' : 'even',
-          });
+            better: ap.pick < bp.pick ? 'A' : bp.pick < ap.pick ? 'B' : 'even' });
         }));
       }
     });
 
     upgradesForA.sort((a, b) => b.gain - a.gain);
     upgradesForB.sort((a, b) => b.gain - a.gain);
-
     return { upgradesForA, upgradesForB, bothOpen };
   }
 
-  function oppRow(cells) {
-    return `<tr style="border-bottom:1px solid var(--border)">${cells}</tr>`;
-  }
   function oppTh(label, align='center') {
-    return `<th style="${thStyle};text-align:${align};padding:5px 10px">${label}</th>`;
+    return `<th style="${thS};text-align:${align};padding:5px 10px">${label}</th>`;
   }
   function oppTd(content, align='center', extra='') {
     return `<td style="padding:6px 10px;font-size:12px;text-align:${align};${extra}">${content}</td>`;
@@ -6537,16 +6552,14 @@ function renderPickCompare() {
     return `<span style="font-weight:600;color:${color}">Rd ${rd}, Pk ${pk}</span> <span style="font-size:11px;color:var(--text-3)">(${ovr})</span>`;
   }
   function gainBadge(n) {
-    const color = n >= 10 ? 'var(--green)' : n >= 5 ? 'var(--orange)' : 'var(--text-2)';
-    return `<span style="font-size:11px;font-weight:700;color:${color}">+${n}</span>`;
+    const c = n >= 10 ? 'var(--green)' : n >= 5 ? 'var(--orange)' : 'var(--text-2)';
+    return `<span style="font-size:11px;font-weight:700;color:${c}">+${n}</span>`;
   }
   function keeperInfo(k) {
     if (!k) return '<span style="color:var(--text-4)">—</span>';
     return `<span style="font-weight:500">${escHtml(k.player)}</span> <span style="color:var(--text-3);font-size:11px">$${k.sal}</span>`;
   }
-
-  const { upgradesForA, upgradesForB, bothOpen } = analyzeOpportunities();
-  const hasAny = upgradesForA.length || upgradesForB.length || bothOpen.length;
+  function oppRow(cells) { return `<tr style="border-bottom:1px solid var(--border)">${cells}</tr>`; }
 
   function buildOppSection(title, color, rows, colHeaders, rowFn) {
     if (!rows.length) return `<div style="padding:12px 14px 4px">
@@ -6555,71 +6568,39 @@ function renderPickCompare() {
     </div>`;
     return `<div style="padding:12px 14px 4px">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${color};margin-bottom:8px">${title}</div>
-      <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;margin-bottom:10px">
-          <thead><tr style="background:var(--bg)">${colHeaders}</tr></thead>
-          <tbody>${rows.map(rowFn).join('')}</tbody>
-        </table>
-      </div>
+      <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;margin-bottom:10px">
+        <thead><tr style="background:var(--bg)">${colHeaders}</tr></thead>
+        <tbody>${rows.map(rowFn).join('')}</tbody>
+      </table></div>
     </div>`;
   }
 
+  const { upgradesForA, upgradesForB, bothOpen } = analyzeOpportunities();
+  const hasAny = upgradesForA.length || upgradesForB.length || bothOpen.length;
+
   const oppHtml = hasAny ? `
-    <div class="card" style="margin-top:16px">
+    <div class="card">
       <div class="card-header" style="background:var(--navy);padding:8px 12px">
         <span style="font-family:var(--head);font-weight:700;font-size:13px;letter-spacing:.04em;color:#fff">Trade Opportunities</span>
         <span style="font-size:11px;color:rgba(255,255,255,.55);margin-left:auto">${upgradesForA.length + upgradesForB.length} pick upgrades · ${bothOpen.length} mutual open</span>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border)">
-        ${buildOppSection(
-          `Pick upgrades for ${escHtml(teamA)}`,
-          'var(--green)',
-          upgradesForA,
-          oppTh('Rd','left') + oppTh('Your pick (open)') + oppTh('Their pick (assigned)') + oppTh('Keeper') + oppTh('Positions gained'),
-          r => oppRow(
-            oppTd(`<strong>${r.rd}</strong>`,'center','width:30px') +
-            oppTd(pickChip(r.rd, r.aPickNum, r.aOvr, 'var(--text-2)')) +
-            oppTd(pickChip(r.rd, r.bPickNum, r.bOvr, 'var(--green)')) +
-            oppTd(keeperInfo(r.keeper),'left') +
-            oppTd(gainBadge(r.gain))
-          )
+        ${buildOppSection(`Pick upgrades for ${escHtml(teamA)}`,'var(--green)',upgradesForA,
+          oppTh('Rd','left')+oppTh('Your pick (open)')+oppTh('Their pick (assigned)')+oppTh('Keeper')+oppTh('Positions gained'),
+          r => oppRow(oppTd(`<strong>${r.rd}</strong>`,'center','width:30px')+oppTd(pickChip(r.rd,r.aPickNum,r.aOvr,'var(--text-2)'))+oppTd(pickChip(r.rd,r.bPickNum,r.bOvr,'var(--green)'))+oppTd(keeperInfo(r.keeper),'left')+oppTd(gainBadge(r.gain)))
         )}
-        ${buildOppSection(
-          `Pick upgrades you can offer ${escHtml(teamB)}`,
-          'var(--blue)',
-          upgradesForB,
-          oppTh('Rd','left') + oppTh('Their pick (open)') + oppTh('Your pick (assigned)') + oppTh('Keeper') + oppTh('Positions gained'),
-          r => oppRow(
-            oppTd(`<strong>${r.rd}</strong>`,'center','width:30px') +
-            oppTd(pickChip(r.rd, r.bPickNum, r.bOvr, 'var(--text-2)')) +
-            oppTd(pickChip(r.rd, r.aPickNum, r.aOvr, 'var(--blue)')) +
-            oppTd(keeperInfo(r.keeper),'left') +
-            oppTd(gainBadge(r.gain))
-          )
+        ${buildOppSection(`Pick upgrades you can offer ${escHtml(teamB)}`,'var(--blue)',upgradesForB,
+          oppTh('Rd','left')+oppTh('Their pick (open)')+oppTh('Your pick (assigned)')+oppTh('Keeper')+oppTh('Positions gained'),
+          r => oppRow(oppTd(`<strong>${r.rd}</strong>`,'center','width:30px')+oppTd(pickChip(r.rd,r.bPickNum,r.bOvr,'var(--text-2)'))+oppTd(pickChip(r.rd,r.aPickNum,r.aOvr,'var(--blue)'))+oppTd(keeperInfo(r.keeper),'left')+oppTd(gainBadge(r.gain)))
         )}
       </div>
-      ${buildOppSection(
-        'Both open — mutual swap / package candidates',
-        'var(--orange)',
-        bothOpen,
-        oppTh('Rd','left') + oppTh(`${escHtml(teamA)} pick`) + oppTh(`${escHtml(teamB)} pick`) + oppTh('Edge'),
-        r => oppRow(
-          oppTd(`<strong>${r.rd}</strong>`,'center','width:30px') +
-          oppTd(pickChip(r.rd, r.aPickNum, r.aOvr, r.better==='A'?'var(--green)':'var(--text-2)')) +
-          oppTd(pickChip(r.rd, r.bPickNum, r.bOvr, r.better==='B'?'var(--green)':'var(--text-2)')) +
-          oppTd(r.better==='even'
-            ? '<span style="color:var(--text-3)">Even</span>'
-            : `<span style="font-size:11px;color:var(--green)">${r.better==='A' ? escHtml(teamA) : escHtml(teamB)} has earlier pick</span>`)
-        )
+      ${buildOppSection('Both open — mutual swap / package candidates','var(--orange)',bothOpen,
+        oppTh('Rd','left')+oppTh(escHtml(teamA)+' pick')+oppTh(escHtml(teamB)+' pick')+oppTh('Edge'),
+        r => oppRow(oppTd(`<strong>${r.rd}</strong>`,'center','width:30px')+oppTd(pickChip(r.rd,r.aPickNum,r.aOvr,r.better==='A'?'var(--green)':'var(--text-2)'))+oppTd(pickChip(r.rd,r.bPickNum,r.bOvr,r.better==='B'?'var(--green)':'var(--text-2)'))+oppTd(r.better==='even'?'<span style="color:var(--text-3)">Even</span>':`<span style="font-size:11px;color:var(--green)">${r.better==='A'?escHtml(teamA):escHtml(teamB)} has earlier pick</span>`))
       )}
-    </div>` : `<div class="card" style="margin-top:16px;padding:20px;text-align:center;color:var(--text-3);font-size:13px;font-style:italic">No pick swap opportunities found between these two teams.</div>`;
+    </div>` : `<div class="card" style="padding:20px;text-align:center;color:var(--text-3);font-size:13px;font-style:italic">No pick swap opportunities found between these two teams.</div>`;
 
-  el.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:0">
-      ${buildTeamCard(teamA, dataA, true)}
-      ${buildTeamCard(teamB, dataB, false)}
-    </div>
-    ${oppHtml}`;
+  el.innerHTML = picksTable + oppHtml;
 }
 
 function pcGetNumTeams() {
@@ -6704,8 +6685,7 @@ function pcComputeKeeperData() {
     }
   }
 
-  const keeperBySlot       = {};
-  const keeperSlotByPlayer = {};
+  const keeperBySlot = {}, keeperSlotByPlayer = {};
   assignments.forEach(k => {
     if (k.pk == null) return;
     const slot = `${k.rd}_${k.pk}`;
