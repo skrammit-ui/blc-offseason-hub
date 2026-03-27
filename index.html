@@ -6384,32 +6384,36 @@ function renderPickCompare() {
   // For Team A open picks: does B have a later open pick in the same round?
   //   → blue tile (A could offer B an upgrade)
   function computeUpgradeTiles(myData, theirData) {
-    // Map: pick.key → tile html
     const tiles = {};
     myData.all.forEach(myPick => {
       const rd = myPick.round;
+      const isAssigned = !!keeperBySlot[myPick.key];
       const theirOpen = theirData.open.filter(p => p.round === rd);
-      // Best open pick they have that's earlier than mine → I can upgrade
-      const upgrades = theirOpen.filter(tp => tp.pick < myPick.pick);
-      if (upgrades.length) {
-        const best = upgrades.reduce((m, x) => x.pick < m.pick ? x : m);
-        const ovr = (rd - 1) * numTeams + best.pick;
-        const gain = myPick.pick - best.pick;
-        const c = gain >= 10 ? 'var(--green)' : gain >= 5 ? '#2a9' : '#6b9';
-        tiles[myPick.key] = tiles[myPick.key] || [];
-        tiles[myPick.key].push(
-          `<span style="display:inline-flex;align-items:center;gap:3px;background:#e6f9ee;border:1px solid ${c};border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700;color:${c};white-space:nowrap;cursor:default" title="Upgrade available: Pk ${best.pick} (${ovr} ovr)">&#8593; ${rd}·${best.pick} <span style="font-weight:400;color:var(--text-3)">(${ovr})</span> +${gain}</span>`
-        );
-      }
-      // If my pick is open: do they have a later open pick? → I can offer them an upgrade
-      if (!keeperBySlot[myPick.key]) {
-        const theirWorse = theirOpen.filter(tp => tp.pick > myPick.pick);
-        if (theirWorse.length) {
-          const worst = theirWorse.reduce((m, x) => x.pick > m.pick ? x : m);
-          const gain2 = worst.pick - myPick.pick;
+
+      if (!isAssigned) {
+        // Open pick: only these are candidates to upgrade for me.
+        // Show green tile if they have an earlier open pick in this round.
+        const better = theirOpen.filter(tp => tp.pick < myPick.pick);
+        if (better.length) {
+          const best = better.reduce((m, x) => x.pick < m.pick ? x : m);
+          const ovr  = (rd - 1) * numTeams + best.pick;
+          const gain = myPick.pick - best.pick;
+          const c    = gain >= 10 ? 'var(--green)' : gain >= 5 ? '#2a9' : '#6b9';
           tiles[myPick.key] = tiles[myPick.key] || [];
           tiles[myPick.key].push(
-            `<span style="display:inline-flex;align-items:center;gap:3px;background:#eef4ff;border:1px solid var(--blue);border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700;color:var(--blue);white-space:nowrap;cursor:default" title="You can offer them: Pk ${myPick.pick} vs their Pk ${worst.pick}">&#8595; offer +${gain2}</span>`
+            `<span style="display:inline-flex;align-items:center;gap:3px;background:#e6f9ee;border:1px solid ${c};border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700;color:${c};white-space:nowrap;cursor:default" title="Upgrade available: Pk ${best.pick} (${ovr} ovr)">&#8593; ${rd}&middot;${best.pick} <span style="font-weight:400;color:var(--text-3)">(${ovr})</span> +${gain}</span>`
+          );
+        }
+      } else {
+        // Assigned (keeper) pick: I can offer this earlier slot to them.
+        // Show blue tile if they have a later open pick in this round.
+        const worse = theirOpen.filter(tp => tp.pick > myPick.pick);
+        if (worse.length) {
+          const worst = worse.reduce((m, x) => x.pick > m.pick ? x : m);
+          const gain  = worst.pick - myPick.pick;
+          tiles[myPick.key] = tiles[myPick.key] || [];
+          tiles[myPick.key].push(
+            `<span style="display:inline-flex;align-items:center;gap:3px;background:#eef4ff;border:1px solid var(--blue);border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700;color:var(--blue);white-space:nowrap;cursor:default" title="Offer them: your Pk ${myPick.pick} vs their Pk ${worst.pick}">&#8595; offer +${gain}</span>`
           );
         }
       }
