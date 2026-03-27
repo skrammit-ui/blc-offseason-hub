@@ -6372,17 +6372,61 @@ function renderPickCompare() {
 
   const thS = `font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:4px 8px;border-bottom:1px solid var(--border)`;
 
+  // ── Pre-compute per-round upgrade tiles for each team ──────────────────────
+  // For Team A, per pick: does B have an open pick earlier in the same round?
+  //   → green tile (upgrade available for A)
+  // For Team A open picks: does B have a later open pick in the same round?
+  //   → blue tile (A could offer B an upgrade)
+  function computeUpgradeTiles(myData, theirData) {
+    // Map: pick.key → tile html
+    const tiles = {};
+    myData.all.forEach(myPick => {
+      const rd = myPick.round;
+      const theirOpen = theirData.open.filter(p => p.round === rd);
+      // Best open pick they have that's earlier than mine → I can upgrade
+      const upgrades = theirOpen.filter(tp => tp.pick < myPick.pick);
+      if (upgrades.length) {
+        const best = upgrades.reduce((m, x) => x.pick < m.pick ? x : m);
+        const ovr = (rd - 1) * numTeams + best.pick;
+        const gain = myPick.pick - best.pick;
+        const c = gain >= 10 ? 'var(--green)' : gain >= 5 ? '#2a9' : '#6b9';
+        tiles[myPick.key] = tiles[myPick.key] || [];
+        tiles[myPick.key].push(
+          `<span style="display:inline-flex;align-items:center;gap:3px;background:#e6f9ee;border:1px solid ${c};border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700;color:${c};white-space:nowrap;cursor:default" title="Upgrade available: Pk ${best.pick} (${ovr} ovr)">&#8593; ${rd}·${best.pick} <span style="font-weight:400;color:var(--text-3)">(${ovr})</span> +${gain}</span>`
+        );
+      }
+      // If my pick is open: do they have a later open pick? → I can offer them an upgrade
+      if (!keeperBySlot[myPick.key]) {
+        const theirWorse = theirOpen.filter(tp => tp.pick > myPick.pick);
+        if (theirWorse.length) {
+          const worst = theirWorse.reduce((m, x) => x.pick > m.pick ? x : m);
+          const gain2 = worst.pick - myPick.pick;
+          tiles[myPick.key] = tiles[myPick.key] || [];
+          tiles[myPick.key].push(
+            `<span style="display:inline-flex;align-items:center;gap:3px;background:#eef4ff;border:1px solid var(--blue);border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700;color:var(--blue);white-space:nowrap;cursor:default" title="You can offer them: Pk ${myPick.pick} vs their Pk ${worst.pick}">&#8595; offer +${gain2}</span>`
+          );
+        }
+      }
+    });
+    return tiles;
+  }
+
+  const tilesA = computeUpgradeTiles(dataA, dataB);
+  const tilesB = computeUpgradeTiles(dataB, dataA);
+
   // ── Team pick card (Keepers All Teams style) ────────────────────────────────
-  function buildTeamCard(teamName, pickData) {
+  function buildTeamCard(teamName, pickData, tilemap) {
     const rows = pickData.all.map(pick => {
       const k = keeperBySlot[pick.key];
       const p = k ? (LEAGUE[teamName] || []).find(x => x.player === k.player) : null;
+      const tileHtml = (tilemap[pick.key] || []).join(' ');
+      const tileCell = `<td style="padding:2px 6px;white-space:nowrap">${tileHtml}</td>`;
       if (k && p) {
         const sm = STATUS_META[STATUS_MAP[p.status] || 'MLB'] || STATUS_META['MLB'];
         return `<tr style="border-bottom:1px solid var(--border);background:#edf7f1">
           <td style="padding:3px 6px;text-align:center;font-size:11px;font-weight:700;color:var(--text-2);width:28px">${pick.round}</td>
           <td style="padding:3px 4px;text-align:center;font-size:11px;font-weight:700;color:var(--green);width:24px">${pick.pick}</td>
-          <td style="padding:3px 8px;max-width:150px">
+          <td style="padding:3px 8px;max-width:140px">
             <div style="display:flex;align-items:center;gap:4px;overflow:hidden">
               <span style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1">${escHtml(p.player)}</span>
               <span style="font-size:10px;color:var(--text-3);white-space:nowrap;flex-shrink:0">${escHtml(p.mlb_team||'')}${p.mlb_team&&p.position?' · ':''}${escHtml(p.position||'')}</span>
@@ -6391,12 +6435,15 @@ function renderPickCompare() {
           <td style="padding:3px 4px;text-align:center;white-space:nowrap">${sm ? `<span class="stag ${sm.cls}" style="cursor:default">${sm.label}</span>` : ''}</td>
           <td style="padding:3px 4px;text-align:center;width:40px">${rdTile(p.salary, false)}</td>
           <td style="padding:3px 4px;text-align:center">${conTag(p.contract, false)}</td>
+          ${tileCell}
         </tr>`;
       } else {
         return `<tr style="border-bottom:1px solid var(--border)">
           <td style="padding:3px 6px;text-align:center;font-size:11px;font-weight:700;color:var(--text-2);width:28px">${pick.round}</td>
           <td style="padding:3px 4px;text-align:center;font-size:11px;color:var(--text-3);width:24px">${pick.pick}</td>
-          <td style="padding:3px 8px" colspan="4"><span style="font-size:11px;font-style:italic;color:var(--text-3)">Open</span></td>
+          <td style="padding:3px 8px;font-style:italic;color:var(--text-3);font-size:11px">Open</td>
+          <td colspan="3"></td>
+          ${tileCell}
         </tr>`;
       }
     }).join('');
@@ -6417,6 +6464,7 @@ function renderPickCompare() {
               <th style="${thS};text-align:center">Status</th>
               <th style="${thS};text-align:center;width:40px">SAL</th>
               <th style="${thS};text-align:center">CON</th>
+              <th style="${thS};text-align:left"></th>
             </tr></thead>
             <tbody>${rows}</tbody>
           </table>`
@@ -6525,9 +6573,9 @@ function renderPickCompare() {
   }
 
   el.innerHTML = `<div style="display:grid;grid-template-columns:1fr minmax(200px,260px) 1fr;gap:16px;align-items:start">
-    ${buildTeamCard(teamA, dataA)}
+    ${buildTeamCard(teamA, dataA, tilesA)}
     ${buildComparisonCard()}
-    ${buildTeamCard(teamB, dataB)}
+    ${buildTeamCard(teamB, dataB, tilesB)}
   </div>`;
 }
 
