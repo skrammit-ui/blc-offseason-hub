@@ -6542,47 +6542,50 @@ function pcRunOptimization() {
   const { keeperBySlot, keeperSlotByPlayer } = pcComputeKeeperData();
   const numTeams = pcGetNumTeams();
 
-  function getOpenPicks(teamName) {
-    const assigned = new Set();
+  function getSets(teamName) {
+    const assignedKeys = new Set();
     Object.entries(keeperStore[teamName] || {}).forEach(([player, type]) => {
       if (type === 'milb') return;
       const slot = keeperSlotByPlayer[`${teamName}|${player}`];
-      if (slot) assigned.add(slot);
+      if (slot) assignedKeys.add(slot);
     });
-    return pcGetTeamPicks(teamName).filter(p => !assigned.has(p.key));
+    const all      = pcGetTeamPicks(teamName);
+    const open     = all.filter(p => !assignedKeys.has(p.key));
+    const assigned = all.filter(p =>  assignedKeys.has(p.key));
+    return { open, assigned };
   }
 
-  const openA = getOpenPicks(teamA);
-  const openB = getOpenPicks(teamB);
+  const setsA = getSets(teamA);
+  const setsB = getSets(teamB);
 
-  // For each round where both teams have open picks, find the best upgrade opportunity.
-  // An upgrade exists when one team's pick is earlier (lower pick#) than the other's.
-  // Collect all such opportunities sorted by gain (largest first).
   const opps = [];
-  const rounds = [...new Set([...openA.map(p => p.round), ...openB.map(p => p.round)])];
 
-  rounds.forEach(rd => {
-    const aInRound = openA.filter(p => p.round === rd);
-    const bInRound = openB.filter(p => p.round === rd);
-    aInRound.forEach(ap => bInRound.forEach(bp => {
-      const gain = Math.abs(ap.pick - bp.pick);
-      if (gain > 0) opps.push({ ap, bp, gain, aOvr: (rd-1)*numTeams+ap.pick, bOvr: (rd-1)*numTeams+bp.pick });
-    }));
+  // Upgrades for A: A's open picks vs B's assigned picks in the same round
+  setsA.open.forEach(ap => {
+    setsB.assigned.filter(bp => bp.round === ap.round && bp.pick < ap.pick).forEach(bp => {
+      opps.push({ aKey: ap.key, bKey: bp.key, gain: ap.pick - bp.pick, beneficiary: 'A' });
+    });
+  });
+
+  // Upgrades for B: B's open picks vs A's assigned picks in the same round
+  setsB.open.forEach(bp => {
+    setsA.assigned.filter(ap => ap.round === bp.round && ap.pick < bp.pick).forEach(ap => {
+      opps.push({ aKey: ap.key, bKey: bp.key, gain: bp.pick - ap.pick, beneficiary: 'B' });
+    });
   });
 
   opps.sort((a, b) => b.gain - a.gain);
 
-  // De-duplicate: each pick can only appear once. Walk through sorted opps greedily.
   const usedA = new Set(), usedB = new Set();
   window.pcSelA = new Set();
   window.pcSelB = new Set();
 
-  opps.forEach(({ ap, bp }) => {
-    if (usedA.has(ap.key) || usedB.has(bp.key)) return;
-    window.pcSelA.add(ap.key);
-    window.pcSelB.add(bp.key);
-    usedA.add(ap.key);
-    usedB.add(bp.key);
+  opps.forEach(({ aKey, bKey }) => {
+    if (usedA.has(aKey) || usedB.has(bKey)) return;
+    window.pcSelA.add(aKey);
+    window.pcSelB.add(bKey);
+    usedA.add(aKey);
+    usedB.add(bKey);
   });
 
   renderPickCompare();
