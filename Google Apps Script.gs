@@ -1590,7 +1590,6 @@ function populateFantraxPlayerIds(ss) {
 function normName(s) {
   return String(s || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
 }
-}
 
 // ── Debug: probe candidate player-info endpoints with a few known IDs ──────────
 function debugFantraxPlayerEndpoints() {
