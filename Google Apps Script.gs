@@ -104,6 +104,8 @@ function doPost(e) {
         return corsResponse(testFantraxConnection());
       case 'debugFantrax':
         return corsResponse(debugFantrax(payload.endpoint, payload.params));
+      case 'debugFantraxRosterMatch':
+        return corsResponse(debugFantraxRosterMatch());
       default:
         return corsResponse({ ok: false, error: 'Unknown action: ' + payload.action });
     }
@@ -1458,18 +1460,15 @@ function refreshFantraxDraft(ss) {
 }
 
 // ── Debug: return raw Fantrax API response ────────────────────────────────────
-// Hits a Fantrax endpoint and returns the raw parsed JSON so we can
-// inspect the actual field names and response structure.
 function debugFantrax(endpoint, params) {
   try {
     const data = fetchFantrax(endpoint || 'getTeamRosters', params || {});
-    // Return just the top-level keys and a truncated sample to avoid hitting response limits
     const keys = Object.keys(data);
     const sample = {};
     keys.forEach(k => {
       const val = data[k];
       if (Array.isArray(val)) {
-        sample[k] = val.slice(0, 2); // first 2 items
+        sample[k] = val.slice(0, 2);
       } else if (val && typeof val === 'object') {
         const subKeys = Object.keys(val);
         sample[k] = { _keys: subKeys, _sample: subKeys.slice(0, 3).reduce((o, sk) => { o[sk] = val[sk]; return o; }, {}) };
@@ -1478,6 +1477,41 @@ function debugFantrax(endpoint, params) {
       }
     });
     return { ok: true, topLevelKeys: keys, sample };
+  } catch(e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// ── Debug: compare Fantrax team names vs ownerMap + sample roster IDs ─────────
+function debugFantraxRosterMatch() {
+  try {
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const ownerMap = getOwnerMap(ss); // ownerKey → teamName
+    const nameToKey = {};
+    Object.entries(ownerMap).forEach(([key, name]) => { nameToKey[name.toLowerCase()] = key; });
+
+    const data = fetchFantrax('getTeamRosters');
+    const rostersObj = data.rosters || {};
+
+    // Check team name matching
+    const teamMatches = [];
+    Object.entries(rostersObj).forEach(([fantraxId, teamData]) => {
+      const fantraxName = String(teamData.teamName || '');
+      const matched = nameToKey[fantraxName.toLowerCase()];
+      teamMatches.push({ fantraxId, fantraxName, matchedKey: matched || '❌ NO MATCH' });
+    });
+
+    // Sample a few player IDs from the sheet
+    const sheet = ss.getSheetByName('Rosters');
+    const [headers, ...rows] = sheet.getDataRange().getValues();
+    const idIdx = headers.indexOf('id');
+    const sampleSheetIds = rows.slice(0, 5).map(r => String(r[idIdx] || '(empty)'));
+
+    // Sample a few player IDs from Fantrax (first matched team)
+    const firstTeam = Object.values(rostersObj)[0];
+    const sampleFantraxIds = (firstTeam && firstTeam.rosterItems || []).slice(0, 5).map(i => i.id);
+
+    return { ok: true, teamMatches, sampleSheetIds, sampleFantraxIds, ownerMapKeys: Object.keys(ownerMap) };
   } catch(e) {
     return { ok: false, error: e.message };
   }
