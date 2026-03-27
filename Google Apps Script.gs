@@ -1351,9 +1351,10 @@ function refreshFantraxRosters(ss) {
   Object.entries(FANTRAX_TEAM_ALIASES).forEach(([alias, key]) => { nameToKey[alias] = key; });
 
   // Build player lookup: fantraxPlayerId → row index (0-based, rows array)
+  // Sheet stores ids as "*041pz*" — strip asterisks to match Fantrax's bare "041pz"
   const idLookup = {};
   rows.forEach((r, i) => {
-    const pid = String(r[idIdx] || '').trim();
+    const pid = String(r[idIdx] || '').trim().replace(/\*/g, '');
     if (pid) idLookup[pid] = i;
   });
 
@@ -1536,77 +1537,53 @@ function debugFantraxRosterMatch() {
 }
 
 // ── One-time: populate the id column in Rosters sheet from Fantrax ─────────────
-// Uses getPlayerIds?sport=MLB which returns every Fantrax player name → id.
-// Matches by normalized name to rows in the Rosters sheet and writes the id column.
+// Uses getPlayerIds?sport=MLB to populate mlb_team and position columns.
+// Matches rows by the existing id column (sheet stores "*041pz*"; strips * to get bare Fantrax id).
 function populateFantraxPlayerIds(ss) {
   if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
-  // Step 1: fetch complete MLB player ID list
-  // Response shape: { "fantraxId": { name: "Last, First", fantraxId: "...", team: "BAL", position: "SS" }, ... }
+  // Response shape: { "041pz": { name: "Last, First", fantraxId: "041pz", team: "BAL", position: "SS" }, ... }
   const data = fetchFantrax('getPlayerIds');
-
-  const playerMap = {}; // normName → { id, team, position }
-  const addToMap = (name, id, team, position) => {
-    if (!name || !id) return;
-    const entry = { id, team: team || '', position: position || '' };
-    playerMap[normName(name)] = entry;
-    // Also store name-reversed variant to handle "Last, First" vs "First Last" mismatches
-    if (name.includes(',')) {
-      const parts = name.split(',');
-      const reversed = parts[1].trim() + ' ' + parts[0].trim();
-      playerMap[normName(reversed)] = entry;
-    }
-  };
-
-  // Top-level keys are fantraxIds, values have .name, .fantraxId, .team, .position
-  if (typeof data === 'object' && !Array.isArray(data)) {
-    Object.entries(data).forEach(([key, p]) => {
-      if (p && typeof p === 'object') {
-        const name     = String(p.name || p.playerName || '').trim();
-        const id       = String(p.fantraxId || p.id || key).trim();
-        const team     = String(p.team || p.mlbTeam || '').trim();
-        const position = String(p.position || p.pos || '').trim();
-        addToMap(name, id, team, position);
-      }
-    });
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return { ok: false, error: 'getPlayerIds returned unexpected shape', rawSample: JSON.stringify(data).substring(0, 400) };
   }
+
+  // Build lookup: bare fantraxId → { team, position }
+  const playerMap = {};
+  Object.entries(data).forEach(([key, p]) => {
+    if (!p || typeof p !== 'object') return;
+    const id       = String(p.fantraxId || p.id || key).trim();
+    const team     = String(p.team     || p.mlbTeam || '').trim();
+    const position = String(p.position || p.pos     || '').trim();
+    if (id) playerMap[id] = { team, position };
+  });
 
   if (!Object.keys(playerMap).length) {
-    const raw = JSON.stringify(data).substring(0, 600);
-    return { ok: false, error: 'getPlayerIds returned no data — check response shape', rawSample: raw };
+    return { ok: false, error: 'getPlayerIds returned no entries', rawSample: JSON.stringify(data).substring(0, 400) };
   }
 
-  // Step 2: match player names in Rosters sheet → write id, mlb_team, position
   const sheet = ss.getSheetByName('Rosters');
   if (!sheet) return { ok: false, error: 'Rosters sheet not found' };
   const [headers, ...rows] = sheet.getDataRange().getValues();
-  const playerIdx  = headers.indexOf('player');
   const idIdx      = headers.indexOf('id');
   const mlbTeamIdx = headers.indexOf('mlb_team');
   const posIdx     = headers.indexOf('position');
-  // Debug: return header/row info so we can diagnose column mismatches
-  const debugHeaders = headers.map((h, i) => i + ':' + String(h));
-  const debugRows = rows.slice(0, 3).map(r => r.slice(0, 8).map(String));
-  if (playerIdx < 0 || idIdx < 0) return { ok: false, error: 'Rosters sheet missing player or id column', debugHeaders, debugRows };
+  if (idIdx < 0) return { ok: false, error: 'Rosters sheet missing id column' };
 
-  let matched = 0, unmatched = 0;
+  let matched = 0, skipped = 0;
   rows.forEach((r, i) => {
-    const name = String(r[playerIdx] || '').trim();
-    if (!name) return;
-    const entry = playerMap[normName(name)];
-    if (!entry) { unmatched++; return; }
+    // Strip asterisks: "*041pz*" → "041pz"
+    const fantraxId = String(r[idIdx] || '').trim().replace(/\*/g, '');
+    if (!fantraxId) { skipped++; return; }
+    const entry = playerMap[fantraxId];
+    if (!entry) { skipped++; return; }
 
     const rowNum = i + 2;
-    // Always write id (overwrite to keep in sync)
-    sheet.getRange(rowNum, idIdx + 1).setValue(entry.id);
-    // Write mlb_team and position if columns exist and values are available
-    if (mlbTeamIdx >= 0 && entry.team) sheet.getRange(rowNum, mlbTeamIdx + 1).setValue(entry.team);
+    if (mlbTeamIdx >= 0 && entry.team)     sheet.getRange(rowNum, mlbTeamIdx + 1).setValue(entry.team);
     if (posIdx     >= 0 && entry.position) sheet.getRange(rowNum, posIdx + 1).setValue(entry.position);
     matched++;
   });
 
-  Logger.log('populateFantraxPlayerIds: matched=' + matched + ' unmatched=' + unmatched + ' playerMapSize=' + Object.keys(playerMap).length);
-  const sampleNames = rows.slice(0, 5).map(r => String(r[playerIdx] || '(empty)'));
-  return { ok: true, matched, unmatched, playerMapSize: Object.keys(playerMap).length, totalRows: rows.length, playerIdx, idIdx, debugHeaders, sampleNames };
+  return { ok: true, matched, skipped, totalRows: rows.length, playerMapSize: Object.keys(playerMap).length };
 }
 
 function normName(s) {
