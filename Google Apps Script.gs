@@ -106,6 +106,8 @@ function doPost(e) {
         return corsResponse(debugFantrax(payload.endpoint, payload.params));
       case 'debugFantraxRosterMatch':
         return corsResponse(debugFantraxRosterMatch());
+      case 'buildRostersFromFantrax':
+        return corsResponse(buildRostersFromFantrax(ss));
       case 'populateFantraxPlayerIds':
         return corsResponse(populateFantraxPlayerIds(ss));
       case 'debugRosterValues':
@@ -1538,6 +1540,85 @@ function debugFantraxRosterMatch() {
   } catch(e) {
     return { ok: false, error: e.message };
   }
+}
+
+// ── Build Rosters sheet from Fantrax (use when sheet is empty) ────────────────
+// Combines getPlayerIds (name, mlb_team, position) + getTeamRosters (salary,
+// status, contract, fantasy team). Clears data rows and rewrites them.
+// Preserves existing header row if present; otherwise writes standard headers.
+function buildRostersFromFantrax(ss) {
+  if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
+
+  // 1. Fetch player info: fantraxId → { name, mlb_team, position }
+  const playerData = fetchFantrax('getPlayerIds');
+  if (!playerData || typeof playerData !== 'object') {
+    return { ok: false, error: 'getPlayerIds failed' };
+  }
+  const playerInfo = {}; // fantraxId → { name, mlb_team, position }
+  Object.entries(playerData).forEach(([key, p]) => {
+    if (!p || typeof p !== 'object') return;
+    const id = String(p.fantraxId || p.id || key).trim();
+    if (!id) return;
+    let name = String(p.name || p.playerName || '').trim();
+    // Convert "Last, First" → "First Last"
+    if (name.includes(',')) {
+      const parts = name.split(',');
+      name = parts[1].trim() + ' ' + parts[0].trim();
+    }
+    playerInfo[id] = {
+      name,
+      mlb_team: String(p.team || p.mlbTeam || '').trim(),
+      position: String(p.position || p.pos || '').trim(),
+    };
+  });
+
+  // 2. Fetch team rosters: salary, status, contract, fantasy team assignment
+  const rosterData = fetchFantrax('getTeamRosters');
+  const rostersObj = rosterData.rosters || {};
+  const ownerMap   = getOwnerMap(ss);
+  const nameToKey  = {};
+  Object.entries(ownerMap).forEach(([key]) => { nameToKey[key.toLowerCase()] = key; });
+  Object.entries(ownerMap).forEach(([key, name]) => { nameToKey[name.toLowerCase()] = key; });
+  Object.entries(FANTRAX_TEAM_ALIASES).forEach(([alias, key]) => { nameToKey[alias] = key; });
+
+  const STATUS_MAP = {
+    'ACTIVE': 'Active', 'RESERVE': 'Reserve',
+    'INJURED_RESERVE': 'Inj Res', 'MINORS': 'Minors',
+  };
+
+  // 3. Build rows
+  const newRows = [];
+  let noName = 0;
+  Object.entries(rostersObj).forEach(([, teamData]) => {
+    const ownerKey = nameToKey[String(teamData.teamName || '').toLowerCase()];
+    if (!ownerKey) return;
+    (teamData.rosterItems || []).forEach(item => {
+      const fantraxId = String(item.id || '').trim();
+      if (!fantraxId) return;
+      const info     = playerInfo[fantraxId] || {};
+      const name     = info.name || '';
+      if (!name) noName++;
+      const status   = STATUS_MAP[item.status] || String(item.status || '');
+      const salary   = item.salary != null ? String(item.salary) : '';
+      const contract = item.contract ? String(item.contract.name || '') : '';
+      // id stored as *fantraxId* to match existing app format
+      newRows.push([ownerKey, name, info.mlb_team || '', info.position || '', salary, status, contract, '*' + fantraxId + '*']);
+    });
+  });
+
+  if (!newRows.length) return { ok: false, error: 'No roster rows built — check team name aliases' };
+
+  // 4. Write to sheet
+  const sheet = ss.getSheetByName('Rosters');
+  if (!sheet) return { ok: false, error: 'Rosters sheet not found' };
+
+  const HEADERS = ['teamKey','player','mlb_team','position','salary','status','contract','id'];
+  // Clear everything and rewrite
+  sheet.clearContents();
+  sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+  sheet.getRange(2, 1, newRows.length, HEADERS.length).setValues(newRows);
+
+  return { ok: true, rowsWritten: newRows.length, noNameCount: noName };
 }
 
 // ── One-time: populate the id column in Rosters sheet from Fantrax ─────────────
