@@ -3993,8 +3993,7 @@ function applyOwner(key) {
   if (badge) badge.style.display = isCommish ? '' : 'none';
   const commishNav = document.getElementById('nav-commish');
   if (commishNav) commishNav.style.display = isCommish ? '' : 'none';
-  const matchupsNav = document.getElementById('nav-matchups');
-  if (matchupsNav) matchupsNav.style.display = isCommish ? '' : 'none';
+  // Pick Compare is visible to all managers
 
   // Update team select default + badge label
   const teamSel = document.getElementById('team-select');
@@ -6453,73 +6452,65 @@ function renderPickCompare() {
     const selB = dataB.all.filter(p => window.pcSelB.has(p.key)).sort((a,b) => a.round - b.round || a.pick - b.pick);
     const hasAny = selA.length || selB.length;
 
-    function pickTile(pick, isKeeper) {
-      if (!pick) return `<div style="padding:6px 8px;color:var(--text-4);font-size:11px;font-style:italic">&mdash;</div>`;
-      const ovr = (pick.round - 1) * numTeams + pick.pick;
-      const bg  = isKeeper ? 'background:#edf7f1' : '';
-      const pkColor = isKeeper ? 'color:var(--green)' : 'color:var(--text-2)';
-      return `<div style="padding:6px 10px;${bg}">
-        <span style="font-size:12px;font-weight:700;${pkColor}">${pick.round}.${pick.pick}</span>
-        <span style="font-size:10px;color:var(--text-3);margin-left:4px">(${ovr} ovr)</span>
-        ${isKeeper ? '' : '<span style="font-size:9px;color:var(--text-3);margin-left:4px;font-style:italic">open</span>'}
+    function pickTile(pick) {
+      if (!pick) return `<div style="padding:10px 8px"></div>`;
+      const ovr      = (pick.round - 1) * numTeams + pick.pick;
+      const isKeeper = !!keeperBySlot[pick.key];
+      const bg       = isKeeper ? '#edf7f1' : 'var(--bg)';
+      const rdColor  = isKeeper ? 'var(--green)' : 'var(--text-2)';
+      return `<div style="background:${bg};border:1px solid var(--border);border-radius:5px;padding:8px 10px;margin:6px;text-align:center">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin-bottom:3px">${isKeeper ? 'Keeper' : 'Open'}</div>
+        <div style="font-size:11px;font-weight:700;color:${rdColor}">RD ${pick.round} &nbsp; PK ${pick.pick}</div>
+        <div style="font-size:10px;color:var(--text-3);margin-top:1px">OVR ${ovr}</div>
       </div>`;
     }
 
-    const maxLen  = Math.max(selA.length, selB.length);
-    const subTh   = `font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);padding:4px 10px;border-bottom:1px solid var(--border)`;
-
-    // Group by section label only when there are selections
-    // OFFER = A's assigned picks offered to B (A is giving up keeper slot)
-    // RECEIVE = B's open picks A is acquiring
-    const offerA   = selA.filter(p =>  keeperBySlot[p.key]);
-    const receiveA = selA.filter(p => !keeperBySlot[p.key]);
-    const offerB   = selB.filter(p =>  keeperBySlot[p.key]);
-    const receiveB = selB.filter(p => !keeperBySlot[p.key]);
-
-    function section(label, color, bg, picksA, picksB) {
-      if (!picksA.length && !picksB.length) return '';
-      const count = Math.max(picksA.length, picksB.length);
-      let rows = '';
-      for (let i = 0; i < count; i++) {
-        const ap = picksA[i] || null;
-        const bp = picksB[i] || null;
-        rows += `<div style="display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--border)">
-          ${pickTile(ap, ap ? !!keeperBySlot[ap.key] : false)}
-          <div style="border-left:1px solid var(--border)">${pickTile(bp, bp ? !!keeperBySlot[bp.key] : false)}</div>
-        </div>`;
-      }
-      return `<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:4px 10px 3px;color:${color};background:${bg};border-top:1px solid var(--border)">${label}</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;background:var(--bg);border-bottom:1px solid var(--border)">
-          <div style="${subTh}">${escHtml(teamA)}</div>
-          <div style="${subTh};border-left:1px solid var(--border)">${escHtml(teamB)}</div>
-        </div>
-        ${rows}`;
-    }
-
-    // Impact = net OVR change for Team A (positive = A gains overall pick value)
-    // Lower OVR is better, so: giving away low OVR (offer) hurts; getting low OVR (receive) helps
-    const ovrA = selA.reduce((s, p) => s + ((p.round - 1) * numTeams + p.pick), 0);
-    const ovrB = selB.reduce((s, p) => s + ((p.round - 1) * numTeams + p.pick), 0);
-    let impactBadge = '';
+    // delta from A's perspective: giving up ovrA, getting ovrB
+    // positive delta = A's picks have higher (worse) OVR than B's → A moves up → favors A
+    const ovrA  = selA.reduce((s, p) => s + ((p.round - 1) * numTeams + p.pick), 0);
+    const ovrB  = selB.reduce((s, p) => s + ((p.round - 1) * numTeams + p.pick), 0);
+    let deltaBadge = '';
     if (selA.length && selB.length) {
-      const delta = ovrB - ovrA; // positive = A receives picks with lower (better) OVR net
+      const delta = ovrA - ovrB;
       const sign  = delta > 0 ? '+' : '';
       const color = delta > 0 ? 'var(--green)' : delta < 0 ? '#e05c5c' : 'var(--text-3)';
       const label = delta > 0 ? 'favors you' : delta < 0 ? 'favors them' : 'even';
-      impactBadge = `<span style="font-size:10px;font-weight:700;color:${color};margin-left:auto;background:rgba(255,255,255,.1);border-radius:3px;padding:2px 7px">${sign}${delta} ovr &middot; ${label}</span>`;
+      deltaBadge = `<div style="text-align:center;padding:6px 4px">
+        <span style="font-size:16px;font-weight:800;color:${color}">${sign}${delta}</span>
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${color};margin-top:1px">${label}</div>
+      </div>`;
     }
 
-    const body = !hasAny
-      ? `<div style="padding:32px 16px;text-align:center;color:var(--text-3);font-size:12px;font-style:italic;line-height:1.6">Click picks on<br>either side to compare</div>`
-      : section('Offer', 'var(--blue)', '#f0f4ff', offerA, offerB)
-        + section('Receive', 'var(--green)', '#f0faf4', receiveA, receiveB);
+    let body;
+    if (!hasAny) {
+      body = `<div style="padding:32px 16px;text-align:center;color:var(--text-3);font-size:12px;font-style:italic;line-height:1.6">Click picks on<br>either side to compare</div>`;
+    } else {
+      const maxLen = Math.max(selA.length, selB.length);
+      const thSub  = `font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);padding:4px 8px;border-bottom:1px solid var(--border);text-align:center`;
+      let rows = '';
+      for (let i = 0; i < maxLen; i++) {
+        const ap = selA[i] || null;
+        const bp = selB[i] || null;
+        const midCell = (i === 0 && deltaBadge) ? deltaBadge : '';
+        rows += `<div style="display:grid;grid-template-columns:1fr 36px 1fr;align-items:center">
+          <div>${pickTile(ap)}</div>
+          <div style="text-align:center;font-size:10px;color:var(--text-4)">${midCell}</div>
+          <div>${pickTile(bp)}</div>
+        </div>`;
+      }
+      body = `<div style="display:grid;grid-template-columns:1fr 36px 1fr;background:var(--bg);border-bottom:1px solid var(--border)">
+        <div style="${thSub}">${escHtml(teamA)}</div>
+        <div></div>
+        <div style="${thSub};border-left:1px solid var(--border)">${escHtml(teamB)}</div>
+      </div>${rows}`;
+    }
 
-    const clearBtn = hasAny ? `<button onclick="pcClearSelection()" style="background:none;border:1px solid rgba(255,255,255,.3);color:rgba(255,255,255,.7);cursor:pointer;font-size:10px;border-radius:3px;padding:2px 7px;margin-left:${impactBadge ? '8px' : 'auto'}">Clear</button>` : '';
+    const clearBtn = hasAny ? `<button onclick="pcClearSelection()" style="background:none;border:1px solid rgba(255,255,255,.3);color:rgba(255,255,255,.7);cursor:pointer;font-size:10px;border-radius:3px;padding:2px 7px;margin-left:auto">Clear</button>` : '';
 
     return `<div class="card" style="overflow:hidden">
       <div class="card-header" style="background:var(--navy);padding:8px 12px">
         <span style="font-family:var(--head);font-weight:700;font-size:13px;letter-spacing:.04em;color:#fff">Pick Comparison</span>
-        ${impactBadge}${clearBtn}
+        ${clearBtn}
       </div>
       ${body}
     </div>`;
