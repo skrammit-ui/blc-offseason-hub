@@ -108,6 +108,10 @@ function doPost(e) {
         return corsResponse(debugFantraxRosterMatch());
       case 'populateFantraxPlayerIds':
         return corsResponse(populateFantraxPlayerIds(ss));
+      case 'debugRosterValues':
+        return corsResponse(debugRosterValues(ss));
+      case 'debugGetPlayerIds':
+        return corsResponse(debugGetPlayerIds());
       case 'debugFantraxPlayerEndpoints':
         return corsResponse(debugFantraxPlayerEndpoints());
       default:
@@ -1619,4 +1623,50 @@ function debugFantraxPlayerEndpoints() {
   });
 
   return { ok: true, results };
+}
+
+// ── Debug: try getPlayerIds with sport parameter ──────────────────────────────
+function debugGetPlayerIds() {
+  const sampleIds = ['02hfr', '02jh6', '02c47'];
+  const results = {};
+  const sportCodes = ['MLB', 'mlb', 'BASEBALL', 'baseball', '1', '2'];
+  sportCodes.forEach(sport => {
+    try {
+      const data = fetchFantrax('getPlayerIds', { playerIds: sampleIds.join(','), sport });
+      results['sport=' + sport] = { ok: true, raw: JSON.stringify(data).substring(0, 400) };
+    } catch(e) {
+      results['sport=' + sport] = { ok: false, error: e.message.substring(0, 120) };
+    }
+  });
+  return { ok: true, results };
+}
+
+// ── Debug: compare sheet salary/contract format vs Fantrax ────────────────────
+function debugRosterValues(ss) {
+  const sheet = ss.getSheetByName('Rosters');
+  const [headers, ...rows] = sheet.getDataRange().getValues();
+  const teamIdx     = headers.indexOf('teamKey');
+  const salIdx      = headers.indexOf('salary');
+  const contractIdx = headers.indexOf('contract');
+  const playerIdx   = headers.indexOf('player');
+
+  const sheetSample = rows.slice(0, 8).map(r => ({
+    player:      String(r[playerIdx]   || ''),
+    teamKey:     String(r[teamIdx]     || ''),
+    salary:      r[salIdx],
+    salaryStr:   String(r[salIdx]      || ''),
+    contract:    r[contractIdx],
+    contractStr: String(r[contractIdx] || ''),
+  }));
+
+  const data = fetchFantrax('getTeamRosters');
+  const firstTeam = Object.values(data.rosters || {})[0] || {};
+  const fantraxSample = (firstTeam.rosterItems || []).slice(0, 5).map(item => ({
+    id:           item.id,
+    salary:       item.salary,
+    salaryStr:    String(item.salary),
+    contractName: item.contract ? String(item.contract.name) : '',
+  }));
+
+  return { ok: true, sheetSample, fantraxSample, fantraxTeam: firstTeam.teamName };
 }
