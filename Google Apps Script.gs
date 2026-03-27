@@ -1540,23 +1540,33 @@ function debugFantraxRosterMatch() {
 // Matches by normalized name to rows in the Rosters sheet and writes the id column.
 function populateFantraxPlayerIds(ss) {
   // Step 1: fetch complete MLB player ID list
+  // Response shape: { "fantraxId": { name: "Last, First", fantraxId: "...", team: "BAL", position: "SS" }, ... }
   const data = fetchFantrax('getPlayerIds');
-  // Response shape: { playerIds: { "Player Name": "fantraxId", ... } }
-  // or { players: [ {id, name}, ... ] } — handle both
-  const playerMap = {}; // normName → fantraxId
-  if (data.playerIds && typeof data.playerIds === 'object') {
-    Object.entries(data.playerIds).forEach(([name, id]) => {
-      playerMap[normName(name)] = String(id);
-    });
-  } else {
-    const list = data.players || data.adpList || data.data || [];
-    if (Array.isArray(list)) {
-      list.forEach(p => {
-        const name = String(p.name || p.playerName || '').trim();
-        const id   = String(p.id   || p.playerId  || '').trim();
-        if (name && id) playerMap[normName(name)] = id;
-      });
+
+  const playerMap = {}; // normName → { id, team, position }
+  const addToMap = (name, id, team, position) => {
+    if (!name || !id) return;
+    const entry = { id, team: team || '', position: position || '' };
+    playerMap[normName(name)] = entry;
+    // Also store name-reversed variant to handle "Last, First" vs "First Last" mismatches
+    if (name.includes(',')) {
+      const parts = name.split(',');
+      const reversed = parts[1].trim() + ' ' + parts[0].trim();
+      playerMap[normName(reversed)] = entry;
     }
+  };
+
+  // Top-level keys are fantraxIds, values have .name, .fantraxId, .team, .position
+  if (typeof data === 'object' && !Array.isArray(data)) {
+    Object.entries(data).forEach(([key, p]) => {
+      if (p && typeof p === 'object') {
+        const name     = String(p.name || p.playerName || '').trim();
+        const id       = String(p.fantraxId || p.id || key).trim();
+        const team     = String(p.team || p.mlbTeam || '').trim();
+        const position = String(p.position || p.pos || '').trim();
+        addToMap(name, id, team, position);
+      }
+    });
   }
 
   if (!Object.keys(playerMap).length) {
@@ -1564,22 +1574,29 @@ function populateFantraxPlayerIds(ss) {
     return { ok: false, error: 'getPlayerIds returned no data — check response shape', rawSample: raw };
   }
 
-  // Step 2: match player names in Rosters sheet → write id
+  // Step 2: match player names in Rosters sheet → write id, mlb_team, position
   const sheet = ss.getSheetByName('Rosters');
   if (!sheet) return { ok: false, error: 'Rosters sheet not found' };
   const [headers, ...rows] = sheet.getDataRange().getValues();
-  const playerIdx = headers.indexOf('player');
-  const idIdx     = headers.indexOf('id');
+  const playerIdx  = headers.indexOf('player');
+  const idIdx      = headers.indexOf('id');
+  const mlbTeamIdx = headers.indexOf('mlb_team');
+  const posIdx     = headers.indexOf('position');
   if (playerIdx < 0 || idIdx < 0) return { ok: false, error: 'Rosters sheet missing player or id column' };
 
   let matched = 0, unmatched = 0;
   rows.forEach((r, i) => {
-    if (String(r[idIdx] || '').trim()) return; // already has an id
     const name = String(r[playerIdx] || '').trim();
     if (!name) return;
-    const fantraxId = playerMap[normName(name)];
-    if (!fantraxId) { unmatched++; return; }
-    sheet.getRange(i + 2, idIdx + 1).setValue(fantraxId);
+    const entry = playerMap[normName(name)];
+    if (!entry) { unmatched++; return; }
+
+    const rowNum = i + 2;
+    // Always write id (overwrite to keep in sync)
+    sheet.getRange(rowNum, idIdx + 1).setValue(entry.id);
+    // Write mlb_team and position if columns exist and values are available
+    if (mlbTeamIdx >= 0 && entry.team) sheet.getRange(rowNum, mlbTeamIdx + 1).setValue(entry.team);
+    if (posIdx     >= 0 && entry.position) sheet.getRange(rowNum, posIdx + 1).setValue(entry.position);
     matched++;
   });
 
