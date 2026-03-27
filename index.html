@@ -1974,17 +1974,15 @@ input[type=file] { display: none; }
   <div class="page-title"><img class="page-title-icon" src="icons/matchups.png" alt="">Pick Compare</div>
   <div class="page-sub">Compare draft picks, keeper commitments, and trade opportunities between two managers</div>
 
-  <div class="card" style="margin-bottom:16px">
-    <div style="padding:14px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-      <div style="display:flex;align-items:center;gap:8px">
-        <label style="font-size:12px;font-weight:600;color:var(--text-2)">Team A</label>
-        <select id="pc-team-a" onchange="renderPickCompare()" style="font-family:var(--body);font-size:12px;padding:4px 8px;border-radius:5px;border:1px solid var(--border);background:var(--bg);color:var(--text)"></select>
-      </div>
-      <span style="font-weight:700;color:var(--text-3)">vs</span>
-      <div style="display:flex;align-items:center;gap:8px">
-        <label style="font-size:12px;font-weight:600;color:var(--text-2)">Team B</label>
-        <select id="pc-team-b" onchange="renderPickCompare()" style="font-family:var(--body);font-size:12px;padding:4px 8px;border-radius:5px;border:1px solid var(--border);background:var(--bg);color:var(--text)"></select>
-      </div>
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em">My Team</span>
+      <select id="pc-team-a" onchange="renderPickCompare()" style="font-family:var(--body);font-size:12px;padding:4px 8px;border-radius:5px;border:1px solid var(--border);background:var(--bg);color:var(--text)"></select>
+    </div>
+    <span style="font-weight:700;color:var(--text-3)">vs</span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em">Compare</span>
+      <select id="pc-team-b" onchange="renderPickCompare()" style="font-family:var(--body);font-size:12px;padding:4px 8px;border-radius:5px;border:1px solid var(--border);background:var(--bg);color:var(--text)"></select>
     </div>
   </div>
 
@@ -6328,19 +6326,25 @@ function togglePlayerView(btn, homeKey, visitorKey) {
 
 function initPickComparePage() {
   const teams = Object.keys(LEAGUE).sort();
-  ['pc-team-a', 'pc-team-b'].forEach((id, i) => {
+  const myTeam = currentTeam || teams[0];
+
+  ['pc-team-a', 'pc-team-b'].forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
     sel.innerHTML = teams.map(t => `<option value="${escHtml(t)}">${escHtml(t)}</option>`).join('');
-    if (teams[i] !== undefined) sel.value = teams[i];
   });
+  const selA = document.getElementById('pc-team-a');
+  const selB = document.getElementById('pc-team-b');
+  if (selA) selA.value = myTeam;
+  if (selB) selB.value = teams.find(t => t !== myTeam) || teams[0];
+
   renderPickCompare();
 }
 
 function renderPickCompare() {
   const teamA = document.getElementById('pc-team-a')?.value;
   const teamB = document.getElementById('pc-team-b')?.value;
-  const el = document.getElementById('pc-results');
+  const el    = document.getElementById('pc-results');
   if (!el || !teamA || !teamB) return;
 
   if (teamA === teamB) {
@@ -6348,117 +6352,121 @@ function renderPickCompare() {
     return;
   }
 
-  const keeperBySlot = pcComputeKeeperBySlot();
-  const picksA = pcGetTeamPicks(teamA);
-  const picksB = pcGetTeamPicks(teamB);
-  const allRounds = [...new Set([...picksA.map(p => p.round), ...picksB.map(p => p.round)])].sort((a,b) => a-b);
+  const { keeperSlotByPlayer } = pcComputeKeeperData();
+  const numTeams = pcGetNumTeams();
 
-  const styleCell   = 'padding:7px 10px;font-size:12px;border-bottom:1px solid var(--border)';
-  const styleHeader = 'padding:8px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid var(--border)';
+  const thStyle   = `font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:4px 8px;border-bottom:1px solid var(--border)`;
+  const thPick    = `${thStyle};text-align:center;width:30px`;
+  const thPlayer  = `${thStyle};text-align:left;padding-left:10px`;
+  const thCenter  = `${thStyle};text-align:center`;
 
-  let picksHtml;
-  if (!allRounds.length) {
-    picksHtml = '<div style="padding:24px;text-align:center;color:var(--text-3);font-size:13px">No pick order data loaded. Upload a pick order CSV in the Commissioner section.</div>';
-  } else {
-    const rows = allRounds.map(rd => {
-      const aPicks = picksA.filter(p => p.round === rd);
-      const bPicks = picksB.filter(p => p.round === rd);
-      const maxRows = Math.max(aPicks.length, bPicks.length, 1);
-      return Array.from({length: maxRows}, (_, i) => {
-        const ap = aPicks[i];
-        const bp = bPicks[i];
-        const rdCell = i === 0
-          ? `<td rowspan="${maxRows}" style="width:52px;text-align:center;${styleCell};font-size:13px;font-weight:700;color:var(--text-2);border-right:1px solid var(--border)">${rd}</td>`
-          : '';
-        return `<tr>${rdCell}
-          <td style="${styleCell}">${ap ? pcRenderPick(ap, keeperBySlot) : '<span style="color:var(--text-4)">—</span>'}</td>
-          <td style="${styleCell};border-left:1px solid var(--border)">${bp ? pcRenderPick(bp, keeperBySlot) : '<span style="color:var(--text-4)">—</span>'}</td>
-        </tr>`;
+  function buildTeamCard(teamName, picksOnRight) {
+    const players   = [...(LEAGUE[teamName] || [])].sort((a, b) => (parseInt(a.salary) || 999) - (parseInt(b.salary) || 999));
+    const teamPicks = pcGetTeamPicks(teamName);
+    const assignedSlots = new Set();
+
+    const rowsHtml = players.map(p => {
+      const normStatus = STATUS_MAP[p.status] || 'MLB';
+      const sm         = STATUS_META[normStatus] || STATUS_META['MLB'];
+      const stagHtml   = `<span class="stag ${sm.cls}" style="cursor:default;white-space:nowrap">${sm.label}</span>`;
+      const keeperType = (keeperStore[teamName] || {})[p.player];
+      const keeperClass = keeperType ? `keeper-${keeperType}` : '';
+
+      // Find this keeper's assigned pick slot
+      const slotKey = keeperSlotByPlayer[`${teamName}|${p.player}`];
+      let rdCell = '<span style="color:var(--text-4)">—</span>';
+      let pkCell = '<span style="color:var(--text-4)">—</span>';
+      let ovrCell = '<span style="color:var(--text-4)">—</span>';
+      if (slotKey) {
+        const [rdStr, pkStr] = slotKey.split('_');
+        const rd  = parseInt(rdStr);
+        const pk  = parseInt(pkStr);
+        const ovr = (rd - 1) * numTeams + pk;
+        rdCell  = `<strong style="color:var(--green)">${rd}</strong>`;
+        pkCell  = `<span style="color:var(--green)">${pk}</span>`;
+        ovrCell = `<span style="color:var(--green)">${ovr}</span>`;
+        assignedSlots.add(slotKey);
+      }
+
+      const playerCell = `<td style="padding:3px 8px;max-width:160px">
+        <div style="display:flex;align-items:center;gap:4px;overflow:hidden">
+          <span style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1">${escHtml(p.player)}</span>
+          <span style="font-size:10px;color:var(--text-3);white-space:nowrap;flex-shrink:0">${escHtml(p.mlb_team || '')}${p.mlb_team && p.position ? ' · ' : ''}${escHtml(p.position || '')}</span>
+        </div>
+      </td>`;
+      const statusCell = `<td style="padding:3px 6px;text-align:center;white-space:nowrap">${stagHtml}</td>`;
+      const salCell    = `<td style="padding:3px 6px;text-align:center;width:44px">${rdTile(p.salary, false)}</td>`;
+      const conCell    = `<td style="padding:3px 6px;text-align:center;white-space:nowrap">${conTag(p.contract, false)}</td>`;
+      const pickCells  = `<td style="padding:3px 4px;text-align:center;font-size:11px;width:30px">${rdCell}</td>
+        <td style="padding:3px 4px;text-align:center;font-size:11px;width:30px">${pkCell}</td>
+        <td style="padding:3px 4px;text-align:center;font-size:11px;width:36px">${ovrCell}</td>`;
+
+      const cells = picksOnRight
+        ? `${playerCell}${statusCell}${salCell}${conCell}${pickCells}`
+        : `${pickCells}${playerCell}${statusCell}${salCell}${conCell}`;
+
+      return `<tr class="${keeperClass}" style="border-bottom:1px solid var(--border)">${cells}</tr>`;
+    }).join('');
+
+    // Open picks — pick slots not consumed by any keeper
+    const openPicks = teamPicks.filter(p => !assignedSlots.has(p.key));
+    let openHtml = '';
+    if (openPicks.length) {
+      const chips = openPicks.map(p => {
+        const ovr = (p.round - 1) * numTeams + p.pick;
+        return `<span style="font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:3px;padding:2px 7px;white-space:nowrap;color:var(--text-2)">Rd ${p.round}, Pk ${p.pick} <span style="color:var(--text-3)">(${ovr})</span></span>`;
       }).join('');
-    }).join('');
-
-    picksHtml = `<table style="width:100%;border-collapse:collapse">
-      <thead><tr>
-        <th style="width:52px;text-align:center;${styleHeader};color:var(--text-3)">Rd</th>
-        <th style="${styleHeader};color:var(--navy)">${escHtml(teamA)}</th>
-        <th style="${styleHeader};color:var(--navy);border-left:1px solid var(--border)">${escHtml(teamB)}</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
-  }
-
-  const rosterA  = LEAGUE[teamA] || [];
-  const rosterB  = LEAGUE[teamB] || [];
-  const keepersA = keeperStore[teamA] || {};
-  const keepersB = keeperStore[teamB] || {};
-
-  function renderRoster(players, keepers) {
-    if (!players.length) return '<div style="color:var(--text-3);font-size:12px;padding:8px 0">No roster data</div>';
-    const sorted = players.slice().sort((a,b) => {
-      return (keepers[a.player] ? 0 : 1) - (keepers[b.player] ? 0 : 1) || a.player.localeCompare(b.player);
-    });
-    return sorted.map(p => {
-      const kType  = keepers[p.player];
-      const kColor = {mlb:'var(--green)',milb:'var(--blue)',rule5:'var(--purple)',trade:'var(--orange)'}[kType] || '';
-      const kLabel = {mlb:'K',milb:'MiLB',rule5:'R5',trade:'Trade'}[kType] || '';
-      const badge  = kType
-        ? `<span style="font-size:9px;font-weight:700;color:${kColor};border:1px solid ${kColor};border-radius:3px;padding:1px 4px;flex-shrink:0">${kLabel}</span>`
-        : '<span style="width:26px;flex-shrink:0"></span>';
-      return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border)">
-        ${badge}
-        <span style="flex:1;font-size:12px;font-weight:500">${escHtml(p.player)}</span>
-        <span style="font-size:11px;color:var(--text-3);width:34px;text-align:center">${escHtml(p.position||'')}</span>
-        <span style="font-size:11px;color:var(--text-2);width:26px;text-align:right;font-weight:600">$${escHtml(p.salary||'')}</span>
-        <span style="font-size:10px;color:var(--text-3);width:32px;text-align:right">'${escHtml(String(p.contract||'').slice(-2))}</span>
+      openHtml = `<div style="padding:10px 12px;border-top:2px dashed var(--border);display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+        <span style="font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;flex-shrink:0">Open picks</span>
+        ${chips}
       </div>`;
-    }).join('');
+    }
+
+    const keptCount = teamPicks.length - openPicks.length;
+    const headers = picksOnRight
+      ? `<th style="${thPlayer}">Player / Team / Pos</th>
+         <th style="${thCenter}">Status</th>
+         <th style="${thCenter};width:44px">SAL</th>
+         <th style="${thCenter}">CON</th>
+         <th style="${thPick}">Rd</th>
+         <th style="${thPick}">Pk</th>
+         <th style="${thPick};width:36px">Ovr</th>`
+      : `<th style="${thPick}">Rd</th>
+         <th style="${thPick}">Pk</th>
+         <th style="${thPick};width:36px">Ovr</th>
+         <th style="${thPlayer}">Player / Team / Pos</th>
+         <th style="${thCenter}">Status</th>
+         <th style="${thCenter};width:44px">SAL</th>
+         <th style="${thCenter}">CON</th>`;
+
+    return `<div class="card" style="overflow:hidden">
+      <div class="card-header" style="background:var(--navy);padding:8px 12px">
+        <span style="font-family:var(--head);font-weight:700;font-size:13px;letter-spacing:.04em;color:#fff">${escHtml(teamName)}</span>
+        <span style="font-size:11px;color:rgba(255,255,255,.55);margin-left:auto">${players.length} players&ensp;·&ensp;<span style="color:rgba(100,220,140,.85)">${keptCount} keepers</span>&ensp;·&ensp;${openPicks.length} open picks</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:var(--bg)">${headers}</tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+      ${openHtml}
+    </div>`;
   }
 
-  const aOpen = picksA.filter(p => !keeperBySlot[p.key]).length;
-  const bOpen = picksB.filter(p => !keeperBySlot[p.key]).length;
-
-  el.innerHTML = `
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-header">
-        <span class="card-title">Draft Picks</span>
-        <div style="display:flex;gap:20px;font-size:11px;color:var(--text-3)">
-          <span>${escHtml(teamA)}: <strong>${picksA.length}</strong> picks · <strong style="color:var(--green)">${picksA.length - aOpen}</strong> keepers · <strong>${aOpen}</strong> open</span>
-          <span>${escHtml(teamB)}: <strong>${picksB.length}</strong> picks · <strong style="color:var(--green)">${picksB.length - bOpen}</strong> keepers · <strong>${bOpen}</strong> open</span>
-        </div>
-      </div>
-      <div style="overflow-x:auto">${picksHtml}</div>
-    </div>
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Rosters</span>
-        <div style="display:flex;gap:20px;font-size:11px;color:var(--text-3)">
-          <span>${escHtml(teamA)}: <strong>${rosterA.length}</strong> players · <strong style="color:var(--green)">${Object.keys(keepersA).length}</strong> keepers</span>
-          <span>${escHtml(teamB)}: <strong>${rosterB.length}</strong> players · <strong style="color:var(--green)">${Object.keys(keepersB).length}</strong> keepers</span>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr">
-        <div style="padding:14px 16px;border-right:1px solid var(--border)">
-          <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">${escHtml(teamA)}</div>
-          ${renderRoster(rosterA, keepersA)}
-        </div>
-        <div style="padding:14px 16px">
-          <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">${escHtml(teamB)}</div>
-          ${renderRoster(rosterB, keepersB)}
-        </div>
-      </div>
-    </div>`;
+  el.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    ${buildTeamCard(teamA, true)}
+    ${buildTeamCard(teamB, false)}
+  </div>`;
 }
 
-function pcRenderPick(pick, keeperBySlot) {
-  const k = keeperBySlot[pick.key];
-  if (k) {
-    return `<span style="color:var(--green);font-weight:600">&#x1F512; ${escHtml(k.player)}</span><span style="color:var(--text-3);font-size:11px;margin-left:6px">$${k.sal} · Pk ${pick.pick}</span>`;
+function pcGetNumTeams() {
+  let maxPk = 0;
+  for (const key of Object.keys(pickOrder)) {
+    const pk = parseInt(key.split('_')[1]);
+    if (pk > maxPk) maxPk = pk;
   }
-  const drafted = draftResults.find(d => String(d.round) === String(pick.round) && String(d.pick) === String(pick.pick) && d.manager === pick.team);
-  if (drafted) {
-    return `<span style="font-weight:500">${escHtml(drafted.player)}</span><span style="color:var(--text-3);font-size:11px;margin-left:6px">Pk ${pick.pick}</span>`;
-  }
-  return `<span style="color:var(--text-4);font-style:italic">Open · Pk ${pick.pick}</span>`;
+  return maxPk || Object.keys(LEAGUE).length;
 }
 
 function pcGetTeamPicks(teamName) {
@@ -6468,13 +6476,12 @@ function pcGetTeamPicks(teamName) {
     const [rdStr, pkStr] = key.split('_');
     picks.push({ round: parseInt(rdStr), pick: parseInt(pkStr), key, team: teamName });
   }
-  return picks.sort((a,b) => a.round - b.round || a.pick - b.pick);
+  return picks.sort((a, b) => a.round - b.round || a.pick - b.pick);
 }
 
-function pcComputeKeeperBySlot() {
+function pcComputeKeeperData() {
   const assignments = [];
-  const hasPickOrder = Object.keys(pickOrder).length > 0;
-  if (!hasPickOrder) return {};
+  if (!Object.keys(pickOrder).length) return { keeperBySlot: {}, keeperSlotByPlayer: {} };
 
   for (const [team, keptMap] of Object.entries(keeperStore)) {
     const keepers = [];
@@ -6495,19 +6502,19 @@ function pcComputeKeeperBySlot() {
       if (!teamPicksByRd[rd]) teamPicksByRd[rd] = [];
       teamPicksByRd[rd].push(pk);
     }
-    for (const rd of Object.keys(teamPicksByRd)) teamPicksByRd[rd].sort((a,b) => a-b);
+    for (const rd of Object.keys(teamPicksByRd)) teamPicksByRd[rd].sort((a, b) => a - b);
 
     const teamCustom = (typeof customDraftSlots !== 'undefined' && customDraftSlots[ownerKeyFor(team)]) || {};
     const occupied   = new Set();
-    keepers.sort((a,b) => b.sal - a.sal || a.player.localeCompare(b.player));
+    keepers.sort((a, b) => b.sal - a.sal || a.player.localeCompare(b.player));
 
     const needsAuto = [];
     for (const k of keepers) {
       const custom = teamCustom[k.player];
       if (custom) {
         const parts = custom.split('_');
-        const rd = parseInt(parts[0]);
-        const pk = parts[1] ? parseInt(parts[1]) : null;
+        const rd  = parseInt(parts[0]);
+        const pk  = parts[1] ? parseInt(parts[1]) : null;
         const pks = teamPicksByRd[rd];
         if (pks) {
           const cands = (pk !== null && pks.includes(pk)) ? [pk] : pks;
@@ -6535,9 +6542,15 @@ function pcComputeKeeperBySlot() {
     }
   }
 
-  const bySlot = {};
-  assignments.forEach(k => { if (k.pk != null) bySlot[`${k.rd}_${k.pk}`] = k; });
-  return bySlot;
+  const keeperBySlot      = {};
+  const keeperSlotByPlayer = {};
+  assignments.forEach(k => {
+    if (k.pk == null) return;
+    const slot = `${k.rd}_${k.pk}`;
+    keeperBySlot[slot] = k;
+    keeperSlotByPlayer[`${k.manager}|${k.player}`] = slot;
+  });
+  return { keeperBySlot, keeperSlotByPlayer };
 }
 
 function initCommishPage() {
