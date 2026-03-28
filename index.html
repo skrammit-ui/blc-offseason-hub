@@ -2542,10 +2542,10 @@ function renderLiveView(players, nameMap, dateStr) {
   function statTh(col, colorVar) { return `<th style="${RATIO_COLS.has(col) ? ratTd : cntTd};color:${colorVar}">${col}</th>`; }
 
   function lineupBadge(text) {
-    return `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;background:var(--green);color:#fff;border-radius:4px;font-size:10px;font-weight:700;padding:0 3px">${text}</span>`;
+    return `<span style="display:inline-flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px;letter-spacing:.03em;background:var(--green-lt);color:var(--green);border:1px solid #a8d5bc;white-space:nowrap">${text}</span>`;
   }
   function lineupBadgeGrey(text) {
-    return `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;background:var(--text-3);color:#fff;border-radius:4px;font-size:10px;font-weight:700;padding:0 3px;opacity:.6">${text}</span>`;
+    return `<span style="display:inline-flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px;letter-spacing:.03em;background:var(--bg);color:var(--text-3);border:1px solid var(--border);white-space:nowrap">${text}</span>`;
   }
 
   const hitters = sorted.filter(p => !isPitcher(p.position)).sort(mlbFirst);
@@ -2598,12 +2598,13 @@ function renderLiveView(players, nameMap, dateStr) {
       return `<td ${statTd(k, hi)}>${val}</td>`;
     }).join('');
 
-    const ls     = live?.lineupStatus || {};
-    const order  = live?.battingOrder ? parseInt(live.battingOrder) : 0;
-    const isStart = order > 0 && order % 100 === 0;
+    const ls      = live?.lineupStatus || {};
+    const order   = live?.battingOrder ? parseInt(live.battingOrder) : 0;
+    const isStart  = order > 0 && order % 100 === 0;
     const subbedOut = live?.wasSubbedOut === true;
-    const badge  = isStart ? (subbedOut ? lineupBadgeGrey(order / 100) : lineupBadge(order / 100)) : '';
-    const rowBg  = ls.isCurrentBatter ? 'background:rgba(16,185,129,.12)' : 'background:#fff';
+    const gameOver = (live?.gameStatus || '').startsWith('Final');
+    const badge   = isStart ? ((subbedOut || gameOver) ? lineupBadgeGrey(order / 100) : lineupBadge(order / 100)) : '';
+    const rowBg   = ls.isCurrentBatter ? 'background:rgba(16,185,129,.12)' : 'background:#fff';
 
     return `<tr style="${rowBg}">
       <td style="padding:2px 4px 2px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></td>
@@ -2697,10 +2698,11 @@ function renderLiveView(players, nameMap, dateStr) {
     const ls         = live?.lineupStatus || {};
     const isSP       = (live?.pitching?.gamesStarted || 0) === 1;
     const isRP       = raw && raw.IP_outs > 0 && !isSP;
+    const gameOver   = (live?.gameStatus || '').startsWith('Final');
     const spPulled   = isSP && raw && raw.IP_outs > 0 && !ls.isCurrentPitcher;
     const rpDone     = isRP && !ls.isCurrentPitcher;
-    const badge      = isSP ? (spPulled ? lineupBadgeGrey('SP') : lineupBadge('SP'))
-                     : isRP ? (rpDone   ? lineupBadgeGrey('RP') : lineupBadge('RP'))
+    const badge      = isSP ? ((spPulled || gameOver) ? lineupBadgeGrey('SP') : lineupBadge('SP'))
+                     : isRP ? ((rpDone   || gameOver) ? lineupBadgeGrey('RP') : lineupBadge('RP'))
                      : '';
     const rowBg      = ls.isCurrentPitcher ? 'background:rgba(16,185,129,.12)' : 'background:#fff';
 
