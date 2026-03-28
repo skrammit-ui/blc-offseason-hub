@@ -2651,8 +2651,11 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
     const rowBg   = (!gameOver && ls.isCurrentBatter) ? 'background:rgba(16,185,129,.12)' : 'background:#fff';
 
     const mlbId = getMlbId(p);
+    const isMiLBPlayer = (STATUS_MAP[p.status] || 'MLB') === 'MiLB';
     const shot  = mlbId
-      ? `<img src="https://img.mlbstatic.com/mlb-photos/image/upload/w_60,d_people:generic:headshot:silo:current.png,q_auto:best,f_auto/v1/people/${mlbId}/headshot/67/current" data-milb="https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_60/v1/people/${mlbId}/headshot/milb/current" style="width:22px;height:30px;object-fit:contain;object-position:center bottom;flex-shrink:0;border-radius:4px" loading="lazy" onerror="var f=this.dataset.milb;if(f&&this.src!==f){this.src=f;this.dataset.milb=''}else{this.style.display='none'}">`
+      ? (isMiLBPlayer
+          ? `<img src="https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_60/v1/people/${mlbId}/headshot/milb/current" style="width:22px;height:30px;object-fit:contain;object-position:center bottom;flex-shrink:0;border-radius:4px" loading="lazy" onerror="this.style.display='none'">`
+          : `<img src="https://img.mlbstatic.com/mlb-photos/image/upload/w_60,q_auto:best,f_auto/v1/people/${mlbId}/headshot/67/current" data-milb="https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_60/v1/people/${mlbId}/headshot/milb/current" style="width:22px;height:30px;object-fit:contain;object-position:center bottom;flex-shrink:0;border-radius:4px" loading="lazy" onerror="var f=this.dataset.milb;if(f&&this.src!==f){this.src=f;this.dataset.milb=''}else{this.style.display='none'}">`)
       : `<span style="display:inline-block;width:22px;height:30px;flex-shrink:0"></span>`;
     return `<tr style="${rowBg}">
       <td style="padding:2px 4px 2px 10px;overflow:hidden;white-space:nowrap"><div style="display:flex;align-items:center;gap:6px">${shot}<div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></div></div></td>
@@ -2755,8 +2758,11 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
     const rowBg      = (!gameOver && ls.isCurrentPitcher) ? 'background:rgba(16,185,129,.12)' : 'background:#fff';
 
     const mlbId = getMlbId(p);
+    const isMiLBPlayer = (STATUS_MAP[p.status] || 'MLB') === 'MiLB';
     const shot  = mlbId
-      ? `<img src="https://img.mlbstatic.com/mlb-photos/image/upload/w_60,d_people:generic:headshot:silo:current.png,q_auto:best,f_auto/v1/people/${mlbId}/headshot/67/current" data-milb="https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_60/v1/people/${mlbId}/headshot/milb/current" style="width:22px;height:30px;object-fit:contain;object-position:center bottom;flex-shrink:0;border-radius:4px" loading="lazy" onerror="var f=this.dataset.milb;if(f&&this.src!==f){this.src=f;this.dataset.milb=''}else{this.style.display='none'}">`
+      ? (isMiLBPlayer
+          ? `<img src="https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_60/v1/people/${mlbId}/headshot/milb/current" style="width:22px;height:30px;object-fit:contain;object-position:center bottom;flex-shrink:0;border-radius:4px" loading="lazy" onerror="this.style.display='none'">`
+          : `<img src="https://img.mlbstatic.com/mlb-photos/image/upload/w_60,q_auto:best,f_auto/v1/people/${mlbId}/headshot/67/current" data-milb="https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_60/v1/people/${mlbId}/headshot/milb/current" style="width:22px;height:30px;object-fit:contain;object-position:center bottom;flex-shrink:0;border-radius:4px" loading="lazy" onerror="var f=this.dataset.milb;if(f&&this.src!==f){this.src=f;this.dataset.milb=''}else{this.style.display='none'}">`)
       : `<span style="display:inline-block;width:22px;height:30px;flex-shrink:0"></span>`;
     return `<tr style="${rowBg}">
       <td style="padding:2px 4px 2px 10px;overflow:hidden;white-space:nowrap"><div style="display:flex;align-items:center;gap:6px">${shot}<div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></div></div></td>
