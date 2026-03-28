@@ -2362,6 +2362,15 @@ const MLB_TEAM_IDS = {
 // Cache: date string → { playerName (lower) → { batting:{}, pitching:{}, gameStatus, opponent } }
 let liveStatsCache = {};
 
+// Silhouette placeholder shown when no headshot is available
+const HEADSHOT_PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 40">' +
+  '<rect width="30" height="40" fill="#f1f5f9" rx="3"/>' +
+  '<circle cx="15" cy="13" r="7" fill="#cbd5e1"/>' +
+  '<path d="M2 40C2 26 28 26 28 40Z" fill="#cbd5e1"/>' +
+  '</svg>'
+);
+
 // Best-effort headshot scraper for players not in MLB/MiLB system.
 // Silently does nothing on CORS failure — each source is tried in order.
 async function fetchExternalHeadshot(img, playerName) {
@@ -2438,7 +2447,7 @@ async function fetchExternalHeadshot(img, playerName) {
     }
   } catch (_) {}
 
-  img.style.display = 'none';
+  img.src = HEADSHOT_PLACEHOLDER;
   return false;
 }
 
@@ -2672,28 +2681,39 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
     return `<span style="display:inline-flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px;letter-spacing:.03em;background:var(--bg);color:var(--text-3);border:1px solid var(--border);white-space:nowrap">${text}</span>`;
   }
 
-  // Sort priority: 0=in today's lineup, 1=has game but not in lineup, 2=no game, 3=MiLB
-  function inLineupPriority(p) {
+  // Sort priority: 0=active today, 1=has game but not active, 2=no game, 3=MiLB
+  function hitterPriority(p) {
     const isMiLB = (STATUS_MAP[p.status] || 'MLB') === 'MiLB';
     if (isMiLB) return 3;
     const live = lookupPlayer(p);
     if (!live) return 2;
     const order = live.battingOrder ? parseInt(live.battingOrder) : 0;
-    const inBattingOrder = order > 0 && order % 100 === 0;
-    const hasPitching = ipToOuts(live.pitching?.inningsPitched) > 0;
-    const isPitchingToday = hasPitching || live.lineupStatus?.isCurrentPitcher;
-    if (inBattingOrder || isPitchingToday) return 0;
+    if (order > 0 && order % 100 === 0) return 0;   // confirmed in batting lineup
+    if (live.gameStatus) return 1;
+    return 2;
+  }
+
+  function pitcherPriority(p) {
+    const isMiLB = (STATUS_MAP[p.status] || 'MLB') === 'MiLB';
+    if (isMiLB) return 3;
+    const live = lookupPlayer(p);
+    if (!live) return 2;
+    const pit = live.pitching;
+    const hasIP     = ipToOuts(pit?.inningsPitched) > 0;
+    const isStarted = (pit?.gamesStarted || 0) > 0;
+    const isCurrent = live.lineupStatus?.isCurrentPitcher === true;
+    if (hasIP || isStarted || isCurrent) return 0;   // SP/RP who has pitched or is on mound
     if (live.gameStatus) return 1;
     return 2;
   }
 
   const hitters = sorted.filter(p => !isPitcher(p.position)).sort((a, b) => {
-    const pa = inLineupPriority(a), pb = inLineupPriority(b);
+    const pa = hitterPriority(a), pb = hitterPriority(b);
     if (pa !== pb) return pa - pb;
     return mlbFirst(a, b);
   });
   const pitchers = sorted.filter(p =>  isPitcher(p.position)).sort((a, b) => {
-    const pa = inLineupPriority(a), pb = inLineupPriority(b);
+    const pa = pitcherPriority(a), pb = pitcherPriority(b);
     if (pa !== pb) return pa - pb;
     return mlbFirst(a, b);
   });
@@ -2758,9 +2778,9 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
     const shotStyle = 'width:22px;height:30px;object-fit:contain;object-position:center bottom;flex-shrink:0;border-radius:4px';
     const shot  = mlbId
       ? (isMiLBPlayer
-          ? `<img src="https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_60/v1/people/${mlbId}/headshot/milb/current" data-player="${pName}" style="${shotStyle}" loading="lazy" onerror="fetchExternalHeadshot(this,this.dataset.player)">`
-          : `<img src="https://img.mlbstatic.com/mlb-photos/image/upload/w_60,q_auto:best,f_auto/v1/people/${mlbId}/headshot/67/current" data-milb="https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_60/v1/people/${mlbId}/headshot/milb/current" data-player="${pName}" style="${shotStyle}" loading="lazy" onerror="var f=this.dataset.milb;if(f&&this.src!==f){this.src=f;this.dataset.milb=''}else{fetchExternalHeadshot(this,this.dataset.player)}">`)
-      : `<img data-ext="1" data-player="${pName}" style="${shotStyle};display:none" src="">`;
+          ? `<img src="https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_60/v1/people/${mlbId}/headshot/milb/current" data-player="${pName}" style="${shotStyle}" loading="lazy" onerror="this.src=HEADSHOT_PLACEHOLDER;fetchExternalHeadshot(this,this.dataset.player)">`
+          : `<img src="https://img.mlbstatic.com/mlb-photos/image/upload/w_60,q_auto:best,f_auto/v1/people/${mlbId}/headshot/67/current" data-milb="https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_60/v1/people/${mlbId}/headshot/milb/current" data-player="${pName}" style="${shotStyle}" loading="lazy" onerror="var f=this.dataset.milb;if(f&&this.src!==f){this.src=f;this.dataset.milb=''}else{this.src=HEADSHOT_PLACEHOLDER;fetchExternalHeadshot(this,this.dataset.player)}">`)
+      : `<img data-ext="1" data-player="${pName}" style="${shotStyle}" src="${HEADSHOT_PLACEHOLDER}">`;
     return `<tr style="${rowBg}">
       <td style="padding:2px 4px 2px 10px;overflow:hidden;white-space:nowrap"><div style="display:flex;align-items:center;gap:6px">${shot}<div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></div></div></td>
       <td style="${lineupTd};white-space:nowrap">${badge}</td>
@@ -2866,9 +2886,9 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
     const shotStyle = 'width:22px;height:30px;object-fit:contain;object-position:center bottom;flex-shrink:0;border-radius:4px';
     const shot  = mlbId
       ? (isMiLBPlayer
-          ? `<img src="https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_60/v1/people/${mlbId}/headshot/milb/current" data-player="${pName}" style="${shotStyle}" loading="lazy" onerror="fetchExternalHeadshot(this,this.dataset.player)">`
-          : `<img src="https://img.mlbstatic.com/mlb-photos/image/upload/w_60,q_auto:best,f_auto/v1/people/${mlbId}/headshot/67/current" data-milb="https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_60/v1/people/${mlbId}/headshot/milb/current" data-player="${pName}" style="${shotStyle}" loading="lazy" onerror="var f=this.dataset.milb;if(f&&this.src!==f){this.src=f;this.dataset.milb=''}else{fetchExternalHeadshot(this,this.dataset.player)}">`)
-      : `<img data-ext="1" data-player="${pName}" style="${shotStyle};display:none" src="">`;
+          ? `<img src="https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_60/v1/people/${mlbId}/headshot/milb/current" data-player="${pName}" style="${shotStyle}" loading="lazy" onerror="this.src=HEADSHOT_PLACEHOLDER;fetchExternalHeadshot(this,this.dataset.player)">`
+          : `<img src="https://img.mlbstatic.com/mlb-photos/image/upload/w_60,q_auto:best,f_auto/v1/people/${mlbId}/headshot/67/current" data-milb="https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_60/v1/people/${mlbId}/headshot/milb/current" data-player="${pName}" style="${shotStyle}" loading="lazy" onerror="var f=this.dataset.milb;if(f&&this.src!==f){this.src=f;this.dataset.milb=''}else{this.src=HEADSHOT_PLACEHOLDER;fetchExternalHeadshot(this,this.dataset.player)}">`)
+      : `<img data-ext="1" data-player="${pName}" style="${shotStyle}" src="${HEADSHOT_PLACEHOLDER}">`;
     return `<tr style="${rowBg}">
       <td style="padding:2px 4px 2px 10px;overflow:hidden;white-space:nowrap"><div style="display:flex;align-items:center;gap:6px">${shot}<div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></div></div></td>
       <td style="${lineupTd};white-space:nowrap">${badge}</td>
@@ -2910,10 +2930,9 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
     </div>`;
 
   // Trigger external headshot fetch for players with no mlbId (college/international)
+  // Placeholder is already shown; fetchExternalHeadshot replaces it if a photo is found.
   content.querySelectorAll('img[data-ext="1"]').forEach(img => {
-    fetchExternalHeadshot(img, img.dataset.player).then(found => {
-      if (found) img.style.display = '';
-    });
+    fetchExternalHeadshot(img, img.dataset.player);
   });
 }
 
