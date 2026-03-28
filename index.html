@@ -1573,8 +1573,8 @@ input[type=file] { display: none; }
                onchange="uploadTeamLogo(this)">
       </div>
       <div style="display:flex;gap:6px">
-        <button class="view-tab" onclick="switchView('live',this)"><img src="icons/live.png" style="width:14px;height:14px;object-fit:contain;vertical-align:middle;margin-right:4px;border-radius:3px">Live</button>
-        <button class="view-tab active" onclick="switchView('overview',this)"><img src="icons/rosteroverview.png" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;margin-right:4px;border-radius:4px">Overview</button>
+        <button class="view-tab active" onclick="switchView('live',this)"><img src="icons/live.png" style="width:14px;height:14px;object-fit:contain;vertical-align:middle;margin-right:4px;border-radius:3px">Live</button>
+        <button class="view-tab" onclick="switchView('overview',this)"><img src="icons/rosteroverview.png" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;margin-right:4px;border-radius:4px">Overview</button>
         <button class="view-tab" onclick="switchView('builder',this)"><img src="icons/keeperbuilder.png" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;margin-right:4px;border-radius:4px">Keeper Builder</button>
         <button class="view-tab" onclick="switchView('draft',this)"><img src="icons/draftplanner.png" style="width:16px;height:16px;object-fit:contain;vertical-align:middle;margin-right:4px;border-radius:4px">Draft Planner</button>
       </div>
@@ -1592,8 +1592,8 @@ input[type=file] { display: none; }
       <span class="legend-keeper-hint" style="margin-left:auto;font-size:11px">Click <strong>✓</strong> on any player to mark as keeper</span>
     </div>
 
-    <!-- VIEW 0: Live Stats -->
-    <div id="view-live" class="roster-view" style="display:none">
+    <!-- VIEW 0: Live Stats (default) -->
+    <div id="view-live" class="roster-view active-view">
       <div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:var(--bg)">
         <button class="btn btn-primary" id="live-fetch-btn" onclick="fetchLiveStats()" style="padding:4px 12px;font-size:12px">↻ Refresh</button>
         <span id="live-updated" style="font-size:11px;color:var(--text-3)">Click Refresh to load today's stats</span>
@@ -1602,7 +1602,7 @@ input[type=file] { display: none; }
     </div>
 
     <!-- VIEW 1: Overview -->
-    <div id="view-overview" class="roster-view active-view">
+    <div id="view-overview" class="roster-view" style="display:none">
       <div class="scroll-x" id="overview-content"></div>
     </div>
 
@@ -2449,10 +2449,12 @@ async function fetchLiveStats() {
           const bat = pd.stats?.batting;
           const pit = pd.stats?.pitching;
           nameMap[name] = {
-            batting:  (bat && Object.keys(bat).length > 0) ? bat : null,
-            pitching: (pit && Object.keys(pit).length > 0) ? pit : null,
+            batting:    (bat && Object.keys(bat).length > 0) ? bat : null,
+            pitching:   (pit && Object.keys(pit).length > 0) ? pit : null,
             gameStatus: meta.statusLabel || 'Today',
             opponent,
+            battingOrder:  pd.battingOrder  || null,   // "100","200"… starters; non-multiples = subs
+            lineupStatus:  pd.gameStatus    || {},     // {isCurrentBatter, isCurrentPitcher, …}
           };
         });
       });
@@ -2519,12 +2521,17 @@ function renderLiveView(players, nameMap, dateStr) {
   }
 
   const RATIO_COLS = new Set(['OBP','ERA','WHIP']);
-  // Fixed width for counting stats; auto-size for ratio stats
-  const cntTd  = 'width:34px;text-align:center;font-size:11px;font-family:var(--mono)';
-  const ratTd  = 'white-space:nowrap;text-align:center;font-size:11px;font-family:var(--mono);padding:0 5px';
-  const gameTd = 'white-space:nowrap;text-align:center;padding:0 6px;font-size:10px';
+  // width:1px + white-space:nowrap = shrinks to exact content width
+  const cntTd    = 'width:34px;text-align:center;font-size:11px;font-family:var(--mono);padding:0 2px';
+  const ratTd    = 'width:1px;white-space:nowrap;text-align:center;font-size:11px;font-family:var(--mono);padding:0 6px';
+  const gameTd   = 'width:1px;white-space:nowrap;text-align:center;padding:0 6px;font-size:10px';
+  const lineupTd = 'width:24px;text-align:center;padding:0 2px';
   function statTd(col, extra='') { return `style="${RATIO_COLS.has(col) ? ratTd : cntTd}${extra ? ';'+extra : ''}"` ; }
   function statTh(col, colorVar) { return `<th style="${RATIO_COLS.has(col) ? ratTd : cntTd};color:${colorVar}">${col}</th>`; }
+
+  function lineupBadge(text) {
+    return `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;background:var(--green);color:#fff;border-radius:4px;font-size:10px;font-weight:700;padding:0 3px">${text}</span>`;
+  }
 
   const hitters = sorted.filter(p => !isPitcher(p.position)).sort(mlbFirst);
   const pitchers = sorted.filter(p =>  isPitcher(p.position)).sort(mlbFirst);
@@ -2575,8 +2582,16 @@ function renderLiveView(players, nameMap, dateStr) {
       const hi = val !== '—' && val !== '.000' ? 'font-weight:600;color:var(--green)' : '';
       return `<td ${statTd(k, hi)}>${val}</td>`;
     }).join('');
-    return `<tr style="background:#fff">
+
+    const ls     = live?.lineupStatus || {};
+    const order  = live?.battingOrder ? parseInt(live.battingOrder) : 0;
+    const isStart = order > 0 && order % 100 === 0;
+    const badge  = isStart ? lineupBadge(order / 100) : '';
+    const rowBg  = ls.isCurrentBatter ? 'background:rgba(16,185,129,.12)' : 'background:#fff';
+
+    return `<tr style="${rowBg}">
       <td class="col-player" style="padding-left:12px"><strong>${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></td>
+      <td style="${lineupTd}">${badge}</td>
       <td style="${gameTd}">${buildGameBadge(live)}</td>
       ${cells}
     </tr>`;
@@ -2591,12 +2606,13 @@ function renderLiveView(players, nameMap, dateStr) {
       <table class="roster-tbl" style="width:100%">
         <thead>
           <tr style="background:var(--bg)">
-            <td colspan="2" style="padding:6px 12px;font-size:10px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--text-3);text-transform:uppercase">Today's Totals</td>
+            <td colspan="3" style="padding:6px 12px;font-size:10px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--text-3);text-transform:uppercase">Today's Totals</td>
             ${hitTotalCells}
           </tr>
-          <tr style="background:#fff"><td colspan="${2 + HIT_COLS.length}" style="height:8px;padding:0"></td></tr>
+          <tr style="background:#fff"><td colspan="${3 + HIT_COLS.length}" style="height:8px;padding:0"></td></tr>
           <tr>
             <th class="col-player">Player</th>
+            <th style="${lineupTd}"></th>
             <th style="${gameTd};font-weight:700;color:var(--text-3)">Game</th>
             ${HIT_COLS.map(s => statTh(s, 'var(--green)')).join('')}
           </tr>
@@ -2659,8 +2675,16 @@ function renderLiveView(players, nameMap, dateStr) {
       const hi = val !== '—' ? 'font-weight:600;color:var(--blue)' : '';
       return `<td ${statTd(k, hi)}>${val}</td>`;
     }).join('');
-    return `<tr style="background:#fff">
+
+    const ls         = live?.lineupStatus || {};
+    const isSP       = (live?.pitching?.gamesStarted || 0) === 1;
+    const isRP       = raw && raw.IP_outs > 0 && !isSP;
+    const badge      = isSP ? lineupBadge('SP') : isRP ? lineupBadge('RP') : '';
+    const rowBg      = ls.isCurrentPitcher ? 'background:rgba(16,185,129,.12)' : 'background:#fff';
+
+    return `<tr style="${rowBg}">
       <td class="col-player" style="padding-left:12px"><strong>${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></td>
+      <td style="${lineupTd}">${badge}</td>
       <td style="${gameTd}">${buildGameBadge(live)}</td>
       ${cells}
     </tr>`;
@@ -2675,12 +2699,13 @@ function renderLiveView(players, nameMap, dateStr) {
       <table class="roster-tbl" style="width:100%">
         <thead>
           <tr style="background:var(--bg)">
-            <td colspan="2" style="padding:6px 12px;font-size:10px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--text-3);text-transform:uppercase">Today's Totals</td>
+            <td colspan="3" style="padding:6px 12px;font-size:10px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--text-3);text-transform:uppercase">Today's Totals</td>
             ${pitTotalCells}
           </tr>
-          <tr style="background:#fff"><td colspan="${2 + PIT_COLS.length}" style="height:8px;padding:0"></td></tr>
+          <tr style="background:#fff"><td colspan="${3 + PIT_COLS.length}" style="height:8px;padding:0"></td></tr>
           <tr>
             <th class="col-player">Player</th>
+            <th style="${lineupTd}"></th>
             <th style="${gameTd};font-weight:700;color:var(--text-3)">Game</th>
             ${PIT_COLS.map(s => statTh(s, 'var(--blue)')).join('')}
           </tr>
@@ -4578,7 +4603,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ── View switching ─────────────────────────────────────────────────────────────
-let currentView = 'overview';
+let currentView = 'live';
 
 function switchView(view, btn) {
   currentView = view;
