@@ -2508,7 +2508,7 @@ function renderLiveView(players, nameMap, dateStr) {
   const pitchers = sorted.filter(p =>  isPitcher(p.position)).sort(mlbFirst);
 
   // ── Hitters ────────────────────────────────────────────────────────────────
-  const HIT_COLS = ['AB','R','H','HR','RBI','BB','SB','OBP'];
+  const HIT_COLS = ['AB','H','R','HR','RBI','SB','OBP'];
 
   function getHitRaw(p) {
     const bat = lookupPlayer(p)?.batting;
@@ -2584,7 +2584,7 @@ function renderLiveView(players, nameMap, dateStr) {
     </div>`;
 
   // ── Pitchers ───────────────────────────────────────────────────────────────
-  const PIT_COLS = ['IP','HA','ER','K','BB','W','SVH','QA'];
+  const PIT_COLS = ['IP','ERA','WHIP','K','QA','SVH'];
 
   function getPitRaw(p) {
     const pit = lookupPlayer(p)?.pitching;
@@ -2602,17 +2602,21 @@ function renderLiveView(players, nameMap, dateStr) {
     };
   }
 
-  const pitAgg = { IP_outs:0, HA:0, ER:0, K:0, BB:0, W:0, SVH:0, QA:0 };
+  const pitAgg = { IP_outs:0, HA:0, ER:0, K:0, BB:0, SVH:0, QA:0 };
   pitchers.forEach(p => {
     const s = getPitRaw(p);
     if (s) { pitAgg.IP_outs += s.IP_outs; pitAgg.HA += s.HA; pitAgg.ER += s.ER;
-             pitAgg.K += s.K; pitAgg.BB += s.BB; pitAgg.W += s.W;
+             pitAgg.K += s.K; pitAgg.BB += s.BB;
              pitAgg.SVH += s.SVH; pitAgg.QA += s.QA; }
   });
 
   const pitTotalCells = PIT_COLS.map(k => {
-    const v = k === 'IP' ? outsToIP(pitAgg.IP_outs)
-            : (pitAgg[k] > 0 ? pitAgg[k] : '—');
+    const ipDec = pitAgg.IP_outs / 3;
+    let v;
+    if      (k === 'IP')   v = outsToIP(pitAgg.IP_outs);
+    else if (k === 'ERA')  v = ipDec > 0 ? ((pitAgg.ER / ipDec) * 9).toFixed(2) : '—';
+    else if (k === 'WHIP') v = ipDec > 0 ? ((pitAgg.BB + pitAgg.HA) / ipDec).toFixed(2) : '—';
+    else                   v = pitAgg[k] > 0 ? pitAgg[k] : '—';
     return `<td style="width:42px;text-align:center;font-size:11px;font-weight:700;color:var(--blue);font-family:var(--mono)">${v}</td>`;
   }).join('');
 
@@ -2623,10 +2627,13 @@ function renderLiveView(players, nameMap, dateStr) {
     const live = lookupPlayer(p);
     const cells = PIT_COLS.map(k => {
       if (!raw) return `<td style="width:42px;text-align:center;font-size:11px;font-family:var(--mono)">—</td>`;
+      const ipDec = raw.IP_outs / 3;
       let val;
-      if      (k === 'IP')  val = raw.IP_outs > 0 ? raw.ipStr : '—';
-      else if (k === 'QA')  val = raw.QA ? '✓' : '—';
-      else                  val = raw[k] > 0 ? String(raw[k]) : '—';
+      if      (k === 'IP')   val = raw.IP_outs > 0 ? raw.ipStr : '—';
+      else if (k === 'ERA')  val = ipDec > 0 ? ((raw.ER / ipDec) * 9).toFixed(2) : '—';
+      else if (k === 'WHIP') val = ipDec > 0 ? ((raw.BB + raw.HA) / ipDec).toFixed(2) : '—';
+      else if (k === 'QA')   val = raw.QA ? '✓' : '—';
+      else                   val = raw[k] > 0 ? String(raw[k]) : '—';
       const hi = val !== '—' ? 'font-weight:600;color:var(--blue)' : '';
       return `<td style="width:42px;text-align:center;font-size:11px;font-family:var(--mono);${hi}">${val}</td>`;
     }).join('');
