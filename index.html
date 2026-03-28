@@ -2363,36 +2363,77 @@ const MLB_TEAM_IDS = {
 let liveStatsCache = {};
 
 // Best-effort headshot scraper for players not in MLB/MiLB system.
-// Tries USA Baseball then Baseball Reference; silently does nothing on CORS failure.
+// Silently does nothing on CORS failure — each source is tried in order.
 async function fetchExternalHeadshot(img, playerName) {
-  const slug = playerName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const slug  = playerName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const parts = playerName.trim().split(/\s+/);
+  const norm  = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  // Helper: fetch og:image from a URL, returns src string or null
+  async function ogImage(url, badWords = ['default','placeholder','logo']) {
+    try {
+      const r = await fetch(url, { mode: 'cors' });
+      if (!r.ok) return null;
+      const doc = new DOMParser().parseFromString(await r.text(), 'text/html');
+      const og  = doc.querySelector('meta[property="og:image"]');
+      if (og?.content && !badWords.some(w => og.content.includes(w))) return og.content;
+    } catch (_) {}
+    return null;
+  }
 
   // 1. USA Baseball
+  const usa = await ogImage(`https://www.usabaseball.com/player/${slug}`);
+  if (usa) { img.src = usa; return; }
+
+  // 2. Baseball Reference search (covers MLB, MiLB, NPB, KBO register pages)
   try {
-    const res = await fetch(`https://www.usabaseball.com/player/${slug}`, { mode: 'cors' });
-    if (res.ok) {
-      const html = await res.text();
-      const doc  = new DOMParser().parseFromString(html, 'text/html');
-      const og   = doc.querySelector('meta[property="og:image"]');
-      if (og?.content && !og.content.includes('default') && !og.content.includes('placeholder')) {
-        img.src = og.content; return;
-      }
+    const r = await fetch(`https://www.baseball-reference.com/search/search.fcgi?search=${encodeURIComponent(playerName)}`, { mode: 'cors' });
+    if (r.ok) {
+      const doc  = new DOMParser().parseFromString(await r.text(), 'text/html');
+      const photo = doc.querySelector('img#player_photo, img.player-photo, div#info img[src*="headshots"]');
+      if (photo?.src) { img.src = photo.src; return; }
+      const og = await ogImage(r.url);  // r.url = final URL after redirect
+      if (og) { img.src = og; return; }
     }
   } catch (_) {}
 
-  // 2. Baseball Reference player search
+  // 3. NPB (Nippon Professional Baseball) — two-step: alphabetical listing → profile page → photo
   try {
-    const query = encodeURIComponent(playerName);
-    const res = await fetch(`https://www.baseball-reference.com/search/search.fcgi?search=${query}`, { mode: 'cors' });
-    if (res.ok) {
-      const html = await res.text();
-      const doc  = new DOMParser().parseFromString(html, 'text/html');
-      // BR redirects to player page on exact match; look for player photo img
-      const photoImg = doc.querySelector('img#player_photo, img.player-photo, div#info img[src*="headshots"]');
-      if (photoImg?.src) { img.src = photoImg.src; return; }
-      const og = doc.querySelector('meta[property="og:image"]');
-      if (og?.content && !og.content.includes('logo') && !og.content.includes('default')) {
-        img.src = og.content; return;
+    // NPB lists by last name; try each name part as potential last name
+    for (const part of [...parts].reverse()) {
+      const letter = part[0].toUpperCase();
+      const listR  = await fetch(`https://npb.jp/bis/eng/players/active/index_${letter}.html`, { mode: 'cors' });
+      if (!listR.ok) continue;
+      const listDoc = new DOMParser().parseFromString(await listR.text(), 'text/html');
+      const links   = [...listDoc.querySelectorAll('a[href*="/bis/eng/players/"]')];
+      const target  = norm(playerName);
+      const lastName = norm(parts[parts.length - 1]);
+      const link = links.find(a => norm(a.textContent).includes(target))
+                || links.find(a => norm(a.textContent).includes(lastName));
+      if (!link) continue;
+      const profileUrl = new URL(link.getAttribute('href'), 'https://npb.jp').href;
+      const profR = await fetch(profileUrl, { mode: 'cors' });
+      if (!profR.ok) break;
+      const profDoc = new DOMParser().parseFromString(await profR.text(), 'text/html');
+      const photo   = profDoc.querySelector('img[src*="players_photo"]');
+      if (photo) {
+        img.src = new URL(photo.getAttribute('src'), 'https://p.npb.jp').href;
+        return;
+      }
+      break;
+    }
+  } catch (_) {}
+
+  // 4. MyKBOStats — search then follow first player link
+  try {
+    const r = await fetch(`https://mykbostats.com/search?query=${encodeURIComponent(playerName)}`, { mode: 'cors' });
+    if (r.ok) {
+      const doc  = new DOMParser().parseFromString(await r.text(), 'text/html');
+      const link = doc.querySelector('a[href*="/players/"]');
+      if (link) {
+        const playerUrl = new URL(link.getAttribute('href'), 'https://mykbostats.com').href;
+        const og = await ogImage(playerUrl);
+        if (og) { img.src = og; return; }
       }
     }
   } catch (_) {}
