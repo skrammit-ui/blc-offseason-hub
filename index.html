@@ -2532,12 +2532,12 @@ function renderLiveView(players, nameMap, dateStr) {
     return ra - rb;
   }
 
-  const RATIO_COLS = new Set(['OBP','ERA','WHIP']);
+  const RATIO_COLS = new Set(['OBP','ERA','WHIP','IP']);
   // width:1px + white-space:nowrap = shrinks to exact content width
   const cntTd    = 'width:34px;text-align:center;font-size:11px;font-family:var(--mono);padding:0 2px';
   const ratTd    = 'width:1px;white-space:nowrap;text-align:center;font-size:11px;font-family:var(--mono);padding:0 6px';
   const gameTd   = 'width:1px;white-space:nowrap;text-align:center;padding:0 6px;font-size:10px';
-  const lineupTd = 'width:24px;text-align:center;padding:0 2px';
+  const lineupTd = 'width:36px;text-align:center;padding:0 4px';
   function statTd(col, extra='') { return `style="${RATIO_COLS.has(col) ? ratTd : cntTd}${extra ? ';'+extra : ''}"` ; }
   function statTh(col, colorVar) { return `<th style="${RATIO_COLS.has(col) ? ratTd : cntTd};color:${colorVar}">${col}</th>`; }
 
@@ -2624,7 +2624,7 @@ function renderLiveView(players, nameMap, dateStr) {
         <thead>
           <tr style="background:var(--bg)">
             <td style="padding:6px 12px;font-size:10px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--text-3);text-transform:uppercase">Today's Totals</td>
-            <td style="width:28px;padding:0"></td>
+            <td style="width:36px;padding:0"></td>
             <td style="width:1px;white-space:nowrap;padding:0 8px"></td>
             ${hitTotalCells}
           </tr>
@@ -2672,7 +2672,7 @@ function renderLiveView(players, nameMap, dateStr) {
     let v;
     if      (k === 'IP')   v = outsToIP(pitAgg.IP_outs);
     else if (k === 'ERA')  v = ipDec > 0 ? ((pitAgg.ER / ipDec) * 9).toFixed(2) : '—';
-    else if (k === 'WHIP') v = ipDec > 0 ? ((pitAgg.BB + pitAgg.HA) / ipDec).toFixed(2) : '—';
+    else if (k === 'WHIP') v = ipDec > 0 ? ((pitAgg.BB + pitAgg.HA) / ipDec).toFixed(3) : '—';
     else                   v = pitAgg[k] > 0 ? pitAgg[k] : '—';
     return `<td ${statTd(k, 'font-weight:700;color:var(--blue)')}>${v}</td>`;
   }).join('');
@@ -2688,8 +2688,8 @@ function renderLiveView(players, nameMap, dateStr) {
       let val;
       if      (k === 'IP')   val = raw.IP_outs > 0 ? raw.ipStr : '0';
       else if (k === 'ERA')  val = ipDec > 0 ? ((raw.ER / ipDec) * 9).toFixed(2) : '—';
-      else if (k === 'WHIP') val = ipDec > 0 ? ((raw.BB + raw.HA) / ipDec).toFixed(2) : '—';
-      else if (k === 'QA')   val = raw.QA ? '✓' : '0';
+      else if (k === 'WHIP') val = ipDec > 0 ? ((raw.BB + raw.HA) / ipDec).toFixed(3) : '—';
+      else if (k === 'QA')   val = raw.QA ? '1' : '0';
       else                   val = raw[k] > 0 ? String(raw[k]) : '0';
       const hi = val !== '—' && val !== '0' ? 'font-weight:600;color:var(--blue)' : '';
       return `<td ${statTd(k, hi)}>${val}</td>`;
@@ -2708,7 +2708,7 @@ function renderLiveView(players, nameMap, dateStr) {
 
     return `<tr style="${rowBg}">
       <td style="padding:2px 4px 2px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></td>
-      <td style="${lineupTd}">${badge}</td>
+      <td style="${lineupTd};white-space:nowrap">${badge}</td>
       <td style="${gameTd}">${buildGameBadge(live)}</td>
       ${cells}
     </tr>`;
@@ -2724,7 +2724,7 @@ function renderLiveView(players, nameMap, dateStr) {
         <thead>
           <tr style="background:var(--bg)">
             <td style="padding:6px 12px;font-size:10px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--text-3);text-transform:uppercase">Today's Totals</td>
-            <td style="width:28px;padding:0"></td>
+            <td style="width:36px;padding:0"></td>
             <td style="width:1px;white-space:nowrap;padding:0 8px"></td>
             ${pitTotalCells}
           </tr>
