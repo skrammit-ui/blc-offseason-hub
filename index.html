@@ -2537,7 +2537,7 @@ function renderLiveView(players, nameMap, dateStr) {
   const cntTd    = 'width:34px;text-align:center;font-size:11px;font-family:var(--mono);padding:0 2px';
   const ratTd    = 'width:1px;white-space:nowrap;text-align:center;font-size:11px;font-family:var(--mono);padding:0 6px';
   const gameTd   = 'width:1px;white-space:nowrap;text-align:center;padding:0 6px;font-size:10px';
-  const lineupTd = 'width:36px;text-align:center;padding:0 4px';
+  const lineupTd = 'width:1px;white-space:nowrap;text-align:center;padding:0 4px';
   function statTd(col, extra='') { return `style="${RATIO_COLS.has(col) ? ratTd : cntTd}${extra ? ';'+extra : ''}"` ; }
   function statTh(col, colorVar) { return `<th style="${RATIO_COLS.has(col) ? ratTd : cntTd};color:${colorVar}">${col}</th>`; }
 
@@ -2624,7 +2624,7 @@ function renderLiveView(players, nameMap, dateStr) {
         <thead>
           <tr style="background:var(--bg)">
             <td style="padding:6px 12px;font-size:10px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--text-3);text-transform:uppercase">Today's Totals</td>
-            <td style="width:36px;padding:0"></td>
+            <td style="width:1px;white-space:nowrap;padding:0 4px"></td>
             <td style="width:1px;white-space:nowrap;padding:0 8px"></td>
             ${hitTotalCells}
           </tr>
@@ -2724,7 +2724,7 @@ function renderLiveView(players, nameMap, dateStr) {
         <thead>
           <tr style="background:var(--bg)">
             <td style="padding:6px 12px;font-size:10px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--text-3);text-transform:uppercase">Today's Totals</td>
-            <td style="width:36px;padding:0"></td>
+            <td style="width:1px;white-space:nowrap;padding:0 4px"></td>
             <td style="width:1px;white-space:nowrap;padding:0 8px"></td>
             ${pitTotalCells}
           </tr>
