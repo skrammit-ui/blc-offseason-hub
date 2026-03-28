@@ -2518,6 +2518,14 @@ function renderLiveView(players, nameMap, dateStr) {
     return ra - rb;
   }
 
+  const RATIO_COLS = new Set(['OBP','ERA','WHIP']);
+  // Fixed width for counting stats; auto-size for ratio stats
+  const cntTd  = 'width:34px;text-align:center;font-size:11px;font-family:var(--mono)';
+  const ratTd  = 'white-space:nowrap;text-align:center;font-size:11px;font-family:var(--mono);padding:0 5px';
+  const gameTd = 'white-space:nowrap;text-align:center;padding:0 6px;font-size:10px';
+  function statTd(col, extra='') { return `style="${RATIO_COLS.has(col) ? ratTd : cntTd}${extra ? ';'+extra : ''}"` ; }
+  function statTh(col, colorVar) { return `<th style="${RATIO_COLS.has(col) ? ratTd : cntTd};color:${colorVar}">${col}</th>`; }
+
   const hitters = sorted.filter(p => !isPitcher(p.position)).sort(mlbFirst);
   const pitchers = sorted.filter(p =>  isPitcher(p.position)).sort(mlbFirst);
 
@@ -2547,7 +2555,7 @@ function renderLiveView(players, nameMap, dateStr) {
 
   const hitTotalCells = HIT_COLS.map(k => {
     const v = k === 'OBP' ? totalOBP : (hitAgg[k] > 0 ? hitAgg[k] : '—');
-    return `<td style="width:42px;text-align:center;font-size:11px;font-weight:700;color:var(--green);font-family:var(--mono)">${v}</td>`;
+    return `<td ${statTd(k, 'font-weight:700;color:var(--green)')}>${v}</td>`;
   }).join('');
 
   const hitRows = hitters.map(p => {
@@ -2565,11 +2573,11 @@ function renderLiveView(players, nameMap, dateStr) {
         val = raw[k] > 0 ? String(raw[k]) : '—';
       }
       const hi = val !== '—' && val !== '.000' ? 'font-weight:600;color:var(--green)' : '';
-      return `<td style="width:42px;text-align:center;font-size:11px;font-family:var(--mono);${hi}">${val}</td>`;
+      return `<td ${statTd(k, hi)}>${val}</td>`;
     }).join('');
     return `<tr style="background:#fff">
       <td class="col-player" style="padding-left:12px"><strong>${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></td>
-      <td style="width:68px;text-align:center">${buildGameBadge(live)}</td>
+      <td style="${gameTd}">${buildGameBadge(live)}</td>
       ${cells}
     </tr>`;
   }).join('');
@@ -2580,7 +2588,7 @@ function renderLiveView(players, nameMap, dateStr) {
         <span class="card-title" style="color:#fff">Hitters</span>
         <span style="font-size:11px;color:rgba(255,255,255,.6)">${hitters.length} players</span>
       </div>
-      <table class="roster-tbl" style="width:100%;table-layout:fixed">
+      <table class="roster-tbl" style="width:100%">
         <thead>
           <tr style="background:var(--bg)">
             <td colspan="2" style="padding:6px 12px;font-size:10px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--text-3);text-transform:uppercase">Today's Totals</td>
@@ -2589,8 +2597,8 @@ function renderLiveView(players, nameMap, dateStr) {
           <tr style="background:#fff"><td colspan="${2 + HIT_COLS.length}" style="height:8px;padding:0"></td></tr>
           <tr>
             <th class="col-player">Player</th>
-            <th style="width:68px;text-align:center;font-size:11px">Game</th>
-            ${HIT_COLS.map(s => `<th style="width:42px;text-align:center;font-size:11px;color:var(--green)">${s}</th>`).join('')}
+            <th style="${gameTd};font-weight:700;color:var(--text-3)">Game</th>
+            ${HIT_COLS.map(s => statTh(s, 'var(--green)')).join('')}
           </tr>
         </thead>
         <tbody>${hitRows}</tbody>
@@ -2631,7 +2639,7 @@ function renderLiveView(players, nameMap, dateStr) {
     else if (k === 'ERA')  v = ipDec > 0 ? ((pitAgg.ER / ipDec) * 9).toFixed(2) : '—';
     else if (k === 'WHIP') v = ipDec > 0 ? ((pitAgg.BB + pitAgg.HA) / ipDec).toFixed(2) : '—';
     else                   v = pitAgg[k] > 0 ? pitAgg[k] : '—';
-    return `<td style="width:42px;text-align:center;font-size:11px;font-weight:700;color:var(--blue);font-family:var(--mono)">${v}</td>`;
+    return `<td ${statTd(k, 'font-weight:700;color:var(--blue)')}>${v}</td>`;
   }).join('');
 
   const pitRows = pitchers.map(p => {
@@ -2640,7 +2648,7 @@ function renderLiveView(players, nameMap, dateStr) {
     const raw = getPitRaw(p);
     const live = lookupPlayer(p);
     const cells = PIT_COLS.map(k => {
-      if (!raw) return `<td style="width:42px;text-align:center;font-size:11px;font-family:var(--mono)">—</td>`;
+      if (!raw) return `<td ${statTd(k)}>—</td>`;
       const ipDec = raw.IP_outs / 3;
       let val;
       if      (k === 'IP')   val = raw.IP_outs > 0 ? raw.ipStr : '—';
@@ -2649,11 +2657,11 @@ function renderLiveView(players, nameMap, dateStr) {
       else if (k === 'QA')   val = raw.QA ? '✓' : '—';
       else                   val = raw[k] > 0 ? String(raw[k]) : '—';
       const hi = val !== '—' ? 'font-weight:600;color:var(--blue)' : '';
-      return `<td style="width:42px;text-align:center;font-size:11px;font-family:var(--mono);${hi}">${val}</td>`;
+      return `<td ${statTd(k, hi)}>${val}</td>`;
     }).join('');
     return `<tr style="background:#fff">
       <td class="col-player" style="padding-left:12px"><strong>${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></td>
-      <td style="width:68px;text-align:center">${buildGameBadge(live)}</td>
+      <td style="${gameTd}">${buildGameBadge(live)}</td>
       ${cells}
     </tr>`;
   }).join('');
@@ -2664,7 +2672,7 @@ function renderLiveView(players, nameMap, dateStr) {
         <span class="card-title" style="color:#fff">Pitchers</span>
         <span style="font-size:11px;color:rgba(255,255,255,.6)">${pitchers.length} players</span>
       </div>
-      <table class="roster-tbl" style="width:100%;table-layout:fixed">
+      <table class="roster-tbl" style="width:100%">
         <thead>
           <tr style="background:var(--bg)">
             <td colspan="2" style="padding:6px 12px;font-size:10px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--text-3);text-transform:uppercase">Today's Totals</td>
@@ -2673,8 +2681,8 @@ function renderLiveView(players, nameMap, dateStr) {
           <tr style="background:#fff"><td colspan="${2 + PIT_COLS.length}" style="height:8px;padding:0"></td></tr>
           <tr>
             <th class="col-player">Player</th>
-            <th style="width:68px;text-align:center;font-size:11px">Game</th>
-            ${PIT_COLS.map(s => `<th style="width:42px;text-align:center;font-size:11px;color:var(--blue)">${s}</th>`).join('')}
+            <th style="${gameTd};font-weight:700;color:var(--text-3)">Game</th>
+            ${PIT_COLS.map(s => statTh(s, 'var(--blue)')).join('')}
           </tr>
         </thead>
         <tbody>${pitRows}</tbody>
