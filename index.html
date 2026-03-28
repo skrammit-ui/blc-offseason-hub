@@ -2467,7 +2467,7 @@ function renderLiveView(players, nameMap, dateStr) {
   });
 
   const HIT_COLS = ['AB','R','H','HR','RBI','BB','SB','OBP'];
-  const PIT_COLS = ['IP','HA','ER','K','BB','W','SVH'];
+  const PIT_COLS = ['IP','HA','ER','K','BB','W','SVH','QA'];
 
   const thead = `<tr>
     <th class="col-status">Status</th>
@@ -2548,6 +2548,14 @@ function renderLiveView(players, nameMap, dateStr) {
           const sv  = pit.saves || 0;
           const hld = pit.holds || 0;
           val = (sv + hld) > 0 ? String(sv + hld) : '—';
+        } else if (k === 'QA') {
+          // IP string format is "6.2" meaning 6 and 2/3 innings
+          const ipStr = pit.inningsPitched || '0';
+          const [whole, outs] = ipStr.split('.').map(Number);
+          const ipDec = (whole || 0) + ((outs || 0) / 3);
+          const er = pit.earnedRuns || 0;
+          const era = ipDec > 0 ? (er / ipDec) * 9 : Infinity;
+          val = (ipDec >= 5 && era <= 4.50) ? '✓' : '—';
         } else {
           const apiKey = { IP:'inningsPitched', HA:'hits', ER:'earnedRuns', K:'strikeOuts', BB:'baseOnBalls', W:'wins' }[k];
           const n = pit[apiKey];
