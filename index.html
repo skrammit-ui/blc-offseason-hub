@@ -2532,9 +2532,9 @@ function renderLiveView(players, nameMap, dateStr) {
     return ra - rb;
   }
 
-  const RATIO_COLS = new Set(['OBP','ERA','WHIP','IP']);
-  // width:1px + white-space:nowrap = shrinks to exact content width
-  const cntTd    = 'width:34px;text-align:center;font-size:11px;font-family:var(--mono);padding:0 2px';
+  // All stat columns snap to content — width:1px+white-space:nowrap prevents browser
+  // from redistributing leftover table space into stat columns
+  const cntTd    = 'width:1px;white-space:nowrap;text-align:center;font-size:11px;font-family:var(--mono);padding:0 6px';
   const ratTd    = 'width:1px;white-space:nowrap;text-align:center;font-size:11px;font-family:var(--mono);padding:0 6px';
   const gameTd   = 'width:1px;white-space:nowrap;text-align:center;padding:0 6px;font-size:10px';
   const lineupTd = 'width:1px;white-space:nowrap;text-align:center;padding:0 4px';
@@ -2604,7 +2604,7 @@ function renderLiveView(players, nameMap, dateStr) {
     const subbedOut = live?.wasSubbedOut === true;
     const gameOver = (live?.gameStatus || '').startsWith('Final');
     const badge   = isStart ? ((subbedOut || gameOver) ? lineupBadgeGrey(order / 100) : lineupBadge(order / 100)) : '';
-    const rowBg   = ls.isCurrentBatter ? 'background:rgba(16,185,129,.12)' : 'background:#fff';
+    const rowBg   = (!gameOver && ls.isCurrentBatter) ? 'background:rgba(16,185,129,.12)' : 'background:#fff';
 
     return `<tr style="${rowBg}">
       <td style="padding:2px 4px 2px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></td>
@@ -2704,7 +2704,7 @@ function renderLiveView(players, nameMap, dateStr) {
     const badge      = isSP ? ((spPulled || gameOver) ? lineupBadgeGrey('SP') : lineupBadge('SP'))
                      : isRP ? ((rpDone   || gameOver) ? lineupBadgeGrey('RP') : lineupBadge('RP'))
                      : '';
-    const rowBg      = ls.isCurrentPitcher ? 'background:rgba(16,185,129,.12)' : 'background:#fff';
+    const rowBg      = (!gameOver && ls.isCurrentPitcher) ? 'background:rgba(16,185,129,.12)' : 'background:#fff';
 
     return `<tr style="${rowBg}">
       <td style="padding:2px 4px 2px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></td>
