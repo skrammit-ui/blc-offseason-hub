@@ -2534,12 +2534,11 @@ function renderLiveView(players, nameMap, dateStr) {
 
   // All stat columns snap to content — width:1px+white-space:nowrap prevents browser
   // from redistributing leftover table space into stat columns
-  const cntTd    = 'width:1px;white-space:nowrap;text-align:center;font-size:11px;font-family:var(--mono);padding:0 6px';
-  const ratTd    = 'width:1px;white-space:nowrap;text-align:center;font-size:11px;font-family:var(--mono);padding:0 6px';
-  const gameTd   = 'width:1px;white-space:nowrap;text-align:center;padding:0 6px;font-size:10px';
-  const lineupTd = 'width:1px;white-space:nowrap;text-align:center;padding:0 4px';
-  function statTd(col, extra='') { return `style="${RATIO_COLS.has(col) ? ratTd : cntTd}${extra ? ';'+extra : ''}"` ; }
-  function statTh(col, colorVar) { return `<th style="${RATIO_COLS.has(col) ? ratTd : cntTd};color:${colorVar}">${col}</th>`; }
+  const statStyle = 'width:1px;white-space:nowrap;text-align:center;font-size:11px;font-family:var(--mono);padding:0 6px';
+  const gameTd    = 'width:1px;white-space:nowrap;text-align:center;padding:0 6px;font-size:10px';
+  const lineupTd  = 'width:1px;white-space:nowrap;text-align:center;padding:0 4px';
+  function statTd(col, extra='') { return `style="${statStyle}${extra ? ';'+extra : ''}"` ; }
+  function statTh(col, colorVar) { return `<th style="${statStyle};color:${colorVar}">${col}</th>`; }
 
   function lineupBadge(text) {
     return `<span style="display:inline-flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px;letter-spacing:.03em;background:var(--green-lt);color:var(--green);border:1px solid #a8d5bc;white-space:nowrap">${text}</span>`;
