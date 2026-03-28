@@ -2466,8 +2466,8 @@ function renderLiveView(players, nameMap, dateStr) {
     return a.player.localeCompare(b.player);
   });
 
-  const HIT_COLS = ['AB','R','H','HR','RBI','BB','SB'];
-  const PIT_COLS = ['IP','H','ER','K','BB'];
+  const HIT_COLS = ['AB','R','H','HR','RBI','BB','SB','OBP'];
+  const PIT_COLS = ['IP','HA','ER','K','BB','W','SV','HLD'];
 
   const thead = `<tr>
     <th class="col-status">Status</th>
@@ -2520,11 +2520,21 @@ function renderLiveView(players, nameMap, dateStr) {
       const bat = live?.batting;
       let val = '—';
       if (bat) {
-        const apiKey = { AB:'atBats', R:'runs', H:'hits', HR:'homeRuns', RBI:'rbi', BB:'baseOnBalls', SB:'stolenBases' }[k];
-        const n = bat[apiKey];
-        val = (n != null && n !== '') ? String(n) : '—';
+        if (k === 'OBP') {
+          const h   = bat.hits        || 0;
+          const bb  = bat.baseOnBalls || 0;
+          const hbp = bat.hitByPitch  || 0;
+          const ab  = bat.atBats      || 0;
+          const sf  = bat.sacFlies    || 0;
+          const denom = ab + bb + hbp + sf;
+          val = denom > 0 ? ((h + bb + hbp) / denom).toFixed(3) : '—';
+        } else {
+          const apiKey = { AB:'atBats', R:'runs', H:'hits', HR:'homeRuns', RBI:'rbi', BB:'baseOnBalls', SB:'stolenBases' }[k];
+          const n = bat[apiKey];
+          val = (n != null && n !== '') ? String(n) : '—';
+        }
       }
-      const highlight = val !== '—' && val !== '0' ? 'font-weight:600;color:var(--green)' : '';
+      const highlight = val !== '—' && val !== '0' && val !== '.000' ? 'font-weight:600;color:var(--green)' : '';
       return `<td class="col-stat c" style="${highlight}">${val}</td>`;
     }).join('');
 
@@ -2534,7 +2544,7 @@ function renderLiveView(players, nameMap, dateStr) {
       const pit = live?.pitching;
       let val = '—';
       if (pit) {
-        const apiKey = { IP:'inningsPitched', H:'hits', ER:'earnedRuns', K:'strikeOuts', BB:'baseOnBalls' }[k];
+        const apiKey = { IP:'inningsPitched', HA:'hits', ER:'earnedRuns', K:'strikeOuts', BB:'baseOnBalls', W:'wins', SV:'saves', HLD:'holds' }[k];
         const n = pit[apiKey];
         val = (n != null && n !== '') ? String(n) : '—';
       }
