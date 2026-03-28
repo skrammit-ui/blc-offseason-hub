@@ -2682,7 +2682,7 @@ function renderLiveView(players, nameMap, dateStr) {
     const raw = getPitRaw(p);
     const live = lookupPlayer(p);
     const cells = PIT_COLS.map(k => {
-      if (!raw) return `<td ${statTd(k)}>—</td>`;
+      if (!raw) return `<td class="col-stat c">—</td>`;
       const ipDec = raw.IP_outs / 3;
       let val;
       if      (k === 'IP')   val = raw.IP_outs > 0 ? raw.ipStr : '0';
