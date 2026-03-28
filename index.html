@@ -2553,8 +2553,7 @@ function renderLiveView(players, nameMap, dateStr) {
       const hi = val !== '—' && val !== '.000' ? 'font-weight:600;color:var(--green)' : '';
       return `<td style="width:42px;text-align:center;font-size:11px;font-family:var(--mono);${hi}">${val}</td>`;
     }).join('');
-    const rowCls = m.rowCls ? ` class="${m.rowCls}"` : '';
-    return `<tr${rowCls}>
+    return `<tr style="background:#fff">
       <td class="col-player" style="padding-left:12px"><strong>${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></td>
       <td style="width:68px;text-align:center">${buildGameBadge(live)}</td>
       ${cells}
@@ -2569,14 +2568,15 @@ function renderLiveView(players, nameMap, dateStr) {
       </div>
       <table class="roster-tbl" style="width:100%;table-layout:fixed">
         <thead>
+          <tr style="background:var(--bg)">
+            <td colspan="2" style="padding:6px 12px;font-size:10px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--text-3);text-transform:uppercase">Today's Totals</td>
+            ${hitTotalCells}
+          </tr>
+          <tr style="background:#fff"><td colspan="${2 + HIT_COLS.length}" style="height:8px;padding:0"></td></tr>
           <tr>
             <th class="col-player">Player</th>
             <th style="width:68px;text-align:center;font-size:11px">Game</th>
             ${HIT_COLS.map(s => `<th style="width:42px;text-align:center;font-size:11px;color:var(--green)">${s}</th>`).join('')}
-          </tr>
-          <tr style="background:var(--bg);border-bottom:2px solid var(--border)">
-            <td colspan="2" style="padding:5px 12px;font-size:10px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--text-3);text-transform:uppercase">Today's Totals</td>
-            ${hitTotalCells}
           </tr>
         </thead>
         <tbody>${hitRows}</tbody>
@@ -2637,8 +2637,7 @@ function renderLiveView(players, nameMap, dateStr) {
       const hi = val !== '—' ? 'font-weight:600;color:var(--blue)' : '';
       return `<td style="width:42px;text-align:center;font-size:11px;font-family:var(--mono);${hi}">${val}</td>`;
     }).join('');
-    const rowCls = m.rowCls ? ` class="${m.rowCls}"` : '';
-    return `<tr${rowCls}>
+    return `<tr style="background:#fff">
       <td class="col-player" style="padding-left:12px"><strong>${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></td>
       <td style="width:68px;text-align:center">${buildGameBadge(live)}</td>
       ${cells}
@@ -2653,14 +2652,15 @@ function renderLiveView(players, nameMap, dateStr) {
       </div>
       <table class="roster-tbl" style="width:100%;table-layout:fixed">
         <thead>
+          <tr style="background:var(--bg)">
+            <td colspan="2" style="padding:6px 12px;font-size:10px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--text-3);text-transform:uppercase">Today's Totals</td>
+            ${pitTotalCells}
+          </tr>
+          <tr style="background:#fff"><td colspan="${2 + PIT_COLS.length}" style="height:8px;padding:0"></td></tr>
           <tr>
             <th class="col-player">Player</th>
             <th style="width:68px;text-align:center;font-size:11px">Game</th>
             ${PIT_COLS.map(s => `<th style="width:42px;text-align:center;font-size:11px;color:var(--blue)">${s}</th>`).join('')}
-          </tr>
-          <tr style="background:var(--bg);border-bottom:2px solid var(--border)">
-            <td colspan="2" style="padding:5px 12px;font-size:10px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--text-3);text-transform:uppercase">Today's Totals</td>
-            ${pitTotalCells}
           </tr>
         </thead>
         <tbody>${pitRows}</tbody>
