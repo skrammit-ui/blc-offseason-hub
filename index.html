@@ -2368,10 +2368,17 @@ async function fetchLiveStats() {
   const content = document.getElementById('live-content');
   if (!content) return;
 
-  if (btn) { btn.disabled = true; btn.textContent = '↻ Loading…'; }
-  content.innerHTML = `<div style="padding:32px;text-align:center;color:var(--text-3);font-size:13px">Fetching today's stats…</div>`;
+  // Render roster immediately with placeholder — stats
+  const players = LEAGUE[currentTeam] || [];
+  renderLiveView(players, {}, null);
 
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  if (btn) { btn.disabled = true; btn.textContent = '↻ Loading…'; }
+  if (updEl) updEl.textContent = 'Fetching…';
+
+  // Use local date (not UTC) to match what MLB's API expects
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
 
   try {
     // Step 1: get today's schedule
@@ -2380,7 +2387,6 @@ async function fetchLiveStats() {
     const games = (schedJson.dates || []).flatMap(d => d.games || []);
 
     // Step 2: find which gamePks involve teams on our current roster
-    const players = LEAGUE[currentTeam] || [];
     const rosterTeamIds = new Set(
       players.map(p => MLB_TEAM_IDS[(p.mlb_team || '').toUpperCase()]).filter(Boolean)
     );
@@ -2411,6 +2417,12 @@ async function fetchLiveStats() {
       gameMeta[g.gamePk] = { homeId, awayId, homeAbbr, awayAbbr, statusLabel, gamePk: g.gamePk };
     });
 
+    if (relevantGames.length === 0) {
+      if (updEl) updEl.textContent = `No games found for your roster on ${today}`;
+      if (btn) { btn.disabled = false; btn.textContent = '↻ Refresh'; }
+      return;
+    }
+
     // Step 3: fetch boxscores for all relevant games in parallel
     const boxscores = await Promise.all(
       relevantGames.map(g =>
@@ -2434,9 +2446,11 @@ async function fetchLiveStats() {
         Object.values(teamData.players || {}).forEach(pd => {
           const name = (pd.person?.fullName || '').toLowerCase().trim();
           if (!name) return;
+          const bat = pd.stats?.batting;
+          const pit = pd.stats?.pitching;
           nameMap[name] = {
-            batting:  pd.stats?.batting  || null,
-            pitching: pd.stats?.pitching || null,
+            batting:  (bat && Object.keys(bat).length > 0) ? bat : null,
+            pitching: (pit && Object.keys(pit).length > 0) ? pit : null,
             gameStatus: meta.statusLabel || 'Today',
             opponent,
           };
@@ -4579,6 +4593,7 @@ function switchView(view, btn) {
     legend.innerHTML = `<span style="font-size:12px;color:var(--text-3)">Auto-populated using keeper salary rounds. Drag keepers between pick slots to reassign — <span style="color:var(--green);font-weight:600">green</span> = exact SAL match, <span style="color:#92400e;font-weight:600">gold</span> = valid bump.</span>`;
   } else if (view === 'live') {
     legend.innerHTML = `<span style="font-size:12px;color:var(--text-3)">Live daily stats from MLB Stats API &mdash; <span style="color:var(--green);font-weight:600">green</span> = playing today, <span style="color:var(--text-3);font-weight:600">—</span> = no game / not in lineup</span>`;
+    fetchLiveStats();
   } else {
     legend.innerHTML = `
       <span class="stag stag-active" style="cursor:default">MLB</span>
