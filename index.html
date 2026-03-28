@@ -2434,7 +2434,7 @@ async function fetchLiveStats() {
     );
 
     // Step 4: build name → stats map
-    const nameMap = {}; // normalized full name → { batting, pitching, gameStatus, opponent }
+    const nameMap = {};
     boxscores.forEach(item => {
       if (!item) return;
       const { gamePk, bs } = item;
@@ -2442,19 +2442,31 @@ async function fetchLiveStats() {
       ['home','away'].forEach(side => {
         const teamData = bs.teams?.[side];
         if (!teamData) return;
+        const players = Object.values(teamData.players || {});
+
+        // First pass: find which starter slots have been replaced.
+        // A battingOrder of "301" means the "300" slot starter was subbed out.
+        const replacedSlots = new Set();
+        players.forEach(pd => {
+          const o = pd.battingOrder ? parseInt(pd.battingOrder) : 0;
+          if (o > 0 && o % 100 !== 0) replacedSlots.add(Math.floor(o / 100) * 100);
+        });
+
         const opponent = side === 'home' ? meta.awayAbbr : meta.homeAbbr;
-        Object.values(teamData.players || {}).forEach(pd => {
+        players.forEach(pd => {
           const name = (pd.person?.fullName || '').toLowerCase().trim();
           if (!name) return;
           const bat = pd.stats?.batting;
           const pit = pd.stats?.pitching;
+          const order = pd.battingOrder ? parseInt(pd.battingOrder) : 0;
           nameMap[name] = {
-            batting:    (bat && Object.keys(bat).length > 0) ? bat : null,
-            pitching:   (pit && Object.keys(pit).length > 0) ? pit : null,
-            gameStatus: meta.statusLabel || 'Today',
+            batting:      (bat && Object.keys(bat).length > 0) ? bat : null,
+            pitching:     (pit && Object.keys(pit).length > 0) ? pit : null,
+            gameStatus:   meta.statusLabel || 'Today',
             opponent,
-            battingOrder:  pd.battingOrder  || null,   // "100","200"… starters; non-multiples = subs
-            lineupStatus:  pd.gameStatus    || {},     // {isCurrentBatter, isCurrentPitcher, …}
+            battingOrder: pd.battingOrder || null,
+            lineupStatus: pd.gameStatus   || {},
+            wasSubbedOut: order > 0 && order % 100 === 0 && replacedSlots.has(order),
           };
         });
       });
@@ -2532,6 +2544,9 @@ function renderLiveView(players, nameMap, dateStr) {
   function lineupBadge(text) {
     return `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;background:var(--green);color:#fff;border-radius:4px;font-size:10px;font-weight:700;padding:0 3px">${text}</span>`;
   }
+  function lineupBadgeGrey(text) {
+    return `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;background:var(--text-3);color:#fff;border-radius:4px;font-size:10px;font-weight:700;padding:0 3px;opacity:.6">${text}</span>`;
+  }
 
   const hitters = sorted.filter(p => !isPitcher(p.position)).sort(mlbFirst);
   const pitchers = sorted.filter(p =>  isPitcher(p.position)).sort(mlbFirst);
@@ -2577,16 +2592,17 @@ function renderLiveView(players, nameMap, dateStr) {
         const denom = raw.AB + raw.BB + raw.HBP + raw.SF;
         val = denom > 0 ? ((raw.H + raw.BB + raw.HBP) / denom).toFixed(3) : '—';
       } else {
-        val = raw[k] > 0 ? String(raw[k]) : '—';
+        val = raw[k] > 0 ? String(raw[k]) : '0';
       }
-      const hi = val !== '—' && val !== '.000' ? 'font-weight:600;color:var(--green)' : '';
+      const hi = val !== '—' && val !== '0' && val !== '.000' ? 'font-weight:600;color:var(--green)' : '';
       return `<td ${statTd(k, hi)}>${val}</td>`;
     }).join('');
 
     const ls     = live?.lineupStatus || {};
     const order  = live?.battingOrder ? parseInt(live.battingOrder) : 0;
     const isStart = order > 0 && order % 100 === 0;
-    const badge  = isStart ? lineupBadge(order / 100) : '';
+    const subbedOut = live?.wasSubbedOut === true;
+    const badge  = isStart ? (subbedOut ? lineupBadgeGrey(order / 100) : lineupBadge(order / 100)) : '';
     const rowBg  = ls.isCurrentBatter ? 'background:rgba(16,185,129,.12)' : 'background:#fff';
 
     return `<tr style="${rowBg}">
@@ -2667,19 +2683,23 @@ function renderLiveView(players, nameMap, dateStr) {
       if (!raw) return `<td ${statTd(k)}>—</td>`;
       const ipDec = raw.IP_outs / 3;
       let val;
-      if      (k === 'IP')   val = raw.IP_outs > 0 ? raw.ipStr : '—';
+      if      (k === 'IP')   val = raw.IP_outs > 0 ? raw.ipStr : '0';
       else if (k === 'ERA')  val = ipDec > 0 ? ((raw.ER / ipDec) * 9).toFixed(2) : '—';
       else if (k === 'WHIP') val = ipDec > 0 ? ((raw.BB + raw.HA) / ipDec).toFixed(2) : '—';
-      else if (k === 'QA')   val = raw.QA ? '✓' : '—';
-      else                   val = raw[k] > 0 ? String(raw[k]) : '—';
-      const hi = val !== '—' ? 'font-weight:600;color:var(--blue)' : '';
+      else if (k === 'QA')   val = raw.QA ? '✓' : '0';
+      else                   val = raw[k] > 0 ? String(raw[k]) : '0';
+      const hi = val !== '—' && val !== '0' ? 'font-weight:600;color:var(--blue)' : '';
       return `<td ${statTd(k, hi)}>${val}</td>`;
     }).join('');
 
     const ls         = live?.lineupStatus || {};
     const isSP       = (live?.pitching?.gamesStarted || 0) === 1;
     const isRP       = raw && raw.IP_outs > 0 && !isSP;
-    const badge      = isSP ? lineupBadge('SP') : isRP ? lineupBadge('RP') : '';
+    const spPulled   = isSP && raw && raw.IP_outs > 0 && !ls.isCurrentPitcher;
+    const rpDone     = isRP && !ls.isCurrentPitcher;
+    const badge      = isSP ? (spPulled ? lineupBadgeGrey('SP') : lineupBadge('SP'))
+                     : isRP ? (rpDone   ? lineupBadgeGrey('RP') : lineupBadge('RP'))
+                     : '';
     const rowBg      = ls.isCurrentPitcher ? 'background:rgba(16,185,129,.12)' : 'background:#fff';
 
     return `<tr style="${rowBg}">
