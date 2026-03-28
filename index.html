@@ -2467,7 +2467,7 @@ function renderLiveView(players, nameMap, dateStr) {
   });
 
   const HIT_COLS = ['AB','R','H','HR','RBI','BB','SB','OBP'];
-  const PIT_COLS = ['IP','HA','ER','K','BB','W','SV','HLD'];
+  const PIT_COLS = ['IP','HA','ER','K','BB','W','SVH'];
 
   const thead = `<tr>
     <th class="col-status">Status</th>
@@ -2544,9 +2544,15 @@ function renderLiveView(players, nameMap, dateStr) {
       const pit = live?.pitching;
       let val = '—';
       if (pit) {
-        const apiKey = { IP:'inningsPitched', HA:'hits', ER:'earnedRuns', K:'strikeOuts', BB:'baseOnBalls', W:'wins', SV:'saves', HLD:'holds' }[k];
-        const n = pit[apiKey];
-        val = (n != null && n !== '') ? String(n) : '—';
+        if (k === 'SVH') {
+          const sv  = pit.saves || 0;
+          const hld = pit.holds || 0;
+          val = (sv + hld) > 0 ? String(sv + hld) : '—';
+        } else {
+          const apiKey = { IP:'inningsPitched', HA:'hits', ER:'earnedRuns', K:'strikeOuts', BB:'baseOnBalls', W:'wins' }[k];
+          const n = pit[apiKey];
+          val = (n != null && n !== '') ? String(n) : '—';
+        }
       }
       const highlight = val !== '—' && val !== '0' ? 'font-weight:600;color:var(--blue)' : '';
       return `<td class="col-stat c" style="${highlight}">${val}</td>`;
