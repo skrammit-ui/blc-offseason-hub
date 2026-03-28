@@ -2383,7 +2383,7 @@ async function fetchExternalHeadshot(img, playerName) {
 
   // 1. USA Baseball
   const usa = await ogImage(`https://www.usabaseball.com/player/${slug}`);
-  if (usa) { img.src = usa; return; }
+  if (usa) { img.src = usa; return true; }
 
   // 2. Baseball Reference search (covers MLB, MiLB, NPB, KBO register pages)
   try {
@@ -2391,9 +2391,9 @@ async function fetchExternalHeadshot(img, playerName) {
     if (r.ok) {
       const doc  = new DOMParser().parseFromString(await r.text(), 'text/html');
       const photo = doc.querySelector('img#player_photo, img.player-photo, div#info img[src*="headshots"]');
-      if (photo?.src) { img.src = photo.src; return; }
+      if (photo?.src) { img.src = photo.src; return true; }
       const og = await ogImage(r.url);  // r.url = final URL after redirect
-      if (og) { img.src = og; return; }
+      if (og) { img.src = og; return true; }
     }
   } catch (_) {}
 
@@ -2418,7 +2418,7 @@ async function fetchExternalHeadshot(img, playerName) {
       const photo   = profDoc.querySelector('img[src*="players_photo"]');
       if (photo) {
         img.src = new URL(photo.getAttribute('src'), 'https://p.npb.jp').href;
-        return;
+        return true;
       }
       break;
     }
@@ -2433,12 +2433,13 @@ async function fetchExternalHeadshot(img, playerName) {
       if (link) {
         const playerUrl = new URL(link.getAttribute('href'), 'https://mykbostats.com').href;
         const og = await ogImage(playerUrl);
-        if (og) { img.src = og; return; }
+        if (og) { img.src = og; return true; }
       }
     }
   } catch (_) {}
 
   img.style.display = 'none';
+  return false;
 }
 
 async function fetchLiveStats() {
@@ -2671,8 +2672,31 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
     return `<span style="display:inline-flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px;letter-spacing:.03em;background:var(--bg);color:var(--text-3);border:1px solid var(--border);white-space:nowrap">${text}</span>`;
   }
 
-  const hitters = sorted.filter(p => !isPitcher(p.position)).sort(mlbFirst);
-  const pitchers = sorted.filter(p =>  isPitcher(p.position)).sort(mlbFirst);
+  // Sort priority: 0=in today's lineup, 1=has game but not in lineup, 2=no game, 3=MiLB
+  function inLineupPriority(p) {
+    const isMiLB = (STATUS_MAP[p.status] || 'MLB') === 'MiLB';
+    if (isMiLB) return 3;
+    const live = lookupPlayer(p);
+    if (!live) return 2;
+    const order = live.battingOrder ? parseInt(live.battingOrder) : 0;
+    const inBattingOrder = order > 0 && order % 100 === 0;
+    const hasPitching = ipToOuts(live.pitching?.inningsPitched) > 0;
+    const isPitchingToday = hasPitching || live.lineupStatus?.isCurrentPitcher;
+    if (inBattingOrder || isPitchingToday) return 0;
+    if (live.gameStatus) return 1;
+    return 2;
+  }
+
+  const hitters = sorted.filter(p => !isPitcher(p.position)).sort((a, b) => {
+    const pa = inLineupPriority(a), pb = inLineupPriority(b);
+    if (pa !== pb) return pa - pb;
+    return mlbFirst(a, b);
+  });
+  const pitchers = sorted.filter(p =>  isPitcher(p.position)).sort((a, b) => {
+    const pa = inLineupPriority(a), pb = inLineupPriority(b);
+    if (pa !== pb) return pa - pb;
+    return mlbFirst(a, b);
+  });
 
   // ── Hitters ────────────────────────────────────────────────────────────────
   const HIT_COLS = ['AB','H','R','HR','RBI','SB','OBP'];
@@ -2717,8 +2741,7 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
       } else {
         val = raw[k] > 0 ? String(raw[k]) : '0';
       }
-      const hi = val !== '—' && val !== '0' && val !== '.000' ? 'font-weight:600;color:var(--green)' : '';
-      return `<td ${statTd(k, hi)}>${val}</td>`;
+      return `<td ${statTd(k)}>${val}</td>`;
     }).join('');
 
     const ls      = live?.lineupStatus || {};
@@ -2727,7 +2750,7 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
     const subbedOut = live?.wasSubbedOut === true;
     const gameOver = (live?.gameStatus || '').startsWith('Final');
     const badge   = isStart ? ((subbedOut || gameOver) ? lineupBadgeGrey(order / 100) : lineupBadge(order / 100)) : '';
-    const rowBg   = (!gameOver && ls.isCurrentBatter) ? 'background:rgba(16,185,129,.12)' : 'background:#fff';
+    const rowBg   = 'background:#fff';
 
     const mlbId = getMlbId(p);
     const isMiLBPlayer = (STATUS_MAP[p.status] || 'MLB') === 'MiLB';
@@ -2754,13 +2777,13 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
       </div>
       <table class="roster-tbl" style="width:100%;table-layout:auto">
         <thead>
-          <tr style="background:var(--green-lt);border-bottom:2px solid #a8d5bc">
-            <td style="padding:10px 12px;font-size:11px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--green);text-transform:uppercase">Today's Totals</td>
+          <tr style="background:var(--green-lt);border-top:3px solid var(--green);border-bottom:2px solid #a8d5bc">
+            <td style="padding:13px 14px;font-size:15px;font-weight:700;font-family:var(--head);letter-spacing:.02em;color:var(--green)">Today's Totals</td>
             <td style="width:1px;white-space:nowrap;padding:0 4px"></td>
             <td style="width:1px;white-space:nowrap;padding:0 8px"></td>
             ${hitTotalCells}
           </tr>
-          <tr style="background:#fff"><td colspan="${3 + HIT_COLS.length}" style="height:6px;padding:0"></td></tr>
+          <tr style="background:#fff"><td colspan="${3 + HIT_COLS.length}" style="height:8px;padding:0"></td></tr>
           <tr>
             <th style="min-width:130px">Player</th>
             <th style="${lineupTd};white-space:nowrap"></th>
@@ -2823,8 +2846,7 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
       else if (k === 'WHIP') val = ipDec > 0 ? ((raw.BB + raw.HA) / ipDec).toFixed(3) : '—';
       else if (k === 'QA')   val = raw.QA ? '1' : '0';
       else                   val = raw[k] > 0 ? String(raw[k]) : '0';
-      const hi = val !== '—' && val !== '0' ? 'font-weight:600;color:var(--blue)' : '';
-      return `<td ${statTd(k, hi)}>${val}</td>`;
+      return `<td ${statTd(k)}>${val}</td>`;
     }).join('');
 
     const ls         = live?.lineupStatus || {};
@@ -2836,7 +2858,7 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
     const badge      = isSP ? ((spPulled || gameOver) ? lineupBadgeGrey('SP') : lineupBadge('SP'))
                      : isRP ? ((rpDone   || gameOver) ? lineupBadgeGrey('RP') : lineupBadge('RP'))
                      : '';
-    const rowBg      = (!gameOver && ls.isCurrentPitcher) ? 'background:rgba(16,185,129,.12)' : 'background:#fff';
+    const rowBg      = 'background:#fff';
 
     const mlbId = getMlbId(p);
     const isMiLBPlayer = (STATUS_MAP[p.status] || 'MLB') === 'MiLB';
@@ -2863,13 +2885,13 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
       </div>
       <table class="roster-tbl" style="width:100%;table-layout:auto">
         <thead>
-          <tr style="background:var(--blue-lt);border-bottom:2px solid #b5d4f4">
-            <td style="padding:10px 12px;font-size:11px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--blue);text-transform:uppercase">Today's Totals</td>
+          <tr style="background:var(--blue-lt);border-top:3px solid var(--blue);border-bottom:2px solid #b5d4f4">
+            <td style="padding:13px 14px;font-size:15px;font-weight:700;font-family:var(--head);letter-spacing:.02em;color:var(--blue)">Today's Totals</td>
             <td style="width:1px;white-space:nowrap;padding:0 4px"></td>
             <td style="width:1px;white-space:nowrap;padding:0 8px"></td>
             ${pitTotalCells}
           </tr>
-          <tr style="background:#fff"><td colspan="${3 + PIT_COLS.length}" style="height:6px;padding:0"></td></tr>
+          <tr style="background:#fff"><td colspan="${3 + PIT_COLS.length}" style="height:8px;padding:0"></td></tr>
           <tr>
             <th style="min-width:130px">Player</th>
             <th style="${lineupTd};white-space:nowrap"></th>
@@ -2889,8 +2911,8 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
 
   // Trigger external headshot fetch for players with no mlbId (college/international)
   content.querySelectorAll('img[data-ext="1"]').forEach(img => {
-    fetchExternalHeadshot(img, img.dataset.player).then(() => {
-      if (img.src) img.style.display = '';
+    fetchExternalHeadshot(img, img.dataset.player).then(found => {
+      if (found) img.style.display = '';
     });
   });
 }
