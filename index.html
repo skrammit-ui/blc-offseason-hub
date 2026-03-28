@@ -2606,8 +2606,8 @@ function renderLiveView(players, nameMap, dateStr) {
     const rowBg  = ls.isCurrentBatter ? 'background:rgba(16,185,129,.12)' : 'background:#fff';
 
     return `<tr style="${rowBg}">
-      <td class="col-player" style="padding-left:12px"><strong>${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></td>
-      <td style="${lineupTd}">${badge}</td>
+      <td style="padding:2px 4px 2px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></td>
+      <td style="${lineupTd};white-space:nowrap">${badge}</td>
       <td style="${gameTd}">${buildGameBadge(live)}</td>
       ${cells}
     </tr>`;
@@ -2619,16 +2619,18 @@ function renderLiveView(players, nameMap, dateStr) {
         <span class="card-title" style="color:#fff">Hitters</span>
         <span style="font-size:11px;color:rgba(255,255,255,.6)">${hitters.length} players</span>
       </div>
-      <table class="roster-tbl" style="width:100%">
+      <table class="roster-tbl" style="width:100%;table-layout:auto">
         <thead>
           <tr style="background:var(--bg)">
-            <td colspan="3" style="padding:6px 12px;font-size:10px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--text-3);text-transform:uppercase">Today's Totals</td>
+            <td style="padding:6px 12px;font-size:10px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--text-3);text-transform:uppercase">Today's Totals</td>
+            <td style="width:28px;padding:0"></td>
+            <td style="width:1px;white-space:nowrap;padding:0 8px"></td>
             ${hitTotalCells}
           </tr>
           <tr style="background:#fff"><td colspan="${3 + HIT_COLS.length}" style="height:8px;padding:0"></td></tr>
           <tr>
-            <th class="col-player">Player</th>
-            <th style="${lineupTd}"></th>
+            <th style="min-width:130px">Player</th>
+            <th style="${lineupTd};white-space:nowrap"></th>
             <th style="${gameTd};font-weight:700;color:var(--text-3)">Game</th>
             ${HIT_COLS.map(s => statTh(s, 'var(--green)')).join('')}
           </tr>
@@ -2703,7 +2705,7 @@ function renderLiveView(players, nameMap, dateStr) {
     const rowBg      = ls.isCurrentPitcher ? 'background:rgba(16,185,129,.12)' : 'background:#fff';
 
     return `<tr style="${rowBg}">
-      <td class="col-player" style="padding-left:12px"><strong>${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></td>
+      <td style="padding:2px 4px 2px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></td>
       <td style="${lineupTd}">${badge}</td>
       <td style="${gameTd}">${buildGameBadge(live)}</td>
       ${cells}
@@ -2716,16 +2718,18 @@ function renderLiveView(players, nameMap, dateStr) {
         <span class="card-title" style="color:#fff">Pitchers</span>
         <span style="font-size:11px;color:rgba(255,255,255,.6)">${pitchers.length} players</span>
       </div>
-      <table class="roster-tbl" style="width:100%">
+      <table class="roster-tbl" style="width:100%;table-layout:auto">
         <thead>
           <tr style="background:var(--bg)">
-            <td colspan="3" style="padding:6px 12px;font-size:10px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--text-3);text-transform:uppercase">Today's Totals</td>
+            <td style="padding:6px 12px;font-size:10px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--text-3);text-transform:uppercase">Today's Totals</td>
+            <td style="width:28px;padding:0"></td>
+            <td style="width:1px;white-space:nowrap;padding:0 8px"></td>
             ${pitTotalCells}
           </tr>
           <tr style="background:#fff"><td colspan="${3 + PIT_COLS.length}" style="height:8px;padding:0"></td></tr>
           <tr>
-            <th class="col-player">Player</th>
-            <th style="${lineupTd}"></th>
+            <th style="min-width:130px">Player</th>
+            <th style="${lineupTd};white-space:nowrap"></th>
             <th style="${gameTd};font-weight:700;color:var(--text-3)">Game</th>
             ${PIT_COLS.map(s => statTh(s, 'var(--blue)')).join('')}
           </tr>
