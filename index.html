@@ -2467,6 +2467,7 @@ async function fetchLiveStats() {
             battingOrder: pd.battingOrder || null,
             lineupStatus: pd.gameStatus   || {},
             wasSubbedOut: order > 0 && order % 100 === 0 && replacedSlots.has(order),
+            mlbId:        pd.person?.id || null,
           };
         });
       });
@@ -2605,8 +2606,12 @@ function renderLiveView(players, nameMap, dateStr) {
     const badge   = isStart ? ((subbedOut || gameOver) ? lineupBadgeGrey(order / 100) : lineupBadge(order / 100)) : '';
     const rowBg   = (!gameOver && ls.isCurrentBatter) ? 'background:rgba(16,185,129,.12)' : 'background:#fff';
 
+    const mlbId = live?.mlbId;
+    const shot  = mlbId
+      ? `<img src="https://img.mlbstatic.com/mlb-photos/image/upload/w_60,d_people:generic:headshot:silo:current.png,q_auto:best,f_auto/v1/people/${mlbId}/headshot/67/current" style="width:32px;height:24px;object-fit:cover;object-position:top center;border-radius:3px;flex-shrink:0" loading="lazy" onerror="this.style.display='none'">`
+      : `<span style="display:inline-block;width:32px;height:24px;flex-shrink:0"></span>`;
     return `<tr style="${rowBg}">
-      <td style="padding:2px 4px 2px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></td>
+      <td style="padding:2px 4px 2px 10px;overflow:hidden;white-space:nowrap"><div style="display:flex;align-items:center;gap:7px">${shot}<div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></div></div></td>
       <td style="${lineupTd};white-space:nowrap">${badge}</td>
       <td style="${gameTd}">${buildGameBadge(live)}</td>
       ${cells}
@@ -2621,13 +2626,13 @@ function renderLiveView(players, nameMap, dateStr) {
       </div>
       <table class="roster-tbl" style="width:100%;table-layout:auto">
         <thead>
-          <tr style="background:var(--bg)">
-            <td style="padding:6px 12px;font-size:10px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--text-3);text-transform:uppercase">Today's Totals</td>
+          <tr style="background:var(--green-lt);border-bottom:2px solid #a8d5bc">
+            <td style="padding:10px 12px;font-size:11px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--green);text-transform:uppercase">Today's Totals</td>
             <td style="width:1px;white-space:nowrap;padding:0 4px"></td>
             <td style="width:1px;white-space:nowrap;padding:0 8px"></td>
             ${hitTotalCells}
           </tr>
-          <tr style="background:#fff"><td colspan="${3 + HIT_COLS.length}" style="height:8px;padding:0"></td></tr>
+          <tr style="background:#fff"><td colspan="${3 + HIT_COLS.length}" style="height:6px;padding:0"></td></tr>
           <tr>
             <th style="min-width:130px">Player</th>
             <th style="${lineupTd};white-space:nowrap"></th>
@@ -2705,8 +2710,12 @@ function renderLiveView(players, nameMap, dateStr) {
                      : '';
     const rowBg      = (!gameOver && ls.isCurrentPitcher) ? 'background:rgba(16,185,129,.12)' : 'background:#fff';
 
+    const mlbId = live?.mlbId;
+    const shot  = mlbId
+      ? `<img src="https://img.mlbstatic.com/mlb-photos/image/upload/w_60,d_people:generic:headshot:silo:current.png,q_auto:best,f_auto/v1/people/${mlbId}/headshot/67/current" style="width:32px;height:24px;object-fit:cover;object-position:top center;border-radius:3px;flex-shrink:0" loading="lazy" onerror="this.style.display='none'">`
+      : `<span style="display:inline-block;width:32px;height:24px;flex-shrink:0"></span>`;
     return `<tr style="${rowBg}">
-      <td style="padding:2px 4px 2px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></td>
+      <td style="padding:2px 4px 2px 10px;overflow:hidden;white-space:nowrap"><div style="display:flex;align-items:center;gap:7px">${shot}<div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></div></div></td>
       <td style="${lineupTd};white-space:nowrap">${badge}</td>
       <td style="${gameTd}">${buildGameBadge(live)}</td>
       ${cells}
@@ -2721,13 +2730,13 @@ function renderLiveView(players, nameMap, dateStr) {
       </div>
       <table class="roster-tbl" style="width:100%;table-layout:auto">
         <thead>
-          <tr style="background:var(--bg)">
-            <td style="padding:6px 12px;font-size:10px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--text-3);text-transform:uppercase">Today's Totals</td>
+          <tr style="background:var(--blue-lt);border-bottom:2px solid #b5d4f4">
+            <td style="padding:10px 12px;font-size:11px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--blue);text-transform:uppercase">Today's Totals</td>
             <td style="width:1px;white-space:nowrap;padding:0 4px"></td>
             <td style="width:1px;white-space:nowrap;padding:0 8px"></td>
             ${pitTotalCells}
           </tr>
-          <tr style="background:#fff"><td colspan="${3 + PIT_COLS.length}" style="height:8px;padding:0"></td></tr>
+          <tr style="background:#fff"><td colspan="${3 + PIT_COLS.length}" style="height:6px;padding:0"></td></tr>
           <tr>
             <th style="min-width:130px">Player</th>
             <th style="${lineupTd};white-space:nowrap"></th>
