@@ -2466,122 +2466,204 @@ function renderLiveView(players, nameMap, dateStr) {
     return a.player.localeCompare(b.player);
   });
 
-  const HIT_COLS = ['AB','R','H','HR','RBI','BB','SB','OBP'];
-  const PIT_COLS = ['IP','HA','ER','K','BB','W','SVH','QA'];
-
-  const thead = `<tr>
-    <th class="col-status">Status</th>
-    <th class="col-rd c">Rd</th>
-    <th class="col-player">Player</th>
-    <th class="col-stat c" style="width:90px">Game</th>
-    ${HIT_COLS.map(s => `<th class="col-stat c" style="color:var(--green)">${s}</th>`).join('')}
-    ${PIT_COLS.map(s => `<th class="col-stat c" style="color:var(--blue)">${s}</th>`).join('')}
-  </tr>`;
-
   function normName(n) {
-    return n.toLowerCase().trim()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return n.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   }
 
   function lookupPlayer(p) {
     const key = normName(p.player);
-    // Try exact match first
     for (const [k, v] of Object.entries(nameMap)) {
       if (normName(k) === key) return v;
     }
-    // Try last name match (less reliable but helpful)
     const lastName = key.split(' ').slice(-1)[0];
     const candidates = Object.entries(nameMap).filter(([k]) => normName(k).endsWith(' ' + lastName));
     if (candidates.length === 1) return candidates[0][1];
     return null;
   }
 
-  const tbody = sorted.map(p => {
+  // "6.2" → total outs (20); total outs → "6.2"
+  function ipToOuts(str) {
+    const [w, f] = String(str || '0').split('.').map(Number);
+    return (w || 0) * 3 + (f || 0);
+  }
+  function outsToIP(outs) { return `${Math.floor(outs / 3)}.${outs % 3}`; }
+
+  function buildGameBadge(live) {
+    if (!live) return `<span style="font-size:10px;color:var(--text-3)">—</span>`;
+    const gs = live.gameStatus || 'Today';
+    const color = gs.startsWith('Live') ? 'var(--green)' : gs.startsWith('Final') ? 'var(--text-2)' : 'var(--text-3)';
+    let html = `<span style="font-size:10px;color:${color};white-space:nowrap">${escHtml(gs)}</span>`;
+    if (live.opponent) html += `<div style="font-size:9px;color:var(--text-3)">vs ${escHtml(live.opponent)}</div>`;
+    return html;
+  }
+
+  const hitters = sorted.filter(p => !isPitcher(p.position));
+  const pitchers = sorted.filter(p =>  isPitcher(p.position));
+
+  // ── Hitters ────────────────────────────────────────────────────────────────
+  const HIT_COLS = ['AB','R','H','HR','RBI','BB','SB','OBP'];
+
+  function getHitRaw(p) {
+    const bat = lookupPlayer(p)?.batting;
+    if (!bat) return null;
+    return {
+      AB:  bat.atBats      || 0, R:   bat.runs        || 0,
+      H:   bat.hits        || 0, HR:  bat.homeRuns     || 0,
+      RBI: bat.rbi         || 0, BB:  bat.baseOnBalls  || 0,
+      SB:  bat.stolenBases || 0, HBP: bat.hitByPitch   || 0,
+      SF:  bat.sacFlies    || 0,
+    };
+  }
+
+  const hitAgg = { AB:0, R:0, H:0, HR:0, RBI:0, BB:0, SB:0, HBP:0, SF:0 };
+  hitters.forEach(p => {
+    const s = getHitRaw(p);
+    if (s) Object.keys(hitAgg).forEach(k => { hitAgg[k] += s[k] || 0; });
+  });
+  const hitOBPDenom = hitAgg.AB + hitAgg.BB + hitAgg.HBP + hitAgg.SF;
+  const totalOBP    = hitOBPDenom > 0
+    ? ((hitAgg.H + hitAgg.BB + hitAgg.HBP) / hitOBPDenom).toFixed(3) : '—';
+
+  const hitTotalCells = HIT_COLS.map(k => {
+    const v = k === 'OBP' ? totalOBP : (hitAgg[k] > 0 ? hitAgg[k] : '—');
+    return `<td style="text-align:center;font-size:12px;font-weight:700;color:var(--green);font-family:var(--mono)">${v}</td>`;
+  }).join('');
+
+  const hitRows = hitters.map(p => {
     const normStatus = STATUS_MAP[p.status] || 'MLB';
-    const m = STATUS_META[normStatus] || STATUS_META['MLB'];
-    const stag = `<span class="stag ${m.cls}" style="cursor:default">${m.label}</span>`;
-    const isHitter = !isPitcher(p.position);
+    const m   = STATUS_META[normStatus] || STATUS_META['MLB'];
+    const raw = getHitRaw(p);
     const live = lookupPlayer(p);
-
-    // Game status badge
-    let gameBadge = `<span style="font-size:10px;color:var(--text-3)">—</span>`;
-    if (live) {
-      const gs = live.gameStatus || 'Today';
-      const isLive = gs.startsWith('Live');
-      const isFinal = gs.startsWith('Final');
-      const color = isLive ? 'var(--green)' : isFinal ? 'var(--text-2)' : 'var(--text-3)';
-      gameBadge = `<span style="font-size:10px;color:${color};white-space:nowrap">${escHtml(gs)}</span>`;
-      if (live.opponent) gameBadge += `<div style="font-size:9px;color:var(--text-3)">vs ${escHtml(live.opponent)}</div>`;
-    }
-
-    // Hitter columns
-    const hitCols = HIT_COLS.map(k => {
-      if (!isHitter) return `<td class="col-stat c" style="color:var(--border)">—</td>`;
-      const bat = live?.batting;
-      let val = '—';
-      if (bat) {
-        if (k === 'OBP') {
-          const h   = bat.hits        || 0;
-          const bb  = bat.baseOnBalls || 0;
-          const hbp = bat.hitByPitch  || 0;
-          const ab  = bat.atBats      || 0;
-          const sf  = bat.sacFlies    || 0;
-          const denom = ab + bb + hbp + sf;
-          val = denom > 0 ? ((h + bb + hbp) / denom).toFixed(3) : '—';
-        } else {
-          const apiKey = { AB:'atBats', R:'runs', H:'hits', HR:'homeRuns', RBI:'rbi', BB:'baseOnBalls', SB:'stolenBases' }[k];
-          const n = bat[apiKey];
-          val = (n != null && n !== '') ? String(n) : '—';
-        }
+    const cells = HIT_COLS.map(k => {
+      if (!raw) return `<td class="col-stat c">—</td>`;
+      let val;
+      if (k === 'OBP') {
+        const denom = raw.AB + raw.BB + raw.HBP + raw.SF;
+        val = denom > 0 ? ((raw.H + raw.BB + raw.HBP) / denom).toFixed(3) : '—';
+      } else {
+        val = raw[k] > 0 ? String(raw[k]) : '—';
       }
-      const highlight = val !== '—' && val !== '0' && val !== '.000' ? 'font-weight:600;color:var(--green)' : '';
-      return `<td class="col-stat c" style="${highlight}">${val}</td>`;
+      const hi = val !== '—' && val !== '.000' ? 'font-weight:600;color:var(--green)' : '';
+      return `<td class="col-stat c" style="${hi}">${val}</td>`;
     }).join('');
-
-    // Pitcher columns
-    const pitCols = PIT_COLS.map(k => {
-      if (isHitter) return `<td class="col-stat c" style="color:var(--border)">—</td>`;
-      const pit = live?.pitching;
-      let val = '—';
-      if (pit) {
-        if (k === 'SVH') {
-          const sv  = pit.saves || 0;
-          const hld = pit.holds || 0;
-          val = (sv + hld) > 0 ? String(sv + hld) : '—';
-        } else if (k === 'QA') {
-          // IP string format is "6.2" meaning 6 and 2/3 innings
-          const ipStr = pit.inningsPitched || '0';
-          const [whole, outs] = ipStr.split('.').map(Number);
-          const ipDec = (whole || 0) + ((outs || 0) / 3);
-          const er = pit.earnedRuns || 0;
-          const era = ipDec > 0 ? (er / ipDec) * 9 : Infinity;
-          val = (ipDec >= 5 && era <= 4.50) ? '✓' : '—';
-        } else {
-          const apiKey = { IP:'inningsPitched', HA:'hits', ER:'earnedRuns', K:'strikeOuts', BB:'baseOnBalls', W:'wins' }[k];
-          const n = pit[apiKey];
-          val = (n != null && n !== '') ? String(n) : '—';
-        }
-      }
-      const highlight = val !== '—' && val !== '0' ? 'font-weight:600;color:var(--blue)' : '';
-      return `<td class="col-stat c" style="${highlight}">${val}</td>`;
-    }).join('');
-
     const rowCls = m.rowCls ? ` class="${m.rowCls}"` : '';
     return `<tr${rowCls}>
-      <td class="col-status">${stag}</td>
+      <td class="col-status"><span class="stag ${m.cls}" style="cursor:default">${m.label}</span></td>
       <td class="col-rd c">${rdTile(p.salary, false)}</td>
       <td class="col-player"><strong>${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></td>
-      <td class="col-stat c">${gameBadge}</td>
-      ${hitCols}
-      ${pitCols}
+      <td class="col-stat c">${buildGameBadge(live)}</td>
+      ${cells}
     </tr>`;
   }).join('');
 
+  const hitterPanel = `
+    <div class="card" style="margin-bottom:0">
+      <div class="card-header" style="background:var(--navy);padding:8px 14px">
+        <span class="card-title" style="color:#fff">Hitters</span>
+        <span style="font-size:11px;color:rgba(255,255,255,.6)">${hitters.length} players</span>
+      </div>
+      <div class="scroll-x"><table class="roster-tbl" style="width:100%">
+        <thead>
+          <tr>
+            <th class="col-status">Status</th><th class="col-rd c">Rd</th>
+            <th class="col-player">Player</th>
+            <th class="col-stat c" style="width:80px">Game</th>
+            ${HIT_COLS.map(s => `<th class="col-stat c" style="color:var(--green)">${s}</th>`).join('')}
+          </tr>
+          <tr style="background:var(--bg);border-bottom:2px solid var(--border)">
+            <td colspan="4" style="padding:5px 14px;font-size:10px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--text-3);text-transform:uppercase">Today's Totals</td>
+            ${hitTotalCells}
+          </tr>
+        </thead>
+        <tbody>${hitRows}</tbody>
+      </table></div>
+    </div>`;
+
+  // ── Pitchers ───────────────────────────────────────────────────────────────
+  const PIT_COLS = ['IP','HA','ER','K','BB','W','SVH','QA'];
+
+  function getPitRaw(p) {
+    const pit = lookupPlayer(p)?.pitching;
+    if (!pit) return null;
+    const IP_outs = ipToOuts(pit.inningsPitched);
+    const ipDec   = IP_outs / 3;
+    const er      = pit.earnedRuns || 0;
+    const era     = ipDec > 0 ? (er / ipDec) * 9 : Infinity;
+    return {
+      IP_outs, ipStr: pit.inningsPitched || '0',
+      HA:  pit.hits        || 0, ER:  er,
+      K:   pit.strikeOuts  || 0, BB:  pit.baseOnBalls || 0,
+      W:   pit.wins        || 0, SVH: (pit.saves || 0) + (pit.holds || 0),
+      QA:  (ipDec >= 5 && era <= 4.50) ? 1 : 0,
+    };
+  }
+
+  const pitAgg = { IP_outs:0, HA:0, ER:0, K:0, BB:0, W:0, SVH:0, QA:0 };
+  pitchers.forEach(p => {
+    const s = getPitRaw(p);
+    if (s) { pitAgg.IP_outs += s.IP_outs; pitAgg.HA += s.HA; pitAgg.ER += s.ER;
+             pitAgg.K += s.K; pitAgg.BB += s.BB; pitAgg.W += s.W;
+             pitAgg.SVH += s.SVH; pitAgg.QA += s.QA; }
+  });
+
+  const pitTotalCells = PIT_COLS.map(k => {
+    const v = k === 'IP' ? outsToIP(pitAgg.IP_outs)
+            : (pitAgg[k] > 0 ? pitAgg[k] : '—');
+    return `<td style="text-align:center;font-size:12px;font-weight:700;color:var(--blue);font-family:var(--mono)">${v}</td>`;
+  }).join('');
+
+  const pitRows = pitchers.map(p => {
+    const normStatus = STATUS_MAP[p.status] || 'MLB';
+    const m   = STATUS_META[normStatus] || STATUS_META['MLB'];
+    const raw = getPitRaw(p);
+    const live = lookupPlayer(p);
+    const cells = PIT_COLS.map(k => {
+      if (!raw) return `<td class="col-stat c">—</td>`;
+      let val;
+      if      (k === 'IP')  val = raw.IP_outs > 0 ? raw.ipStr : '—';
+      else if (k === 'QA')  val = raw.QA ? '✓' : '—';
+      else                  val = raw[k] > 0 ? String(raw[k]) : '—';
+      const hi = val !== '—' ? 'font-weight:600;color:var(--blue)' : '';
+      return `<td class="col-stat c" style="${hi}">${val}</td>`;
+    }).join('');
+    const rowCls = m.rowCls ? ` class="${m.rowCls}"` : '';
+    return `<tr${rowCls}>
+      <td class="col-status"><span class="stag ${m.cls}" style="cursor:default">${m.label}</span></td>
+      <td class="col-rd c">${rdTile(p.salary, false)}</td>
+      <td class="col-player"><strong>${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></td>
+      <td class="col-stat c">${buildGameBadge(live)}</td>
+      ${cells}
+    </tr>`;
+  }).join('');
+
+  const pitcherPanel = `
+    <div class="card" style="margin-bottom:0">
+      <div class="card-header" style="background:var(--navy);padding:8px 14px">
+        <span class="card-title" style="color:#fff">Pitchers</span>
+        <span style="font-size:11px;color:rgba(255,255,255,.6)">${pitchers.length} players</span>
+      </div>
+      <div class="scroll-x"><table class="roster-tbl" style="width:100%">
+        <thead>
+          <tr>
+            <th class="col-status">Status</th><th class="col-rd c">Rd</th>
+            <th class="col-player">Player</th>
+            <th class="col-stat c" style="width:80px">Game</th>
+            ${PIT_COLS.map(s => `<th class="col-stat c" style="color:var(--blue)">${s}</th>`).join('')}
+          </tr>
+          <tr style="background:var(--bg);border-bottom:2px solid var(--border)">
+            <td colspan="4" style="padding:5px 14px;font-size:10px;font-weight:700;font-family:var(--head);letter-spacing:.06em;color:var(--text-3);text-transform:uppercase">Today's Totals</td>
+            ${pitTotalCells}
+          </tr>
+        </thead>
+        <tbody>${pitRows}</tbody>
+      </table></div>
+    </div>`;
+
   content.innerHTML = `
-    <table class="roster-tbl" style="width:100%">
-      <thead>${thead}</thead>
-      <tbody>${tbody}</tbody>
-    </table>`;
+    <div style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+      ${hitterPanel}
+      ${pitcherPanel}
+    </div>`;
 }
 
 // ── Standings ─────────────────────────────────────────────────────────────────
