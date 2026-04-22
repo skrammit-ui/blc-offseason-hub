@@ -2376,14 +2376,14 @@ const HIT_SLOTS = [
   { id:'2B',    label:'2B',   pos:['2B']                                              },
   { id:'3B',    label:'3B',   pos:['3B']                                              },
   { id:'SS',    label:'SS',   pos:['SS']                                              },
-  { id:'CI',    label:'CI',   pos:['1B','3B']                                         },
-  { id:'MI',    label:'MI',   pos:['2B','SS']                                         },
-  { id:'OF1',   label:'OF',   pos:['OF','LF','CF','RF']                               },
-  { id:'OF2',   label:'OF',   pos:['OF','LF','CF','RF']                               },
-  { id:'OF3',   label:'OF',   pos:['OF','LF','CF','RF']                               },
-  { id:'OF4',   label:'OF',   pos:['OF','LF','CF','RF']                               },
-  { id:'UTIL1', label:'UTIL', pos:['C','1B','2B','3B','SS','OF','LF','CF','RF','DH']  },
-  { id:'UTIL2', label:'UTIL', pos:['C','1B','2B','3B','SS','OF','LF','CF','RF','DH']  },
+  { id:'CI',    label:'CI',   pos:['1B','3B','CI']                                              },
+  { id:'MI',    label:'MI',   pos:['2B','SS','MI']                                              },
+  { id:'OF1',   label:'OF',   pos:['OF','LF','CF','RF']                                         },
+  { id:'OF2',   label:'OF',   pos:['OF','LF','CF','RF']                                         },
+  { id:'OF3',   label:'OF',   pos:['OF','LF','CF','RF']                                         },
+  { id:'OF4',   label:'OF',   pos:['OF','LF','CF','RF']                                         },
+  { id:'UTIL1', label:'UTIL', pos:['C','1B','2B','3B','SS','OF','LF','CF','RF','DH','CI','MI']  },
+  { id:'UTIL2', label:'UTIL', pos:['C','1B','2B','3B','SS','OF','LF','CF','RF','DH','CI','MI']  },
 ];
 const PIT_SLOTS = [
   { id:'P1', label:'P', pos:['SP','RP','P','CP','CL'] },
@@ -2426,31 +2426,23 @@ function loadLineup(team, date) {
 function saveLineup(team, date, state) {
   localStorage.setItem(lineupKey(team, date), JSON.stringify(state));
 }
-// Parse a raw position string (comma or slash separated) into a clean uppercase array
-// Expand Fantrax slot abbreviations used as position labels into raw positions
-const _POS_EXPAND = {
-  MI:   ['2B','SS'],
-  CI:   ['1B','3B'],
-  IF:   ['1B','2B','3B','SS'],
-  MIF:  ['2B','SS'],
-  CIF:  ['1B','3B'],
-  UTIL: ['C','1B','2B','3B','SS','OF','LF','CF','RF','DH'],
-};
-// Parse a position string (comma or slash separated) into a clean uppercase array,
-// expanding any slot abbreviations (MI, CI, IF) into constituent positions.
+// Parse a position string (comma or slash separated) into a clean uppercase array.
+// "MI" and "CI" are kept as-is (they are valid Fantrax position labels, not expanded).
 function parsePositions(str) {
-  const raw = (str || '').split(/[,\/]/).map(p => p.trim().toUpperCase()).filter(Boolean);
-  const out = new Set();
-  raw.forEach(p => {
-    if (_POS_EXPAND[p]) _POS_EXPAND[p].forEach(e => out.add(e));
-    else out.add(p);
-  });
-  return [...out];
+  return (str || '').split(/[,\/]/).map(p => p.trim().toUpperCase()).filter(Boolean);
 }
-// Check if player is position-eligible for a slot (slot.pos array)
+
+// Global cache: playerName → Set<position> enriched from MLB Stats API (boxscores + rosters).
+// Populated by fetchLiveStats; used by slotFits and the Live view display.
+let livePosCache = {};
+
+// Check if player is position-eligible for a slot (slot.pos array).
+// Supplements stored Fantrax positions with any API-enriched positions.
 function slotFits(player, slotPos) {
-  const pp = parsePositions(player.position);
-  return slotPos.some(sp => pp.includes(sp.toUpperCase()));
+  const pp = new Set(parsePositions(player.position));
+  const extra = livePosCache[player.player];
+  if (extra) extra.forEach(p => pp.add(p));
+  return slotPos.some(sp => pp.has(sp.toUpperCase()));
 }
 // Greedy auto-fill: assign players to any empty active slots, lowest salary first
 function autoFillLineup(hitters, pitchers, state) {
@@ -2866,18 +2858,40 @@ async function fetchLiveStats() {
           .then(r => r.json()).catch(() => null)
       )
     );
+    // Collect positions from boxscore players into livePosCache (fullName → Set<pos>)
+    livePosCache = {};
+    boxscores.forEach(item => {
+      if (!item) return;
+      ['home','away'].forEach(side => {
+        Object.values(item.bs.teams?.[side]?.players || {}).forEach(pd => {
+          const fullName = pd.person?.fullName;
+          const pos      = pd.position?.abbreviation;
+          if (!fullName || !pos) return;
+          if (!livePosCache[fullName]) livePosCache[fullName] = new Set();
+          livePosCache[fullName].add(pos.toUpperCase());
+        });
+      });
+    });
+
     rosterResults.forEach((data, i) => {
       const teamId = teamIdList[i];
       (data?.roster || []).forEach(entry => {
-        const n = (entry.person?.fullName || '').toLowerCase().trim()
+        const fullName = entry.person?.fullName;
+        const n = (fullName || '').toLowerCase().trim()
                     .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        const id = entry.person?.id;
+        const id  = entry.person?.id;
+        const pos = entry.position?.abbreviation;
         if (!n || !id) return;
         mlbIdMap[n] = id;
-        // Also index by last name within team for nickname mismatches (e.g. JJ vs Jonathan)
+        // Enrich livePosCache with each player's primary roster position
+        if (fullName && pos) {
+          if (!livePosCache[fullName]) livePosCache[fullName] = new Set();
+          livePosCache[fullName].add(pos.toUpperCase());
+        }
+        // Index by last name within team for nickname mismatches (e.g. JJ vs Jonathan)
         const lastName = n.split(' ').slice(-1)[0];
         const tlKey = `${teamId}:${lastName}`;
-        mlbIdByTeamLast[tlKey] = (tlKey in mlbIdByTeamLast) ? null : id; // null = 2+ players share last name
+        mlbIdByTeamLast[tlKey] = (tlKey in mlbIdByTeamLast) ? null : id;
       });
     });
 
@@ -3095,6 +3109,16 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
   const NCOLS_HIT = 3 + HIT_COLS.length;
   const NCOLS_PIT = 3 + PIT_COLS.length;
 
+  // Return all positions for a player: Fantrax stored + any API-enriched positions.
+  // Used for display in the Live view row (shows full eligibility, not just primary).
+  function allPositionsDisplay(p) {
+    const fantrax = parsePositions(p.position);
+    const cached  = livePosCache[p.player];
+    if (!cached || cached.size === 0) return fantrax.join(', ') || p.position || '—';
+    const merged = new Set([...fantrax, ...cached]);
+    return [...merged].join(', ');
+  }
+
   function swapRowStyle(panel, slotId, playerName) {
     if (!liveSwap || liveSwap.panel !== panel) return 'cursor:pointer';
     if (liveSwap.playerName === playerName) return 'cursor:pointer;outline:2px solid var(--blue);outline-offset:-2px;background:var(--blue-lt)!important';
@@ -3171,7 +3195,7 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
       : `style="${rowBg};cursor:default"`;
 
     return `<tr ${dragAttrs}>
-      <td style="padding:2px 4px 2px 10px;overflow:hidden;white-space:nowrap;${dim}"><div style="display:flex;align-items:center;gap:6px">${buildShot(p)}<div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></div></div></td>
+      <td style="padding:2px 4px 2px 10px;overflow:hidden;white-space:nowrap;${dim}"><div style="display:flex;align-items:center;gap:6px">${buildShot(p)}<div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(allPositionsDisplay(p))}</span></div></div></td>
       <td style="${slotTd};white-space:nowrap">${slotPill(slotLabel, isActive)} ${lineupNum}</td>
       <td style="${gameTd}">${buildGameBadge(live)}</td>
       ${cells}
@@ -3237,7 +3261,7 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
       : `style="${rowBg};cursor:default"`;
 
     return `<tr ${dragAttrs}>
-      <td style="padding:2px 4px 2px 10px;overflow:hidden;white-space:nowrap;${dim}"><div style="display:flex;align-items:center;gap:6px">${buildShot(p)}<div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></div></div></td>
+      <td style="padding:2px 4px 2px 10px;overflow:hidden;white-space:nowrap;${dim}"><div style="display:flex;align-items:center;gap:6px">${buildShot(p)}<div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(allPositionsDisplay(p))}</span></div></div></td>
       <td style="${slotTd};white-space:nowrap">${slotPill(slotLabel, isActive)} ${roleTag}</td>
       <td style="${gameTd}">${buildGameBadge(live)}</td>
       ${cells}
