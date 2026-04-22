@@ -2133,9 +2133,22 @@ function nav(page, el) {
 // STATUS_ORDER removed — we now use MLB/MiLB only
 // All Fantrax statuses → map to MLB or MiLB
 const STATUS_MAP = {
-  'Active':  'MLB',
-  'Reserve': 'MLB',
-  'Inj Res': 'MLB',
+  'Active':   'MLB',
+  'Reserve':  'MLB',
+  // Injured / IL statuses (Fantrax labels)
+  'Inj Res':  'IL',
+  'IL':       'IL',
+  'IL10':     'IL',
+  'IL60':     'IL',
+  'IL7':      'IL',
+  'DL10':     'IL',
+  'DL15':     'IL',
+  'DL60':     'IL',
+  'NA':       'IL',
+  'SUSP':     'IL',
+  'BRV':      'IL',
+  'PAT':      'IL',
+  // Other
   'Minors':  'MiLB',
   'Rule 5':  'Rule 5',
   'Trade':   'Trade',
@@ -2143,10 +2156,11 @@ const STATUS_MAP = {
 };
 
 const STATUS_META = {
-  'MLB':   { cls: 'stag-active', label: 'MLB',    rowCls: '',        sectionCls: '',     sectionLabel: null },
-  'MiLB':  { cls: 'stag-milb',  label: 'MiLB',  rowCls: 'row-milb', sectionCls: 'milb', sectionLabel: 'MiLB' },
-  'Rule 5':{ cls: 'stag-rule5', label: 'Rule 5', rowCls: '',         sectionCls: '',     sectionLabel: null },
-  'Trade':   { cls: 'stag-trade',   label: 'Trade',   rowCls: '',          sectionCls: '',     sectionLabel: null },
+  'MLB':     { cls: 'stag-active',  label: 'MLB',     rowCls: '',            sectionCls: '',     sectionLabel: null },
+  'IL':      { cls: 'stag-il',      label: 'IL',      rowCls: 'row-il',      sectionCls: 'il',   sectionLabel: 'Injured List' },
+  'MiLB':    { cls: 'stag-milb',    label: 'MiLB',    rowCls: 'row-milb',    sectionCls: 'milb', sectionLabel: 'MiLB' },
+  'Rule 5':  { cls: 'stag-rule5',   label: 'Rule 5',  rowCls: '',            sectionCls: '',     sectionLabel: null },
+  'Trade':   { cls: 'stag-trade',   label: 'Trade',   rowCls: '',            sectionCls: '',     sectionLabel: null },
   'Expired': { cls: 'stag-expired', label: 'Expired', rowCls: 'row-expired', sectionCls: '',     sectionLabel: null },
 };
 
@@ -2401,6 +2415,7 @@ let liveViewDate = null;  // null = today; 'YYYY-MM-DD' = viewing a past date
 let liveSwap     = null;  // pending click-swap: { panel, slotId, playerName }
 let liveDrag     = null;  // active drag: { panel, slotId, playerName }
 let liveArgs     = null;  // last renderLiveView args, kept for re-render after lineup edits
+let liveILSet    = new Set(); // player full names confirmed on MLB IL (from 40-man roster status)
 
 function todayDateStr() {
   const n = new Date();
@@ -2450,8 +2465,9 @@ function autoFillLineup(hitters, pitchers, state) {
   const hUsed = new Set(HIT_SLOTS.map(sl => s[sl.id]).filter(Boolean));
   const pUsed = new Set(PIT_SLOTS.map(sl => s[sl.id]).filter(Boolean));
   const sal = (a, b) => ((parseInt(a.salary)||999) - (parseInt(b.salary)||999)) || a.player.localeCompare(b.player);
-  const mh = hitters.filter(p => (STATUS_MAP[p.status]||'MLB') !== 'MiLB').sort(sal);
-  const mp = pitchers.filter(p => (STATUS_MAP[p.status]||'MLB') !== 'MiLB').sort(sal);
+  const eligible = p => { const s = STATUS_MAP[p.status]||'MLB'; return s !== 'MiLB' && s !== 'IL' && !liveILSet.has(p.player); };
+  const mh = hitters.filter(eligible).sort(sal);
+  const mp = pitchers.filter(eligible).sort(sal);
   for (const sl of HIT_SLOTS) {
     if (s[sl.id]) continue;
     for (const p of mh) {
@@ -2860,6 +2876,7 @@ async function fetchLiveStats() {
     );
     // Collect positions from boxscore players into livePosCache (fullName → Set<pos>)
     livePosCache = {};
+    liveILSet    = new Set();
     boxscores.forEach(item => {
       if (!item) return;
       ['home','away'].forEach(side => {
@@ -2888,6 +2905,9 @@ async function fetchLiveStats() {
           if (!livePosCache[fullName]) livePosCache[fullName] = new Set();
           livePosCache[fullName].add(pos.toUpperCase());
         }
+        // Detect MLB IL status from roster status code
+        const statusCode = entry.status?.code || '';
+        if (fullName && /^D\d|^BRV$|^PAT$/.test(statusCode)) liveILSet.add(fullName);
         // Index by last name within team for nickname mismatches (e.g. JJ vs Jonathan)
         const lastName = n.split(' ').slice(-1)[0];
         const tlKey = `${teamId}:${lastName}`;
@@ -3032,17 +3052,20 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
   if (isToday) saveLineup(currentTeam, date, lu);
 
   // ── Categorize ──────────────────────────────────────────────────────────────
+  function normStat(p) { return STATUS_MAP[p.status] || 'MLB'; }
+  function isILP(p)    { return normStat(p) === 'IL' || liveILSet.has(p.player); }
+
   const activeHitSlots = HIT_SLOTS.map(sl => ({ slot: sl, player: allHitters.find(p => p.player === lu[sl.id]) || null }));
-  const benchHitters   = allHitters.filter(p =>
-    (STATUS_MAP[p.status] || 'MLB') !== 'MiLB' && !HIT_SLOTS.some(sl => lu[sl.id] === p.player)
-  );
-  const milbHitters    = allHitters.filter(p => (STATUS_MAP[p.status] || 'MLB') === 'MiLB');
+  const activeHitNames = new Set(HIT_SLOTS.map(sl => lu[sl.id]).filter(Boolean));
+  const benchHitters   = allHitters.filter(p => !activeHitNames.has(p.player) && !isILP(p) && normStat(p) !== 'MiLB');
+  const ilHitters      = allHitters.filter(p => !activeHitNames.has(p.player) &&  isILP(p) && normStat(p) !== 'MiLB');
+  const milbHitters    = allHitters.filter(p => normStat(p) === 'MiLB');
 
   const activePitSlots = PIT_SLOTS.map(sl => ({ slot: sl, player: allPitchers.find(p => p.player === lu[sl.id]) || null }));
-  const benchPitchers  = allPitchers.filter(p =>
-    (STATUS_MAP[p.status] || 'MLB') !== 'MiLB' && !PIT_SLOTS.some(sl => lu[sl.id] === p.player)
-  );
-  const milbPitchers   = allPitchers.filter(p => (STATUS_MAP[p.status] || 'MLB') === 'MiLB');
+  const activePitNames = new Set(PIT_SLOTS.map(sl => lu[sl.id]).filter(Boolean));
+  const benchPitchers  = allPitchers.filter(p => !activePitNames.has(p.player) && !isILP(p) && normStat(p) !== 'MiLB');
+  const ilPitchers     = allPitchers.filter(p => !activePitNames.has(p.player) &&  isILP(p) && normStat(p) !== 'MiLB');
+  const milbPitchers   = allPitchers.filter(p => normStat(p) === 'MiLB');
 
   // ── Hitter stat aggregation (active slots only) ─────────────────────────────
   const HIT_COLS = ['AB','H','R','HR','RBI','SB','OBP'];
@@ -3108,6 +3131,12 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
   // ── Swap interaction helpers ─────────────────────────────────────────────────
   const NCOLS_HIT = 3 + HIT_COLS.length;
   const NCOLS_PIT = 3 + PIT_COLS.length;
+
+  function ilBadge(p) {
+    if (!isILP(p)) return '';
+    const label = normStat(p) === 'IL' ? (p.status || 'IL') : 'IL';
+    return `<span style="font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-family:var(--mono);margin-left:3px">${escHtml(label)}</span>`;
+  }
 
   // Return all positions for a player: Fantrax stored + any API-enriched positions.
   // Used for display in the Live view row (shows full eligibility, not just primary).
@@ -3195,7 +3224,7 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
       : `style="${rowBg};cursor:default"`;
 
     return `<tr ${dragAttrs}>
-      <td style="padding:2px 4px 2px 10px;overflow:hidden;white-space:nowrap;${dim}"><div style="display:flex;align-items:center;gap:6px">${buildShot(p)}<div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(allPositionsDisplay(p))}</span></div></div></td>
+      <td style="padding:2px 4px 2px 10px;overflow:hidden;white-space:nowrap;${dim}"><div style="display:flex;align-items:center;gap:6px">${buildShot(p)}<div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong>${ilBadge(p)}<span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(allPositionsDisplay(p))}</span></div></div></td>
       <td style="${slotTd};white-space:nowrap">${slotPill(slotLabel, isActive)} ${lineupNum}</td>
       <td style="${gameTd}">${buildGameBadge(live)}</td>
       ${cells}
@@ -3261,7 +3290,7 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
       : `style="${rowBg};cursor:default"`;
 
     return `<tr ${dragAttrs}>
-      <td style="padding:2px 4px 2px 10px;overflow:hidden;white-space:nowrap;${dim}"><div style="display:flex;align-items:center;gap:6px">${buildShot(p)}<div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(allPositionsDisplay(p))}</span></div></div></td>
+      <td style="padding:2px 4px 2px 10px;overflow:hidden;white-space:nowrap;${dim}"><div style="display:flex;align-items:center;gap:6px">${buildShot(p)}<div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong>${ilBadge(p)}<span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(allPositionsDisplay(p))}</span></div></div></td>
       <td style="${slotTd};white-space:nowrap">${slotPill(slotLabel, isActive)} ${roleTag}</td>
       <td style="${gameTd}">${buildGameBadge(live)}</td>
       ${cells}
@@ -3293,9 +3322,11 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
     .sort((a, b) => { const pa = hitterPriority(a), pb = hitterPriority(b); return pa !== pb ? pa - pb : 0; })
     .map(p => buildHitRow(p, 'BN', false)).join('');
 
+  const hitRowsIL   = ilHitters.map(p => buildHitRow(p, 'IL', false)).join('');
   const hitRowsMiLB = milbHitters.map(p => buildHitRow(p, 'MiLB', false)).join('');
 
-  const hBenchDiv = (benchHitters.length > 0 || milbHitters.length > 0) ? sectionDivider('Bench', NCOLS_HIT, 'var(--text-2)') : '';
+  const hBenchDiv = (benchHitters.length > 0 || ilHitters.length > 0 || milbHitters.length > 0) ? sectionDivider('Bench', NCOLS_HIT, 'var(--text-2)') : '';
+  const hILDiv    = ilHitters.length > 0 ? sectionDivider('Injured List', NCOLS_HIT, '#dc2626') : '';
   const hMiLBDiv  = milbHitters.length > 0 ? sectionDivider('MiLB', NCOLS_HIT, '#d97706') : '';
   const activeHitCount = activeHitSlots.filter(s => s.player).length;
 
@@ -3303,7 +3334,7 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
     <div class="card" style="margin-bottom:0">
       <div class="card-header" style="background:var(--navy);padding:8px 14px">
         <span class="card-title" style="color:#fff">Hitters</span>
-        <span style="font-size:11px;color:rgba(255,255,255,.6)">${activeHitCount} active · ${benchHitters.length} bench · ${milbHitters.length} MiLB</span>
+        <span style="font-size:11px;color:rgba(255,255,255,.6)">${activeHitCount} active · ${benchHitters.length} bench${ilHitters.length > 0 ? ` · <span style="color:#fca5a5">${ilHitters.length} IL</span>` : ''} · ${milbHitters.length} MiLB</span>
       </div>
       <table class="roster-tbl" style="width:100%;table-layout:auto">
         <thead>
@@ -3325,6 +3356,7 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
         <tbody>
           ${hitRowsActive}
           ${hBenchDiv}${hitRowsBench}
+          ${hILDiv}${hitRowsIL}
           ${hMiLBDiv}${hitRowsMiLB}
         </tbody>
       </table>
@@ -3339,9 +3371,11 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
     .sort((a, b) => { const pa = pitcherPriority(a), pb = pitcherPriority(b); return pa !== pb ? pa - pb : 0; })
     .map(p => buildPitRow(p, 'BN', false)).join('');
 
+  const pitRowsIL   = ilPitchers.map(p => buildPitRow(p, 'IL', false)).join('');
   const pitRowsMiLB = milbPitchers.map(p => buildPitRow(p, 'MiLB', false)).join('');
 
-  const pBenchDiv = (benchPitchers.length > 0 || milbPitchers.length > 0) ? sectionDivider('Bench', NCOLS_PIT, 'var(--text-2)') : '';
+  const pBenchDiv = (benchPitchers.length > 0 || ilPitchers.length > 0 || milbPitchers.length > 0) ? sectionDivider('Bench', NCOLS_PIT, 'var(--text-2)') : '';
+  const pILDiv    = ilPitchers.length > 0 ? sectionDivider('Injured List', NCOLS_PIT, '#dc2626') : '';
   const pMiLBDiv  = milbPitchers.length > 0 ? sectionDivider('MiLB', NCOLS_PIT, '#d97706') : '';
   const activePitCount = activePitSlots.filter(s => s.player).length;
 
@@ -3349,7 +3383,7 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
     <div class="card" style="margin-bottom:0">
       <div class="card-header" style="background:var(--navy);padding:8px 14px">
         <span class="card-title" style="color:#fff">Pitchers</span>
-        <span style="font-size:11px;color:rgba(255,255,255,.6)">${activePitCount} active · ${benchPitchers.length} bench · ${milbPitchers.length} MiLB</span>
+        <span style="font-size:11px;color:rgba(255,255,255,.6)">${activePitCount} active · ${benchPitchers.length} bench${ilPitchers.length > 0 ? ` · <span style="color:#fca5a5">${ilPitchers.length} IL</span>` : ''} · ${milbPitchers.length} MiLB</span>
       </div>
       <table class="roster-tbl" style="width:100%;table-layout:auto">
         <thead>
@@ -3371,6 +3405,7 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
         <tbody>
           ${pitRowsActive}
           ${pBenchDiv}${pitRowsBench}
+          ${pILDiv}${pitRowsIL}
           ${pMiLBDiv}${pitRowsMiLB}
         </tbody>
       </table>
