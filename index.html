@@ -2151,7 +2151,8 @@ const STATUS_META = {
 };
 
 function isPitcher(pos) {
-  return pos.split(',').every(p => ['SP','RP','P'].includes(p.trim()));
+  const parts = (pos || '').split(/[,\/]/).map(p => p.trim().toUpperCase()).filter(Boolean);
+  return parts.length > 0 && parts.every(p => ['SP','RP','P','CP','CL'].includes(p));
 }
 
 // Format ERA/K9 to 2dp, OBP/WHIP to 3dp; pass through everything else unchanged
@@ -2425,9 +2426,13 @@ function loadLineup(team, date) {
 function saveLineup(team, date, state) {
   localStorage.setItem(lineupKey(team, date), JSON.stringify(state));
 }
+// Parse a raw position string (comma or slash separated) into a clean uppercase array
+function parsePositions(str) {
+  return (str || '').split(/[,\/]/).map(p => p.trim().toUpperCase()).filter(Boolean);
+}
 // Check if player is position-eligible for a slot (slot.pos array)
 function slotFits(player, slotPos) {
-  const pp = (player.position || '').split(',').map(p => p.trim().toUpperCase());
+  const pp = parsePositions(player.position);
   return slotPos.some(sp => pp.includes(sp.toUpperCase()));
 }
 // Greedy auto-fill: assign players to any empty active slots, lowest salary first
@@ -4122,7 +4127,7 @@ function processCSV(text, type, filename) {
       newLeague[mgr].push({
         player:   playerName,
         mlb_team: (r.Team || '').trim(),
-        position: (r.Position || '').trim(),
+        position: (r.Position || '').trim().split(/[\/]/).map(p => p.trim()).join(','),
         status:   effectiveStatus,
         salary,
         contract,
@@ -4290,7 +4295,7 @@ function processSalaryReviewFile(file) {
       // ── 1. Auto-update non-locked fields ─────────────────────────────────
       if (newName)      p.player   = newName;
       if (newMlbTeam)   p.mlb_team = newMlbTeam;
-      if (newPosition)  p.position = newPosition;
+      if (newPosition)  p.position = newPosition.split('/').map(p => p.trim()).join(',');
       if (newStatus)    p.status   = newStatus;
       // 2026 contracts are always Expired regardless of what CSV says
       if (p.contract === '2026') p.status = 'Expired';
@@ -5283,7 +5288,7 @@ function prefillFromKeepers(players) {
   const usedSlots = new Set();
 
   function assignToSlot(p) {
-    const positions = p.position.split(',').map(x => x.trim());
+    const positions = parsePositions(p.position);
     for (const pos of positions) {
       const candidates = POS_SLOT_PRIORITY[pos] || [];
       for (const slotId of candidates) {
@@ -5425,7 +5430,7 @@ function isEligibleForSlot(player, slotId) {
   const isMiLB = STATUS_MAP[player.status] === 'MiLB';
   if (slot.type === 'milb') return isMiLB;   // MiLB slots: MiLB players only
   if (slot.type === 'bench') return true;     // bench: any player (MLB or MiLB)
-  const positions = player.position.split(',').map(x => x.trim());
+  const positions = parsePositions(player.position);
   return positions.some(pos => (POS_SLOT_PRIORITY[pos] || []).includes(slotId));
 }
 
@@ -7292,8 +7297,8 @@ function renderPlayerComparison(homeKey, visitorKey) {
     let html = '';
     const usedH = new Set(), usedV = new Set();
     posList.forEach(pos => {
-      const hp = hPlayers.find(p => !usedH.has(p.player) && p.position.split(',').map(x => x.trim()).includes(pos));
-      const vp = vPlayers.find(p => !usedV.has(p.player) && p.position.split(',').map(x => x.trim()).includes(pos));
+      const hp = hPlayers.find(p => !usedH.has(p.player) && parsePositions(p.position).includes(pos));
+      const vp = vPlayers.find(p => !usedV.has(p.player) && parsePositions(p.position).includes(pos));
       if (!hp && !vp) return;
       if (hp) usedH.add(hp.player);
       if (vp) usedV.add(vp.player);
