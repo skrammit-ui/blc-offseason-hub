@@ -2397,7 +2397,8 @@ const PIT_SLOTS = [
 ];
 
 let liveViewDate = null;  // null = today; 'YYYY-MM-DD' = viewing a past date
-let liveSwap     = null;  // pending swap: { panel:'hit'|'pit', slotId:string|null, playerName:string }
+let liveSwap     = null;  // pending click-swap: { panel, slotId, playerName }
+let liveDrag     = null;  // active drag: { panel, slotId, playerName }
 let liveArgs     = null;  // last renderLiveView args, kept for re-render after lineup edits
 
 function todayDateStr() {
@@ -2513,6 +2514,109 @@ function liveSlotClick(panel, slotId) {
   liveSwap = null; rerenderLive();
 }
 function rerenderLive() { if (liveArgs) renderLiveView(...liveArgs); }
+
+// ── Drag-and-drop handlers for Live lineup ─────────────────────────────────
+function liveDragStart(ev, panel, slotId, playerName) {
+  liveDrag = { panel, slotId: slotId || null, playerName };
+  ev.dataTransfer.effectAllowed = 'move';
+  ev.dataTransfer.setData('text/plain', playerName);
+  // Slight delay so the ghost image renders before opacity drops
+  requestAnimationFrame(() => { if (ev.target.closest) ev.target.closest('tr').style.opacity = '0.4'; });
+}
+function liveDragEnd(ev) {
+  if (ev.target.closest) ev.target.closest('tr').style.opacity = '';
+  liveDrag = null;
+  document.querySelectorAll('tr[data-droptarget]').forEach(el => {
+    el.style.outline = '';
+    el.style.background = '';
+  });
+}
+function _liveDropRowEligible(panel, dSlotId, dPlayerName) {
+  if (!liveDrag || liveDrag.panel !== panel) return false;
+  if (liveDrag.playerName === dPlayerName) return false;
+  const allP  = LEAGUE[currentTeam] || [];
+  const slots = panel === 'hit' ? HIT_SLOTS : PIT_SLOTS;
+  const dSlot = (dSlotId && dSlotId !== 'null') ? slots.find(s => s.id === dSlotId) : null;
+  const sSlot = liveDrag.slotId ? slots.find(s => s.id === liveDrag.slotId) : null;
+  const srcObj = allP.find(p => p.player === liveDrag.playerName);
+  const dstObj = allP.find(p => p.player === dPlayerName);
+  if (dSlot && srcObj && !slotFits(srcObj, dSlot.pos)) return false;
+  if (sSlot && dstObj && !slotFits(dstObj, sSlot.pos)) return false;
+  return true;
+}
+function liveDragOverRow(ev, panel, slotId, playerName) {
+  if (!_liveDropRowEligible(panel, slotId, playerName)) return;
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'move';
+  const tr = ev.currentTarget;
+  if (!ev.relatedTarget || !tr.contains(ev.relatedTarget)) {
+    tr.style.outline = '2px solid var(--green)';
+    tr.style.outlineOffset = '-2px';
+  }
+}
+function liveDragLeaveRow(ev) {
+  if (ev.currentTarget.contains(ev.relatedTarget)) return;
+  ev.currentTarget.style.outline = '';
+  ev.currentTarget.style.outlineOffset = '';
+}
+function liveDropRow(ev, panel, slotId, playerName) {
+  ev.preventDefault();
+  ev.currentTarget.style.outline = '';
+  if (!_liveDropRowEligible(panel, slotId, playerName)) { liveDrag = null; return; }
+  const date  = liveViewDate || todayDateStr();
+  const slots = panel === 'hit' ? HIT_SLOTS : PIT_SLOTS;
+  const dSlotId = (slotId && slotId !== 'null') ? slotId : null;
+  const state = loadLineup(currentTeam, date);
+  // Swap: src → dst slot, dst → src slot (or bench)
+  if (liveDrag.slotId) state[liveDrag.slotId] = playerName;
+  if (dSlotId)         state[dSlotId]          = liveDrag.playerName;
+  if (!dSlotId && liveDrag.slotId) delete state[liveDrag.slotId];
+  for (const k of Object.keys(state)) { if (!state[k]) delete state[k]; }
+  saveLineup(currentTeam, date, state);
+  liveDrag = null;
+  rerenderLive();
+}
+function _liveDropSlotEligible(panel, slotId) {
+  if (!liveDrag || liveDrag.panel !== panel) return false;
+  const allP   = LEAGUE[currentTeam] || [];
+  const slots  = panel === 'hit' ? HIT_SLOTS : PIT_SLOTS;
+  const dSlot  = slots.find(s => s.id === slotId);
+  const srcObj = allP.find(p => p.player === liveDrag.playerName);
+  return dSlot && srcObj && slotFits(srcObj, dSlot.pos);
+}
+function liveDragOverSlot(ev, panel, slotId) {
+  if (!_liveDropSlotEligible(panel, slotId)) return;
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'move';
+  if (!ev.relatedTarget || !ev.currentTarget.contains(ev.relatedTarget)) {
+    ev.currentTarget.style.background = '#edf7f1';
+    ev.currentTarget.style.outline    = '2px solid var(--green)';
+    ev.currentTarget.style.outlineOffset = '-2px';
+  }
+}
+function liveDragLeaveSlot(ev) {
+  if (ev.currentTarget.contains(ev.relatedTarget)) return;
+  ev.currentTarget.style.background = '';
+  ev.currentTarget.style.outline    = '';
+}
+function liveDropSlot(ev, panel, slotId) {
+  ev.preventDefault();
+  ev.currentTarget.style.background = '';
+  ev.currentTarget.style.outline    = '';
+  if (!_liveDropSlotEligible(panel, slotId)) { liveDrag = null; return; }
+  const date  = liveViewDate || todayDateStr();
+  const state = loadLineup(currentTeam, date);
+  const cur   = state[slotId]; // current occupant of the target slot
+  if (liveDrag.slotId) {
+    if (cur) state[liveDrag.slotId] = cur; // swap occupant back to source slot
+    else     delete state[liveDrag.slotId];
+  }
+  state[slotId] = liveDrag.playerName;
+  for (const k of Object.keys(state)) { if (!state[k]) delete state[k]; }
+  saveLineup(currentTeam, date, state);
+  liveDrag = null;
+  rerenderLive();
+}
 
 // Silhouette placeholder shown when no headshot is available
 const HEADSHOT_PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent(
@@ -3031,12 +3135,20 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
       : '';
 
     const safePlayer = escHtml(p.player).replace(/'/g, '&#39;');
-    const rowStyle  = isToday ? swapRowStyle('hit', slotId, p.player) : 'cursor:default';
-    const clickAttr = isToday ? `onclick="liveRowClick('hit','${slotId || null}','${safePlayer}')"` : '';
-    const rowBg     = isActive ? 'background:#fff' : 'background:#fafafa';
-    const dim       = isActive ? '' : 'opacity:.85;';
+    const rowBg      = isActive ? 'background:#fff' : 'background:#fafafa';
+    const dim        = isActive ? '' : 'opacity:.85;';
+    const dragAttrs  = isToday
+      ? `draggable="true" data-droptarget="1"
+         ondragstart="liveDragStart(event,'hit','${slotId || null}','${safePlayer}')"
+         ondragend="liveDragEnd(event)"
+         ondragover="liveDragOverRow(event,'hit','${slotId || null}','${safePlayer}')"
+         ondragleave="liveDragLeaveRow(event)"
+         ondrop="liveDropRow(event,'hit','${slotId || null}','${safePlayer}')"
+         onclick="liveRowClick('hit','${slotId || null}','${safePlayer}')"
+         style="${rowBg};cursor:grab"`
+      : `style="${rowBg};cursor:default"`;
 
-    return `<tr style="${rowBg};${rowStyle}" ${clickAttr}>
+    return `<tr ${dragAttrs}>
       <td style="padding:2px 4px 2px 10px;overflow:hidden;white-space:nowrap;${dim}"><div style="display:flex;align-items:center;gap:6px">${buildShot(p)}<div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></div></div></td>
       <td style="${slotTd};white-space:nowrap">${slotPill(slotLabel, isActive)} ${lineupNum}</td>
       <td style="${gameTd}">${buildGameBadge(live)}</td>
@@ -3045,9 +3157,15 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
   }
 
   function buildHitEmptySlot(sl) {
-    const es        = isToday ? emptySlotStyle('hit', sl.id) : '';
-    const clickAttr = isToday ? `onclick="liveSlotClick('hit','${sl.id}')"` : '';
-    return `<tr style="background:#fafafa;${es}" ${clickAttr}>
+    const dragAttrs = isToday
+      ? `data-droptarget="1"
+         ondragover="liveDragOverSlot(event,'hit','${sl.id}')"
+         ondragleave="liveDragLeaveSlot(event)"
+         ondrop="liveDropSlot(event,'hit','${sl.id}')"
+         onclick="liveSlotClick('hit','${sl.id}')"
+         style="background:#fafafa;cursor:default"`
+      : `style="background:#fafafa"`;
+    return `<tr ${dragAttrs}>
       <td colspan="${NCOLS_HIT}" style="padding:5px 10px;color:var(--text-3);font-size:11px;font-style:italic">
         ${slotPill(sl.label, true)} <span style="margin-left:6px">— empty —</span>
       </td>
@@ -3083,12 +3201,20 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
       : '';
 
     const safePlayer = escHtml(p.player).replace(/'/g, '&#39;');
-    const rowStyle  = isToday ? swapRowStyle('pit', slotId, p.player) : 'cursor:default';
-    const clickAttr = isToday ? `onclick="liveRowClick('pit','${slotId || null}','${safePlayer}')"` : '';
-    const rowBg     = isActive ? 'background:#fff' : 'background:#fafafa';
-    const dim       = isActive ? '' : 'opacity:.85;';
+    const rowBg      = isActive ? 'background:#fff' : 'background:#fafafa';
+    const dim        = isActive ? '' : 'opacity:.85;';
+    const dragAttrs  = isToday
+      ? `draggable="true" data-droptarget="1"
+         ondragstart="liveDragStart(event,'pit','${slotId || null}','${safePlayer}')"
+         ondragend="liveDragEnd(event)"
+         ondragover="liveDragOverRow(event,'pit','${slotId || null}','${safePlayer}')"
+         ondragleave="liveDragLeaveRow(event)"
+         ondrop="liveDropRow(event,'pit','${slotId || null}','${safePlayer}')"
+         onclick="liveRowClick('pit','${slotId || null}','${safePlayer}')"
+         style="${rowBg};cursor:grab"`
+      : `style="${rowBg};cursor:default"`;
 
-    return `<tr style="${rowBg};${rowStyle}" ${clickAttr}>
+    return `<tr ${dragAttrs}>
       <td style="padding:2px 4px 2px 10px;overflow:hidden;white-space:nowrap;${dim}"><div style="display:flex;align-items:center;gap:6px">${buildShot(p)}<div style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong style="font-size:12px">${escHtml(p.player)}</strong><span class="player-meta">${escHtml(p.mlb_team)} · ${escHtml(p.position)}</span></div></div></td>
       <td style="${slotTd};white-space:nowrap">${slotPill(slotLabel, isActive)} ${roleTag}</td>
       <td style="${gameTd}">${buildGameBadge(live)}</td>
@@ -3097,9 +3223,15 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
   }
 
   function buildPitEmptySlot(sl) {
-    const es        = isToday ? emptySlotStyle('pit', sl.id) : '';
-    const clickAttr = isToday ? `onclick="liveSlotClick('pit','${sl.id}')"` : '';
-    return `<tr style="background:#fafafa;${es}" ${clickAttr}>
+    const dragAttrs = isToday
+      ? `data-droptarget="1"
+         ondragover="liveDragOverSlot(event,'pit','${sl.id}')"
+         ondragleave="liveDragLeaveSlot(event)"
+         ondrop="liveDropSlot(event,'pit','${sl.id}')"
+         onclick="liveSlotClick('pit','${sl.id}')"
+         style="background:#fafafa;cursor:default"`
+      : `style="background:#fafafa"`;
+    return `<tr ${dragAttrs}>
       <td colspan="${NCOLS_PIT}" style="padding:5px 10px;color:var(--text-3);font-size:11px;font-style:italic">
         ${slotPill(sl.label, true)} <span style="margin-left:6px">— empty —</span>
       </td>
