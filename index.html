@@ -2427,8 +2427,25 @@ function saveLineup(team, date, state) {
   localStorage.setItem(lineupKey(team, date), JSON.stringify(state));
 }
 // Parse a raw position string (comma or slash separated) into a clean uppercase array
+// Expand Fantrax slot abbreviations used as position labels into raw positions
+const _POS_EXPAND = {
+  MI:   ['2B','SS'],
+  CI:   ['1B','3B'],
+  IF:   ['1B','2B','3B','SS'],
+  MIF:  ['2B','SS'],
+  CIF:  ['1B','3B'],
+  UTIL: ['C','1B','2B','3B','SS','OF','LF','CF','RF','DH'],
+};
+// Parse a position string (comma or slash separated) into a clean uppercase array,
+// expanding any slot abbreviations (MI, CI, IF) into constituent positions.
 function parsePositions(str) {
-  return (str || '').split(/[,\/]/).map(p => p.trim().toUpperCase()).filter(Boolean);
+  const raw = (str || '').split(/[,\/]/).map(p => p.trim().toUpperCase()).filter(Boolean);
+  const out = new Set();
+  raw.forEach(p => {
+    if (_POS_EXPAND[p]) _POS_EXPAND[p].forEach(e => out.add(e));
+    else out.add(p);
+  });
+  return [...out];
 }
 // Check if player is position-eligible for a slot (slot.pos array)
 function slotFits(player, slotPos) {
