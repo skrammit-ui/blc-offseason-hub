@@ -2465,9 +2465,12 @@ function autoFillLineup(hitters, pitchers, state) {
   const hUsed = new Set(HIT_SLOTS.map(sl => s[sl.id]).filter(Boolean));
   const pUsed = new Set(PIT_SLOTS.map(sl => s[sl.id]).filter(Boolean));
   const sal = (a, b) => ((parseInt(a.salary)||999) - (parseInt(b.salary)||999)) || a.player.localeCompare(b.player);
-  const eligible = p => { const s = STATUS_MAP[p.status]||'MLB'; return s !== 'MiLB' && s !== 'IL' && !liveILSet.has(p.player); };
-  const mh = hitters.filter(eligible).sort(sal);
-  const mp = pitchers.filter(eligible).sort(sal);
+  const ilH = new Set(state._ilH || []);
+  const ilP = new Set(state._ilP || []);
+  const eligH = p => { const s = STATUS_MAP[p.status]||'MLB'; return s !== 'MiLB' && s !== 'IL' && !liveILSet.has(p.player) && !ilH.has(p.player); };
+  const eligP = p => { const s = STATUS_MAP[p.status]||'MLB'; return s !== 'MiLB' && s !== 'IL' && !liveILSet.has(p.player) && !ilP.has(p.player); };
+  const mh = hitters.filter(eligH).sort(sal);
+  const mp = pitchers.filter(eligP).sort(sal);
   for (const sl of HIT_SLOTS) {
     if (s[sl.id]) continue;
     for (const p of mh) {
@@ -2511,20 +2514,31 @@ function liveRowClick(panel, slotId, playerName) {
   // Different panel → switch selection
   if (liveSwap.panel !== panel) { liveSwap = { panel, slotId: slotId || null, playerName }; rerenderLive(); return; }
   // Same panel — attempt swap
-  const slots  = panel === 'hit' ? HIT_SLOTS : PIT_SLOTS;
-  const dSlot  = (slotId && slotId !== 'null') ? slots.find(s => s.id === slotId) : null;
-  const sSlot  = liveSwap.slotId ? slots.find(s => s.id === liveSwap.slotId) : null;
-  const srcObj = allP.find(p => p.player === liveSwap.playerName);
-  const dstObj = allP.find(p => p.player === playerName);
-  // Eligibility check
+  const slots   = panel === 'hit' ? HIT_SLOTS : PIT_SLOTS;
+  const ilKey   = panel === 'hit' ? '_ilH' : '_ilP';
+  const srcIsIL = liveSwap.slotId === '_il';
+  const dstIsIL = slotId === '_il';
+  const dSlot   = (!dstIsIL && slotId && slotId !== 'null') ? slots.find(s => s.id === slotId) : null;
+  const sSlot   = (!srcIsIL && liveSwap.slotId) ? slots.find(s => s.id === liveSwap.slotId) : null;
+  const srcObj  = allP.find(p => p.player === liveSwap.playerName);
+  const dstObj  = allP.find(p => p.player === playerName);
+  // Eligibility check (skip for IL ↔ bench moves)
   if (dSlot && srcObj && !slotFits(srcObj, dSlot.pos)) { liveSwap = null; rerenderLive(); return; }
   if (sSlot && dstObj && !slotFits(dstObj, sSlot.pos)) { liveSwap = null; rerenderLive(); return; }
   // Execute
   const state = loadLineup(currentTeam, date);
-  if (liveSwap.slotId) state[liveSwap.slotId] = playerName;
-  if (slotId && slotId !== 'null') state[slotId] = liveSwap.playerName;
-  if (!dSlot && liveSwap.slotId) delete state[liveSwap.slotId]; // moved active → bench
-  for (const k of Object.keys(state)) { if (!state[k]) delete state[k]; }
+  if (srcIsIL) state[ilKey] = (state[ilKey] || []).filter(n => n !== liveSwap.playerName);
+  if (dstIsIL) {
+    state[ilKey] = (state[ilKey] || []).filter(n => n !== playerName);
+    if (!state[ilKey]) state[ilKey] = [];
+    state[ilKey].push(liveSwap.playerName);
+    if (!srcIsIL && liveSwap.slotId) delete state[liveSwap.slotId];
+  } else {
+    if (!srcIsIL && liveSwap.slotId) state[liveSwap.slotId] = playerName;
+    if (dSlot) state[slotId] = liveSwap.playerName;
+    if (!dSlot && !srcIsIL && liveSwap.slotId) delete state[liveSwap.slotId];
+  }
+  for (const k of Object.keys(state)) { if (!state[k] || (Array.isArray(state[k]) && !state[k].length)) delete state[k]; }
   saveLineup(currentTeam, date, state);
   liveSwap = null; rerenderLive();
 }
@@ -2537,9 +2551,12 @@ function liveSlotClick(panel, slotId) {
   const slots  = panel === 'hit' ? HIT_SLOTS : PIT_SLOTS;
   const dSlot  = slots.find(s => s.id === slotId);
   if (!dSlot || !srcObj || !slotFits(srcObj, dSlot.pos)) { liveSwap = null; rerenderLive(); return; }
-  const state = loadLineup(currentTeam, date);
-  if (liveSwap.slotId) delete state[liveSwap.slotId];
+  const state  = loadLineup(currentTeam, date);
+  const ilKey  = panel === 'hit' ? '_ilH' : '_ilP';
+  if (liveSwap.slotId === '_il') state[ilKey] = (state[ilKey] || []).filter(n => n !== liveSwap.playerName);
+  else if (liveSwap.slotId) delete state[liveSwap.slotId];
   state[slotId] = liveSwap.playerName;
+  for (const k of Object.keys(state)) { if (!state[k] || (Array.isArray(state[k]) && !state[k].length)) delete state[k]; }
   saveLineup(currentTeam, date, state);
   liveSwap = null; rerenderLive();
 }
@@ -2566,8 +2583,9 @@ function _liveDropRowEligible(panel, dSlotId, dPlayerName) {
   if (liveDrag.playerName === dPlayerName) return false;
   const allP  = LEAGUE[currentTeam] || [];
   const slots = panel === 'hit' ? HIT_SLOTS : PIT_SLOTS;
-  const dSlot = (dSlotId && dSlotId !== 'null') ? slots.find(s => s.id === dSlotId) : null;
-  const sSlot = liveDrag.slotId ? slots.find(s => s.id === liveDrag.slotId) : null;
+  // '_il' is the IL-section marker, not a real slot id
+  const dSlot = (dSlotId && dSlotId !== 'null' && dSlotId !== '_il') ? slots.find(s => s.id === dSlotId) : null;
+  const sSlot = (liveDrag.slotId && liveDrag.slotId !== '_il') ? slots.find(s => s.id === liveDrag.slotId) : null;
   const srcObj = allP.find(p => p.player === liveDrag.playerName);
   const dstObj = allP.find(p => p.player === dPlayerName);
   if (dSlot && srcObj && !slotFits(srcObj, dSlot.pos)) return false;
@@ -2593,15 +2611,30 @@ function liveDropRow(ev, panel, slotId, playerName) {
   ev.preventDefault();
   ev.currentTarget.style.outline = '';
   if (!_liveDropRowEligible(panel, slotId, playerName)) { liveDrag = null; return; }
-  const date  = liveViewDate || todayDateStr();
-  const slots = panel === 'hit' ? HIT_SLOTS : PIT_SLOTS;
-  const dSlotId = (slotId && slotId !== 'null') ? slotId : null;
-  const state = loadLineup(currentTeam, date);
-  // Swap: src → dst slot, dst → src slot (or bench)
-  if (liveDrag.slotId) state[liveDrag.slotId] = playerName;
-  if (dSlotId)         state[dSlotId]          = liveDrag.playerName;
-  if (!dSlotId && liveDrag.slotId) delete state[liveDrag.slotId];
-  for (const k of Object.keys(state)) { if (!state[k]) delete state[k]; }
+  const date   = liveViewDate || todayDateStr();
+  const state  = loadLineup(currentTeam, date);
+  const ilKey  = panel === 'hit' ? '_ilH' : '_ilP';
+  const dSlotId = (slotId && slotId !== 'null' && slotId !== '_il') ? slotId : null;
+  const srcIsIL = liveDrag.slotId === '_il';
+  const dstIsIL = slotId === '_il';
+
+  // Remove src from IL section if it was there
+  if (srcIsIL) state[ilKey] = (state[ilKey] || []).filter(n => n !== liveDrag.playerName);
+
+  // If dst is an IL-section row, move dst player to bench (remove from IL) and src to IL
+  if (dstIsIL) {
+    state[ilKey] = (state[ilKey] || []).filter(n => n !== playerName); // dst leaves IL
+    if (!state[ilKey]) state[ilKey] = [];
+    state[ilKey].push(liveDrag.playerName); // src enters IL
+    if (!srcIsIL && liveDrag.slotId) delete state[liveDrag.slotId]; // src leaves active slot
+  } else {
+    // Standard slot swap
+    if (!srcIsIL && liveDrag.slotId) state[liveDrag.slotId] = playerName;
+    if (dSlotId) state[dSlotId] = liveDrag.playerName;
+    if (!dSlotId && !srcIsIL && liveDrag.slotId) delete state[liveDrag.slotId];
+  }
+
+  for (const k of Object.keys(state)) { if (!state[k] || (Array.isArray(state[k]) && !state[k].length)) delete state[k]; }
   saveLineup(currentTeam, date, state);
   liveDrag = null;
   rerenderLive();
@@ -2636,15 +2669,66 @@ function liveDropSlot(ev, panel, slotId) {
   if (!_liveDropSlotEligible(panel, slotId)) { liveDrag = null; return; }
   const date  = liveViewDate || todayDateStr();
   const state = loadLineup(currentTeam, date);
-  const cur   = state[slotId]; // current occupant of the target slot
-  if (liveDrag.slotId) {
-    if (cur) state[liveDrag.slotId] = cur; // swap occupant back to source slot
+  const ilKey = panel === 'hit' ? '_ilH' : '_ilP';
+  const cur   = state[slotId];
+  // If src was in IL section, remove it from there
+  if (liveDrag.slotId === '_il') {
+    state[ilKey] = (state[ilKey] || []).filter(n => n !== liveDrag.playerName);
+  } else if (liveDrag.slotId) {
+    if (cur) state[liveDrag.slotId] = cur;
     else     delete state[liveDrag.slotId];
   }
   state[slotId] = liveDrag.playerName;
-  for (const k of Object.keys(state)) { if (!state[k]) delete state[k]; }
+  for (const k of Object.keys(state)) { if (!state[k] || (Array.isArray(state[k]) && !state[k].length)) delete state[k]; }
   saveLineup(currentTeam, date, state);
   liveDrag = null;
+  rerenderLive();
+}
+
+// ── IL section drag handlers ──────────────────────────────────────────────────
+function liveDragOverILSection(ev, panel) {
+  if (!liveDrag || liveDrag.panel !== panel || liveDrag.slotId === '_il') return;
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'move';
+  if (!ev.relatedTarget || !ev.currentTarget.contains(ev.relatedTarget)) {
+    ev.currentTarget.style.background = '#fef2f2';
+    ev.currentTarget.style.outline    = '2px solid #dc2626';
+    ev.currentTarget.style.outlineOffset = '-2px';
+  }
+}
+function liveDragLeaveILSection(ev) {
+  if (ev.currentTarget.contains(ev.relatedTarget)) return;
+  ev.currentTarget.style.background = '';
+  ev.currentTarget.style.outline    = '';
+}
+function liveDropILSection(ev, panel) {
+  ev.preventDefault();
+  ev.currentTarget.style.background = '';
+  ev.currentTarget.style.outline    = '';
+  if (!liveDrag || liveDrag.panel !== panel || liveDrag.slotId === '_il') { liveDrag = null; return; }
+  const date  = liveViewDate || todayDateStr();
+  const state = loadLineup(currentTeam, date);
+  const ilKey = panel === 'hit' ? '_ilH' : '_ilP';
+  if (!state[ilKey]) state[ilKey] = [];
+  if (!state[ilKey].includes(liveDrag.playerName)) state[ilKey].push(liveDrag.playerName);
+  // Remove from active slot if was in one
+  if (liveDrag.slotId && liveDrag.slotId !== 'null') delete state[liveDrag.slotId];
+  for (const k of Object.keys(state)) { if (!state[k] || (Array.isArray(state[k]) && !state[k].length)) delete state[k]; }
+  saveLineup(currentTeam, date, state);
+  liveDrag = null;
+  rerenderLive();
+}
+function liveClickILSection(panel) {
+  if (!liveSwap || liveSwap.panel !== panel) return;
+  const date  = liveViewDate || todayDateStr();
+  const state = loadLineup(currentTeam, date);
+  const ilKey = panel === 'hit' ? '_ilH' : '_ilP';
+  if (!state[ilKey]) state[ilKey] = [];
+  if (!state[ilKey].includes(liveSwap.playerName)) state[ilKey].push(liveSwap.playerName);
+  if (liveSwap.slotId && liveSwap.slotId !== '_il') delete state[liveSwap.slotId];
+  for (const k of Object.keys(state)) { if (!state[k] || (Array.isArray(state[k]) && !state[k].length)) delete state[k]; }
+  saveLineup(currentTeam, date, state);
+  liveSwap = null;
   rerenderLive();
 }
 
@@ -3047,6 +3131,8 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
   const pitcherNames = new Set(allPitchers.map(p => p.player));
   for (const sl of HIT_SLOTS) { if (lu[sl.id] && !hitterNames.has(lu[sl.id]))  delete lu[sl.id]; }
   for (const sl of PIT_SLOTS) { if (lu[sl.id] && !pitcherNames.has(lu[sl.id])) delete lu[sl.id]; }
+  lu._ilH = (lu._ilH || []).filter(n => hitterNames.has(n));
+  lu._ilP = (lu._ilP || []).filter(n => pitcherNames.has(n));
 
   autoFillLineup(allHitters, allPitchers, lu);
   if (isToday) saveLineup(currentTeam, date, lu);
@@ -3055,16 +3141,21 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
   function normStat(p) { return STATUS_MAP[p.status] || 'MLB'; }
   function isILP(p)    { return normStat(p) === 'IL' || liveILSet.has(p.player); }
 
+  const ilHitSet  = new Set(lu._ilH || []);
+  const ilPitSet  = new Set(lu._ilP || []);
+
   const activeHitSlots = HIT_SLOTS.map(sl => ({ slot: sl, player: allHitters.find(p => p.player === lu[sl.id]) || null }));
   const activeHitNames = new Set(HIT_SLOTS.map(sl => lu[sl.id]).filter(Boolean));
-  const benchHitters   = allHitters.filter(p => !activeHitNames.has(p.player) && !isILP(p) && normStat(p) !== 'MiLB');
-  const ilHitters      = allHitters.filter(p => !activeHitNames.has(p.player) &&  isILP(p) && normStat(p) !== 'MiLB');
+  // IL section: only players the user has manually dragged there
+  const ilHitters      = allHitters.filter(p => ilHitSet.has(p.player) && !activeHitNames.has(p.player) && normStat(p) !== 'MiLB');
+  // Bench: everyone else (including API-detected IL players who haven't been manually moved)
+  const benchHitters   = allHitters.filter(p => !activeHitNames.has(p.player) && !ilHitSet.has(p.player) && normStat(p) !== 'MiLB');
   const milbHitters    = allHitters.filter(p => normStat(p) === 'MiLB');
 
   const activePitSlots = PIT_SLOTS.map(sl => ({ slot: sl, player: allPitchers.find(p => p.player === lu[sl.id]) || null }));
   const activePitNames = new Set(PIT_SLOTS.map(sl => lu[sl.id]).filter(Boolean));
-  const benchPitchers  = allPitchers.filter(p => !activePitNames.has(p.player) && !isILP(p) && normStat(p) !== 'MiLB');
-  const ilPitchers     = allPitchers.filter(p => !activePitNames.has(p.player) &&  isILP(p) && normStat(p) !== 'MiLB');
+  const ilPitchers     = allPitchers.filter(p => ilPitSet.has(p.player) && !activePitNames.has(p.player) && normStat(p) !== 'MiLB');
+  const benchPitchers  = allPitchers.filter(p => !activePitNames.has(p.player) && !ilPitSet.has(p.player) && normStat(p) !== 'MiLB');
   const milbPitchers   = allPitchers.filter(p => normStat(p) === 'MiLB');
 
   // ── Hitter stat aggregation (active slots only) ─────────────────────────────
@@ -3134,8 +3225,7 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
 
   function ilBadge(p) {
     if (!isILP(p)) return '';
-    const label = normStat(p) === 'IL' ? (p.status || 'IL') : 'IL';
-    return `<span style="font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-family:var(--mono);margin-left:3px">${escHtml(label)}</span>`;
+    return `<span style="font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-family:var(--mono);margin-left:3px">IL</span>`;
   }
 
   // Return all positions for a player: Fantrax stored + any API-enriched positions.
@@ -3183,8 +3273,8 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
   }
 
   // ── Hitter row builders ─────────────────────────────────────────────────────
-  function buildHitRow(p, slotLabel, isActive) {
-    const slotId = isActive ? (HIT_SLOTS.find(sl => lu[sl.id] === p.player)?.id || null) : null;
+  function buildHitRow(p, slotLabel, isActive, isILSection) {
+    const slotId = isActive ? (HIT_SLOTS.find(sl => lu[sl.id] === p.player)?.id || null) : (isILSection ? '_il' : null);
     const raw    = getHitRaw(p);
     const live   = lookupPlayer(p);
     const cells  = HIT_COLS.map(k => {
@@ -3248,8 +3338,8 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
   }
 
   // ── Pitcher row builders ────────────────────────────────────────────────────
-  function buildPitRow(p, slotLabel, isActive) {
-    const slotId = isActive ? (PIT_SLOTS.find(sl => lu[sl.id] === p.player)?.id || null) : null;
+  function buildPitRow(p, slotLabel, isActive, isILSection) {
+    const slotId = isActive ? (PIT_SLOTS.find(sl => lu[sl.id] === p.player)?.id || null) : (isILSection ? '_il' : null);
     const raw    = getPitRaw(p);
     const live   = lookupPlayer(p);
     const cells  = PIT_COLS.map(k => {
@@ -3322,11 +3412,15 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
     .sort((a, b) => { const pa = hitterPriority(a), pb = hitterPriority(b); return pa !== pb ? pa - pb : 0; })
     .map(p => buildHitRow(p, 'BN', false)).join('');
 
-  const hitRowsIL   = ilHitters.map(p => buildHitRow(p, 'IL', false)).join('');
+  const hitRowsIL   = ilHitters.map(p => buildHitRow(p, 'IL', false, true)).join('');
   const hitRowsMiLB = milbHitters.map(p => buildHitRow(p, 'MiLB', false)).join('');
 
   const hBenchDiv = (benchHitters.length > 0 || ilHitters.length > 0 || milbHitters.length > 0) ? sectionDivider('Bench', NCOLS_HIT, 'var(--text-2)') : '';
-  const hILDiv    = ilHitters.length > 0 ? sectionDivider('Injured List', NCOLS_HIT, '#dc2626') : '';
+  const hILDiv    = (isToday || ilHitters.length > 0)
+    ? `<tr ondragover="liveDragOverILSection(event,'hit')" ondragleave="liveDragLeaveILSection(event)" ondrop="liveDropILSection(event,'hit')" onclick="liveClickILSection('hit')">
+         <td colspan="${NCOLS_HIT}" style="padding:3px 10px 2px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#dc2626;background:#fef2f2;border-top:1px solid #fca5a5;border-bottom:1px solid #fca5a5;cursor:pointer">Injured List <span style="font-weight:400;font-size:9px;opacity:.7">(drag or click to move here)</span></td>
+       </tr>`
+    : '';
   const hMiLBDiv  = milbHitters.length > 0 ? sectionDivider('MiLB', NCOLS_HIT, '#d97706') : '';
   const activeHitCount = activeHitSlots.filter(s => s.player).length;
 
@@ -3371,11 +3465,15 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
     .sort((a, b) => { const pa = pitcherPriority(a), pb = pitcherPriority(b); return pa !== pb ? pa - pb : 0; })
     .map(p => buildPitRow(p, 'BN', false)).join('');
 
-  const pitRowsIL   = ilPitchers.map(p => buildPitRow(p, 'IL', false)).join('');
+  const pitRowsIL   = ilPitchers.map(p => buildPitRow(p, 'IL', false, true)).join('');
   const pitRowsMiLB = milbPitchers.map(p => buildPitRow(p, 'MiLB', false)).join('');
 
   const pBenchDiv = (benchPitchers.length > 0 || ilPitchers.length > 0 || milbPitchers.length > 0) ? sectionDivider('Bench', NCOLS_PIT, 'var(--text-2)') : '';
-  const pILDiv    = ilPitchers.length > 0 ? sectionDivider('Injured List', NCOLS_PIT, '#dc2626') : '';
+  const pILDiv    = (isToday || ilPitchers.length > 0)
+    ? `<tr ondragover="liveDragOverILSection(event,'pit')" ondragleave="liveDragLeaveILSection(event)" ondrop="liveDropILSection(event,'pit')" onclick="liveClickILSection('pit')">
+         <td colspan="${NCOLS_PIT}" style="padding:3px 10px 2px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#dc2626;background:#fef2f2;border-top:1px solid #fca5a5;border-bottom:1px solid #fca5a5;cursor:pointer">Injured List <span style="font-weight:400;font-size:9px;opacity:.7">(drag or click to move here)</span></td>
+       </tr>`
+    : '';
   const pMiLBDiv  = milbPitchers.length > 0 ? sectionDivider('MiLB', NCOLS_PIT, '#d97706') : '';
   const activePitCount = activePitSlots.filter(s => s.player).length;
 
@@ -5365,6 +5463,8 @@ function prefillFromKeepers(players) {
 
   function assignToSlot(p) {
     const positions = parsePositions(p.position);
+    const extra = livePosCache[p.player];
+    if (extra) extra.forEach(pos => { if (!positions.includes(pos)) positions.push(pos); });
     for (const pos of positions) {
       const candidates = POS_SLOT_PRIORITY[pos] || [];
       for (const slotId of candidates) {
@@ -5486,17 +5586,43 @@ function prefillFromKeepers(players) {
 }
 
 // ── VIEW 2: Keeper Builder ─────────────────────────────────────────────────────
-// Position → eligible slot IDs (in priority order) — global so drag handlers can use it
+// Position → eligible slot IDs (in priority order) — used by assignToSlot auto-fill
 const POS_SLOT_PRIORITY = {
-  'C':  ['C','UT1','UT2'],
-  '1B': ['1B','CI','UT1','UT2'],
-  '2B': ['2B','MI','UT1','UT2'],
-  '3B': ['3B','CI','UT1','UT2'],
-  'SS': ['SS','MI','UT1','UT2'],
-  'OF': ['OF1','OF2','OF3','OF4','UT1','UT2'],
-  'SP': ['P1','P2','P3','P4','P5','P6','P7','P8','P9'],
-  'RP': ['P1','P2','P3','P4','P5','P6','P7','P8','P9'],
-  'UT': ['UT1','UT2'],
+  'C':   ['C','UT1','UT2'],
+  '1B':  ['1B','CI','UT1','UT2'],
+  '2B':  ['2B','MI','UT1','UT2'],
+  '3B':  ['3B','CI','UT1','UT2'],
+  'SS':  ['SS','MI','UT1','UT2'],
+  'CI':  ['CI','UT1','UT2'],
+  'MI':  ['MI','UT1','UT2'],
+  'OF':  ['OF1','OF2','OF3','OF4','UT1','UT2'],
+  'LF':  ['OF1','OF2','OF3','OF4','UT1','UT2'],
+  'CF':  ['OF1','OF2','OF3','OF4','UT1','UT2'],
+  'RF':  ['OF1','OF2','OF3','OF4','UT1','UT2'],
+  'DH':  ['UT1','UT2'],
+  'SP':  ['P1','P2','P3','P4','P5','P6','P7','P8','P9'],
+  'RP':  ['P1','P2','P3','P4','P5','P6','P7','P8','P9'],
+  'P':   ['P1','P2','P3','P4','P5','P6','P7','P8','P9'],
+  'CP':  ['P1','P2','P3','P4','P5','P6','P7','P8','P9'],
+  'CL':  ['P1','P2','P3','P4','P5','P6','P7','P8','P9'],
+  'UT':  ['UT1','UT2'],
+};
+
+// Slot → allowed positions (mirrors HIT_SLOTS/PIT_SLOTS logic from Live view)
+const SLOT_POS_MAP = {
+  'C':   ['C'],
+  '1B':  ['1B'],
+  '2B':  ['2B'],
+  '3B':  ['3B'],
+  'SS':  ['SS'],
+  'CI':  ['1B','3B','CI'],
+  'MI':  ['2B','SS','MI'],
+  'OF1': ['OF','LF','CF','RF'],
+  'OF2': ['OF','LF','CF','RF'],
+  'OF3': ['OF','LF','CF','RF'],
+  'OF4': ['OF','LF','CF','RF'],
+  'UT1': ['C','1B','2B','3B','SS','OF','LF','CF','RF','DH','CI','MI'],
+  'UT2': ['C','1B','2B','3B','SS','OF','LF','CF','RF','DH','CI','MI'],
 };
 
 function isEligibleForSlot(player, slotId) {
@@ -5504,10 +5630,10 @@ function isEligibleForSlot(player, slotId) {
   const slot = ROSTER_SLOTS.find(s => s.id === slotId);
   if (!slot) return true;
   const isMiLB = STATUS_MAP[player.status] === 'MiLB';
-  if (slot.type === 'milb') return isMiLB;   // MiLB slots: MiLB players only
-  if (slot.type === 'bench') return true;     // bench: any player (MLB or MiLB)
-  const positions = parsePositions(player.position);
-  return positions.some(pos => (POS_SLOT_PRIORITY[pos] || []).includes(slotId));
+  if (slot.type === 'milb') return isMiLB;
+  if (slot.type === 'bench') return true;
+  if (slot.type === 'pit') return slotFits(player, ['SP','RP','P','CP','CL']);
+  return slotFits(player, SLOT_POS_MAP[slotId] || []);
 }
 
 const ROSTER_SLOTS = [
