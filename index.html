@@ -2732,6 +2732,64 @@ function liveClickILSection(panel) {
   rerenderLive();
 }
 
+// ── Bench section drag handlers ───────────────────────────────────────────────
+function liveDragOverBenchSection(ev, panel) {
+  if (!liveDrag || liveDrag.panel !== panel) return;
+  // Only accept players that need to move (from active or IL, not already bench)
+  const alreadyBench = !liveDrag.slotId || liveDrag.slotId === 'null';
+  if (alreadyBench) return;
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = 'move';
+  if (!ev.relatedTarget || !ev.currentTarget.contains(ev.relatedTarget)) {
+    ev.currentTarget.style.background = '#f4f5f6';
+    ev.currentTarget.style.outline    = '2px solid #94a3b8';
+    ev.currentTarget.style.outlineOffset = '-2px';
+  }
+}
+function liveDragLeaveBenchSection(ev) {
+  if (ev.currentTarget.contains(ev.relatedTarget)) return;
+  ev.currentTarget.style.background = '';
+  ev.currentTarget.style.outline    = '';
+}
+function liveDropBenchSection(ev, panel) {
+  ev.preventDefault();
+  ev.currentTarget.style.background = '';
+  ev.currentTarget.style.outline    = '';
+  if (!liveDrag || liveDrag.panel !== panel) { liveDrag = null; return; }
+  const alreadyBench = !liveDrag.slotId || liveDrag.slotId === 'null';
+  if (alreadyBench) { liveDrag = null; return; }
+  const date   = liveViewDate || todayDateStr();
+  const state  = loadLineup(currentTeam, date);
+  const ilKey  = panel === 'hit' ? '_ilH' : '_ilP';
+  if (liveDrag.slotId === '_il') {
+    state[ilKey] = (state[ilKey] || []).filter(n => n !== liveDrag.playerName);
+  } else {
+    delete state[liveDrag.slotId];
+  }
+  for (const k of Object.keys(state)) { if (!state[k] || (Array.isArray(state[k]) && !state[k].length)) delete state[k]; }
+  saveLineup(currentTeam, date, state);
+  liveDrag = null;
+  rerenderLive();
+}
+function liveClickBenchSection(panel) {
+  if (!liveSwap || liveSwap.panel !== panel) return;
+  const alreadyBench = !liveSwap.slotId || liveSwap.slotId === 'null';
+  if (alreadyBench) { liveSwap = null; rerenderLive(); return; }
+  const date   = liveViewDate || todayDateStr();
+  const state  = loadLineup(currentTeam, date);
+  const ilKey  = panel === 'hit' ? '_ilH' : '_ilP';
+  if (liveSwap.slotId === '_il') {
+    state[ilKey] = (state[ilKey] || []).filter(n => n !== liveSwap.playerName);
+  } else {
+    delete state[liveSwap.slotId];
+  }
+  for (const k of Object.keys(state)) { if (!state[k] || (Array.isArray(state[k]) && !state[k].length)) delete state[k]; }
+  saveLineup(currentTeam, date, state);
+  liveSwap = null;
+  rerenderLive();
+}
+
+
 // Silhouette placeholder shown when no headshot is available
 const HEADSHOT_PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 40">' +
@@ -3415,7 +3473,11 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
   const hitRowsIL   = ilHitters.map(p => buildHitRow(p, 'IL', false, true)).join('');
   const hitRowsMiLB = milbHitters.map(p => buildHitRow(p, 'MiLB', false)).join('');
 
-  const hBenchDiv = (benchHitters.length > 0 || ilHitters.length > 0 || milbHitters.length > 0) ? sectionDivider('Bench', NCOLS_HIT, 'var(--text-2)') : '';
+  const hBenchDiv = (isToday || benchHitters.length > 0 || ilHitters.length > 0 || milbHitters.length > 0)
+    ? `<tr ondragover="liveDragOverBenchSection(event,'hit')" ondragleave="liveDragLeaveBenchSection(event)" ondrop="liveDropBenchSection(event,'hit')" onclick="liveClickBenchSection('hit')">
+         <td colspan="${NCOLS_HIT}" style="padding:3px 10px 2px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2);background:#f4f5f6;border-top:1px solid var(--border);border-bottom:1px solid var(--border);cursor:pointer">Bench <span style="font-weight:400;font-size:9px;opacity:.7">(drag or click to move here)</span></td>
+       </tr>`
+    : '';
   const hILDiv    = (isToday || ilHitters.length > 0)
     ? `<tr ondragover="liveDragOverILSection(event,'hit')" ondragleave="liveDragLeaveILSection(event)" ondrop="liveDropILSection(event,'hit')" onclick="liveClickILSection('hit')">
          <td colspan="${NCOLS_HIT}" style="padding:3px 10px 2px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#dc2626;background:#fef2f2;border-top:1px solid #fca5a5;border-bottom:1px solid #fca5a5;cursor:pointer">Injured List <span style="font-weight:400;font-size:9px;opacity:.7">(drag or click to move here)</span></td>
@@ -3468,7 +3530,11 @@ function renderLiveView(players, nameMap, dateStr, mlbIdMap = {}, mlbIdByTeamLas
   const pitRowsIL   = ilPitchers.map(p => buildPitRow(p, 'IL', false, true)).join('');
   const pitRowsMiLB = milbPitchers.map(p => buildPitRow(p, 'MiLB', false)).join('');
 
-  const pBenchDiv = (benchPitchers.length > 0 || ilPitchers.length > 0 || milbPitchers.length > 0) ? sectionDivider('Bench', NCOLS_PIT, 'var(--text-2)') : '';
+  const pBenchDiv = (isToday || benchPitchers.length > 0 || ilPitchers.length > 0 || milbPitchers.length > 0)
+    ? `<tr ondragover="liveDragOverBenchSection(event,'pit')" ondragleave="liveDragLeaveBenchSection(event)" ondrop="liveDropBenchSection(event,'pit')" onclick="liveClickBenchSection('pit')">
+         <td colspan="${NCOLS_PIT}" style="padding:3px 10px 2px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2);background:#f4f5f6;border-top:1px solid var(--border);border-bottom:1px solid var(--border);cursor:pointer">Bench <span style="font-weight:400;font-size:9px;opacity:.7">(drag or click to move here)</span></td>
+       </tr>`
+    : '';
   const pILDiv    = (isToday || ilPitchers.length > 0)
     ? `<tr ondragover="liveDragOverILSection(event,'pit')" ondragleave="liveDragLeaveILSection(event)" ondrop="liveDropILSection(event,'pit')" onclick="liveClickILSection('pit')">
          <td colspan="${NCOLS_PIT}" style="padding:3px 10px 2px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#dc2626;background:#fef2f2;border-top:1px solid #fca5a5;border-bottom:1px solid #fca5a5;cursor:pointer">Injured List <span style="font-weight:400;font-size:9px;opacity:.7">(drag or click to move here)</span></td>
