@@ -2224,7 +2224,7 @@ input[type=file] { display: none; }
         <div class="news-section-head-icon">&#x26BE;</div>
         <div class="news-section-head-body">
           <div class="news-section-head-title">Minor Leaguers</div>
-          <div class="news-section-head-sub">Players currently in the MiLB system across the league</div>
+          <div class="news-section-head-sub">Your roster's MiLB players &middot; scouting reports &amp; promotion intel</div>
         </div>
         <span class="news-section-count" id="news-milb-count"></span>
       </div>
@@ -8768,7 +8768,7 @@ function buildNewsCard(player, nd, section) {
     const col = pct >= 70 ? '#16a34a' : pct >= 45 ? '#d97706' : '#dc2626';
     promoHtml = `<div class="ncv2-promo-row">
       <span class="ncv2-promo-label">${escHtml((nd && nd.promotionLabel) || 'Promotion Probability')}</span>
-      <div class="ncv2-promo-track"><div class="ncv2-promo-fill" style="width:${pct}%;background:${col}"></div></div>
+      <div class="ncv2-promo-track"><div class="ncv2-promo-fill" data-w="${pct}" style="background:${col}"></div></div>
       <span class="ncv2-promo-pct" style="color:${col}">${pct}%</span>
     </div>`;
   }
@@ -8981,6 +8981,13 @@ function initNewsPage() {
 
   document.getElementById('news-loading').style.display = 'none';
   document.getElementById('news-content').style.display = 'block';
+
+  // Animate promo bars after first paint
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    document.querySelectorAll('#page-news .ncv2-promo-fill[data-w]').forEach(el => {
+      el.style.width = el.dataset.w + '%';
+    });
+  }));
 
   document.querySelectorAll('#page-news .news-stats-area').forEach(el => loadNewsCardStats(el));
 }
