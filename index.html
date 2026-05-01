@@ -1197,6 +1197,93 @@ input[type=file] { display: none; }
 .mu-player-name { font-size:12px; font-weight:600; color:var(--text); white-space:nowrap; }
 .mu-player-stats { font-size:11px; color:var(--text-3); white-space:nowrap; }
 .mu-player-right { text-align:right; }
+/* ── Prospect Hub ──────────────────────────────────────────────── */
+.news-section-block { margin-bottom: 36px; }
+.news-section-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 20px; border-radius: 10px; margin-bottom: 18px;
+  color: #fff; position: relative; overflow: hidden;
+}
+.news-section-head::after {
+  content: ''; position: absolute; right: -20px; top: -20px;
+  width: 120px; height: 120px; border-radius: 50%;
+  background: rgba(255,255,255,.06); pointer-events: none;
+}
+.news-section-head.milb  { background: linear-gradient(135deg,#1e3a5f,#2563eb); }
+.news-section-head.draft { background: linear-gradient(135deg,#3b1c6e,#7c3aed); }
+.news-section-head.asian { background: linear-gradient(135deg,#78350f,#d97706); }
+.news-section-head-icon  { font-size: 26px; flex-shrink:0; }
+.news-section-head-body  { flex: 1; }
+.news-section-head-title { font-weight: 800; font-size: 16px; letter-spacing: .02em; }
+.news-section-head-sub   { font-size: 11px; font-weight: 400; opacity: .75; margin-top: 1px; }
+.news-section-count { margin-left: auto; font-size: 12px; font-weight: 600; opacity: .8; background: rgba(255,255,255,.15); padding: 3px 10px; border-radius: 20px; flex-shrink:0; }
+.news-sub-label {
+  font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text-3); padding: 5px 0 8px; border-bottom: 1px solid var(--border); margin-bottom: 12px;
+}
+.news-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(400px,1fr)); gap: 14px;
+}
+@media (max-width:600px) { .news-grid { grid-template-columns: 1fr; } }
+.news-card {
+  background: #fff; border-radius: 10px; border: 1px solid var(--border);
+  overflow: hidden; display: flex; flex-direction: column;
+  transition: box-shadow .15s, transform .15s;
+}
+.news-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,.1); transform: translateY(-1px); }
+.news-card-milb  { border-left: 4px solid #2563eb; }
+.news-card-draft { border-left: 4px solid #7c3aed; }
+.news-card-asian { border-left: 4px solid #d97706; }
+.news-card-header { display: flex; gap: 14px; padding: 14px; align-items: flex-start; }
+.news-headshot-wrap {
+  flex-shrink: 0; width: 70px; height: 92px; border-radius: 8px; overflow: hidden;
+  background: var(--bg); border: 1px solid var(--border);
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.news-headshot-img { width: 100%; height: 100%; object-fit: contain; object-position: center bottom; }
+.news-card-info { flex: 1; min-width: 0; }
+.news-player-name { font-size: 15px; font-weight: 700; color: var(--navy); line-height: 1.2; }
+.news-player-org  { font-size: 11px; color: var(--text-2); margin-top: 2px; }
+.news-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+.news-tag {
+  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+  border: 1px solid; line-height: 1.5; white-space: nowrap;
+}
+.news-tag-pos      { background: var(--navy); color: #fff; border-color: var(--navy); }
+.news-tag-watch    { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+.news-tag-elite    { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+.news-tag-bullish  { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
+.news-tag-rising   { background: #d1fae5; color: #065f46; border-color: #6ee7b7; }
+.news-tag-neutral  { background: #f3f4f6; color: #374151; border-color: #d1d5db; }
+.news-tag-cautious { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+.news-tag-timeline { background: #f3f4f6; color: var(--text-2); border-color: var(--border); font-size:9px; }
+.news-promo-wrap { margin-top: 10px; }
+.news-promo-header { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-3); margin-bottom: 3px; }
+.news-promo-track { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.news-promo-fill  { height: 100%; border-radius: 3px; transition: width .8s cubic-bezier(.4,0,.2,1); width: 0; }
+.news-analysis {
+  font-size: 12px; color: var(--text-1); line-height: 1.65;
+  padding: 10px 14px 12px; border-top: 1px solid var(--border); background: #fafafa;
+}
+.news-draft-proj {
+  margin: 0 14px 12px; padding: 10px 12px; border-radius: 8px;
+  background: linear-gradient(135deg,#f5f3ff,#ede9fe); border: 1px solid #c4b5fd;
+}
+.news-stats-area { padding: 10px 14px 12px; border-top: 1px solid var(--border); }
+.news-stat-row { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+.news-stat-row:last-child { margin-bottom: 0; }
+.news-stat-badge {
+  font-size: 9px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  padding: 2px 5px; border-radius: 3px; color: #fff; flex-shrink: 0; min-width: 60px;
+  text-align: center;
+}
+.nsb-ytd  { background: #1d4ed8; }
+.nsb-l30  { background: #6d28d9; }
+.nsb-l7   { background: #7c3aed; }
+.nsb-l5   { background: #0891b2; }
+.nsb-last { background: #0f766e; }
+.news-stat-text { font-family: var(--mono); font-size: 11px; color: var(--text-1); }
+.news-empty { color: var(--text-3); font-size: 12px; font-style: italic; padding: 6px 0; }
 </style>
 </head>
 <body>
@@ -1227,6 +1314,10 @@ input[type=file] { display: none; }
     </div>
     <div class="nav-item" onclick="nav('keepers',this)">
       <img class="nav-icon-img" src="icons/keepers.png" alt=""><span class="nav-label">Keepers</span>
+    </div>
+    <div class="nav-item" onclick="nav('news',this)">
+      <div style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:26px;line-height:1">&#x1F4E1;</div>
+      <span class="nav-label">Prospects</span>
     </div>
     <div class="nav-item" onclick="nav('rule5',this)">
       <img class="nav-icon-img" src="icons/rule5.png" alt=""><span class="nav-label">Rule 5</span>
@@ -2070,6 +2161,67 @@ input[type=file] { display: none; }
   <div class="pop-grid" id="pop-grid"></div>
 </div>
 
+<!-- ════════════════════════════════════════
+     PROSPECT HUB PAGE
+════════════════════════════════════════ -->
+<div class="page" id="page-news">
+  <div class="page-title">&#x1F4E1; Prospect Hub</div>
+  <div class="page-sub">Minor league scouting &middot; Draft intelligence &middot; Global talent pipeline</div>
+
+  <div id="news-loading" style="text-align:center;padding:60px 20px;color:var(--text-3)">
+    <div style="font-size:36px;margin-bottom:12px">&#x1F4E1;</div>
+    <div style="font-size:14px;font-weight:600">Loading prospect data&hellip;</div>
+  </div>
+
+  <div id="news-content" style="display:none">
+    <!-- Section 1: MiLB Players -->
+    <div class="news-section-block">
+      <div class="news-section-head milb">
+        <div class="news-section-head-icon">&#x26BE;</div>
+        <div class="news-section-head-body">
+          <div class="news-section-head-title">Minor Leaguers</div>
+          <div class="news-section-head-sub">Players currently in the MiLB system across the league</div>
+        </div>
+        <span class="news-section-count" id="news-milb-count"></span>
+      </div>
+      <div class="news-sub-label">Hitters</div>
+      <div class="news-grid" id="news-milb-hitters"></div>
+      <div class="news-sub-label" style="margin-top:20px">Pitchers</div>
+      <div class="news-grid" id="news-milb-pitchers"></div>
+    </div>
+
+    <!-- Section 2: Draft Prospects -->
+    <div class="news-section-block">
+      <div class="news-section-head draft">
+        <div class="news-section-head-icon">&#x1F3AF;</div>
+        <div class="news-section-head-body">
+          <div class="news-section-head-title">Draft Prospects</div>
+          <div class="news-section-head-sub">2024&ndash;2026 draft intel &amp; pipeline tracking</div>
+        </div>
+      </div>
+      <div class="news-sub-label">Hitters</div>
+      <div class="news-grid" id="news-draft-hitters"></div>
+      <div class="news-sub-label" style="margin-top:20px">Pitchers</div>
+      <div class="news-grid" id="news-draft-pitchers"></div>
+    </div>
+
+    <!-- Section 3: Asian / International -->
+    <div class="news-section-block">
+      <div class="news-section-head asian">
+        <div class="news-section-head-icon">&#x1F30F;</div>
+        <div class="news-section-head-body">
+          <div class="news-section-head-title">Global Pipeline</div>
+          <div class="news-section-head-sub">NPB &middot; KBO &middot; International signings &amp; prospects</div>
+        </div>
+      </div>
+      <div class="news-sub-label">Hitters</div>
+      <div class="news-grid" id="news-asian-hitters"></div>
+      <div class="news-sub-label" style="margin-top:20px">Pitchers</div>
+      <div class="news-grid" id="news-asian-pitchers"></div>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -2127,6 +2279,7 @@ function nav(page, el) {
   if (page === 'draft') initDraftBoardPage();
   if (page === 'commish') initCommishPage();
   if (page === 'matchups') initPickComparePage();
+  if (page === 'news') initNewsPage();
 }
 
 // ── Roster rendering ──────────────────────────────────────────────────────────
@@ -8301,6 +8454,399 @@ function downloadUpdatedHTML() {
   toast('✓ Updated Hub file downloaded');
 }
 
+
+// ── Prospect Hub ──────────────────────────────────────────────────────────────
+
+const NEWS_DATA = {
+  // === POSITION CORRECTIONS (stored as hitters in Fantrax, are actually pitchers) ===
+  'Reddemann': {
+    category:'milb', positionOverride:'SP', isPitcher:true,
+    level:'AA', promotionProb:0.40, watchList:true, sentiment:'Rising', timeline:'2026–2027',
+    analysis:'Hard-throwing right-hander with a heavy four-seam fastball sitting 94–97 mph. His slider generates consistent swing-and-miss with late tilt. Command and changeup development are the keys separating a rotation future from a high-leverage relief role. The raw stuff is real — this is a refinement story worth monitoring closely.',
+  },
+  'Pence': {
+    category:'milb', positionOverride:'SP', isPitcher:true,
+    level:'A+', promotionProb:0.45, watchList:true, sentiment:'Bullish', timeline:'2026',
+    analysis:'Athletic right-hander with impressive spin efficiency and a natural four-pitch mix. The fastball/curveball combination generates elite chase rates. Repeats his delivery well, giving him above-average command for his level. Mid-rotation starter floor with legitimate upside if the changeup continues to develop into a third above-average offering.',
+  },
+
+  // === 2026 MLB DRAFT PROSPECTS ===
+  'Ethan Holliday': {
+    category:'draft', positionOverride:'3B', isPitcher:false,
+    draftClass:'2026', draftPick:'Top 5 Overall', draftTeam:'TBD', draftRank:3,
+    promotionProb:null, watchList:true, sentiment:'Elite', timeline:'2028–2029',
+    analysis:'Switch-hitter with plus raw power and legitimate bat speed. Advanced pitch recognition well beyond his age, and athleticism that profiles at 3B long-term. The family pedigree is real — 25–30 HR upside with a solid hit tool floor. A top-five pick in almost any draft class.',
+  },
+  'Kade Anderson': {
+    category:'draft', positionOverride:'SP', isPitcher:true,
+    draftClass:'2026', draftPick:'Top 10 Overall', draftTeam:'TBD', draftRank:6,
+    promotionProb:null, watchList:true, sentiment:'Elite', timeline:'2028',
+    analysis:'Left-hander with one of the most polished three-pitch mixes in the class. Fastball sits 93–96 mph with natural arm-side run, backed by a power curveball and an advanced changeup. Exceptional feel for sequencing and a strike-throwing profile that gives him a legitimate no. 2 starter ceiling.',
+  },
+  'Chase Burns': {
+    category:'draft', positionOverride:'SP', isPitcher:true,
+    draftClass:'2024', draftPick:'2nd Overall (2024)', draftTeam:'Cincinnati Reds', draftRank:1,
+    promotionProb:0.92, watchList:true, sentiment:'Elite', timeline:'2026',
+    analysis:'The consensus top arm from the 2024 class already projects as a near-term MLB ace. His 99 mph fastball/slider combo is historically elite for a college arm, and his advanced command allows him to operate effectively at the top of every count. A mid-2026 MLB debut is realistic.',
+  },
+  'Jac Caglianone': {
+    category:'draft', positionOverride:'1B', isPitcher:false,
+    draftClass:'2024', draftPick:'7th Overall (2024)', draftTeam:'Kansas City Royals', draftRank:7,
+    promotionProb:0.70, watchList:true, sentiment:'Bullish', timeline:'2026–2027',
+    analysis:'Most electric raw power in the 2024 draft class. The Royals are developing him as a first baseman, and his in-game power has translated immediately to pro ball. 70-grade raw power is the calling card; if he cuts the strikeout rate, this is a 35-HR upside player at a premium fantasy position.',
+  },
+  'Hagen Smith': {
+    category:'draft', positionOverride:'SP', isPitcher:true,
+    draftClass:'2024', draftPick:'5th Overall (2024)', draftTeam:'Oakland Athletics', draftRank:5,
+    promotionProb:0.65, watchList:false, sentiment:'Rising', timeline:'2027',
+    analysis:'Left-hander with a devastating slider that generates plus chase rates at every level. Ability to miss bats with multiple pitches gives him a high floor. Command is above-average for a college arm, and he has shown the ability to work deep into starts as he moves up the system.',
+  },
+
+  // === ASIAN / INTERNATIONAL PLAYERS ===
+  'Roki Sasaki': {
+    category:'asian', positionOverride:'SP', isPitcher:true,
+    org:'Los Angeles Dodgers', level:'MLB',
+    promotionProb:1.0, watchList:false, sentiment:'Elite', timeline:'Now',
+    analysis:'One of the most electrifying arms to emerge from NPB in a generation. His splitter is arguably the best pitch in baseball — opposing hitters posted under .100 against it in Japan, and the results have carried over to MLB. The fastball sits 98–101 mph with exceptional ride. A future Cy Young winner.',
+  },
+  'Yoshinobu Yamamoto': {
+    category:'asian', positionOverride:'SP', isPitcher:true,
+    org:'Los Angeles Dodgers', level:'MLB',
+    promotionProb:1.0, watchList:false, sentiment:'Elite', timeline:'Now',
+    analysis:'The $325M investment is fully justified. His NPB résumé was historically dominant, and the transition to MLB has been seamless when healthy. Commands four pitches to four quadrants with elite efficiency, with a plus-plus splitter as his primary out pitch. A top-5 pitcher in baseball at full strength.',
+  },
+  'Jung Hoo Lee': {
+    category:'asian', positionOverride:'OF', isPitcher:false,
+    org:'San Francisco Giants', level:'MLB',
+    promotionProb:1.0, watchList:true, sentiment:'Bullish', timeline:'Now',
+    analysis:'Elite contact hitter whose KBO excellence translated faster than almost any recent position player. His pitch recognition is exceptional and he makes consistent hard contact to all fields. Plus defensive center fielder who covers ground effortlessly. The speed/contact/defense combination keeps his floor extremely high.',
+  },
+  'Hyeseong Kim': {
+    category:'asian', positionOverride:'SS/2B', isPitcher:false,
+    org:'Los Angeles Dodgers', level:'MLB',
+    promotionProb:1.0, watchList:true, sentiment:'Rising', timeline:'Now',
+    analysis:"KBO's most prolific stolen base artist brings genuine 30–40 SB upside to fantasy rosters. Contact approach has translated well, and his plate discipline is better than advertised. Defensive versatility at SS/2B gives him everyday utility value, and his speed plays anywhere in the lineup.",
+  },
+  'Seok-Min Oh': {
+    category:'asian', positionOverride:'SP', isPitcher:true,
+    org:'St. Louis Cardinals', level:'AAA',
+    promotionProb:0.65, watchList:true, sentiment:'Bullish', timeline:'2026',
+    analysis:"KBO's dominant right-hander arrived in the Cardinals system with an outstanding professional track record. His splitter is a genuine MLB-caliber out pitch, and his fastball command is exceptional. Historical comps for pitchers of his profile transitioning from KBO are encouraging. A mid-2026 MLB debut is very achievable.",
+  },
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function getNewsEntry(playerName) {
+  if (NEWS_DATA[playerName]) return NEWS_DATA[playerName];
+  const last = playerName.trim().split(' ').pop();
+  return NEWS_DATA[last] || null;
+}
+
+function newsIsPitcher(player) {
+  const nd = getNewsEntry(player.player);
+  if (nd && nd.isPitcher !== undefined) return nd.isPitcher;
+  return isPitcher(player.position);
+}
+
+function newsPromoColor(p) {
+  return p >= 0.70 ? '#16a34a' : p >= 0.45 ? '#d97706' : '#dc2626';
+}
+
+function newsSentimentCls(s) {
+  const v = (s || '').toLowerCase();
+  if (v === 'elite')    return 'news-tag-elite';
+  if (v === 'bullish')  return 'news-tag-bullish';
+  if (v === 'rising')   return 'news-tag-rising';
+  if (v === 'cautious') return 'news-tag-cautious';
+  return 'news-tag-neutral';
+}
+
+function buildNewsHeadshot(player, nd) {
+  const pName   = escHtml((player && player.player) || '');
+  const isMiLBp = player
+    ? (STATUS_MAP[player.status] === 'MiLB')
+    : (nd && nd.level && nd.level !== 'MLB');
+  const ss = 'width:100%;height:100%;object-fit:contain;object-position:center bottom';
+  return `<img class="news-headshot-img" data-player="${pName}" data-ismilb="${isMiLBp?'1':'0'}" style="${ss}" src="${HEADSHOT_PLACEHOLDER}" loading="lazy">`;
+}
+
+function buildNewsCard(player, nd, section) {
+  const name      = (player && player.player) || (nd && Object.keys(NEWS_DATA).find(k => NEWS_DATA[k] === nd)) || '?';
+  const pos       = (nd && nd.positionOverride) || (player && player.position) || '';
+  const pit       = (nd && nd.isPitcher !== undefined) ? nd.isPitcher : isPitcher(pos);
+  const teamOrg   = (nd && nd.org) || (player && player.mlb_team) || '';
+  const level     = (nd && nd.level) || (player ? ((STATUS_MAP[player.status]||'MLB') === 'MiLB' ? 'MiLB' : 'MLB') : '');
+  const orgLine   = [teamOrg, level].filter(Boolean).join(' \xb7 ');
+  const prob      = nd && nd.promotionProb;
+  const watchList = nd && nd.watchList;
+  const sentiment = (nd && nd.sentiment) || '';
+  const timeline  = (nd && nd.timeline) || '';
+  const analysis  = (nd && nd.analysis) || '';
+  const isDraft   = section === 'draft';
+
+  const cardCls   = `news-card news-card-${section}`;
+  const safe      = escHtml(name);
+  const cardId    = 'nc-' + name.replace(/[^a-zA-Z0-9]/g, '-');
+
+  const posBadge   = pos  ? `<span class="news-tag news-tag-pos">${escHtml(pos)}</span>` : '';
+  const watchBadge = watchList ? `<span class="news-tag news-tag-watch">⭐ Watch</span>` : '';
+  const sentBadge  = sentiment ? `<span class="news-tag ${newsSentimentCls(sentiment)}">${escHtml(sentiment)}</span>` : '';
+  const timeBadge  = timeline  ? `<span class="news-tag news-tag-timeline">⏱ ${escHtml(timeline)}</span>` : '';
+
+  let promoHtml = '';
+  if (prob !== null && prob !== undefined) {
+    const pct = Math.round(prob * 100);
+    const col = newsPromoColor(prob);
+    promoHtml = `<div class="news-promo-wrap">
+      <div class="news-promo-header"><span>MLB Promo Probability</span><span style="font-weight:700;color:${col}">${pct}%</span></div>
+      <div class="news-promo-track"><div class="news-promo-fill" style="width:${pct}%;background:${col}"></div></div>
+    </div>`;
+  }
+
+  let draftHtml = '';
+  if (isDraft && nd && nd.draftPick) {
+    const teamStr = nd.draftTeam && nd.draftTeam !== 'TBD'
+      ? `<div style="font-size:11px;color:var(--text-2);margin-top:3px">→ ${escHtml(nd.draftTeam)}</div>` : '';
+    const clsStr  = nd.draftClass
+      ? `<div style="font-size:10px;color:var(--text-3);margin-top:2px">${escHtml(nd.draftClass)} Draft Class</div>` : '';
+    draftHtml = `<div class="news-draft-proj">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#7c3aed;margin-bottom:4px">Draft Projection</div>
+      <div style="font-size:14px;font-weight:700;color:#3b1c6e">${escHtml(nd.draftPick)}</div>
+      ${teamStr}${clsStr}
+    </div>`;
+  }
+
+  const statsLoadAttr = `data-player="${safe}" data-ispitcher="${pit ? '1' : '0'}"`;
+
+  return `<div class="${cardCls}" id="${cardId}">
+    <div class="news-card-header">
+      <div class="news-headshot-wrap">${buildNewsHeadshot(player, nd)}</div>
+      <div class="news-card-info">
+        <div class="news-player-name">${safe}</div>
+        ${orgLine ? `<div class="news-player-org">${escHtml(orgLine)}</div>` : ''}
+        <div class="news-tags">${posBadge}${watchBadge}${sentBadge}${timeBadge}</div>
+        ${promoHtml}
+      </div>
+    </div>
+    ${analysis ? `<div class="news-analysis">${escHtml(analysis)}</div>` : ''}
+    ${draftHtml}
+    <div class="news-stats-area" ${statsLoadAttr}>
+      <div class="news-empty">Loading stats…</div>
+    </div>
+  </div>`;
+}
+
+// ── Stats fetching ─────────────────────────────────────────────────────────────
+
+async function loadNewsCardStats(statsEl) {
+  const playerName = statsEl.dataset.player;
+  const isPit      = statsEl.dataset.ispitcher === '1';
+  try {
+    const enc = encodeURIComponent(playerName);
+    const sr  = await fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${enc}&sportIds=1,11,12,13,14,15,16`);
+    const sd  = await sr.json();
+    const person = sd.people && sd.people[0];
+
+    if (!person) {
+      statsEl.innerHTML = '<div class="news-empty">Stats unavailable</div>';
+      return;
+    }
+    const id = person.id;
+
+    // Update headshot
+    const card   = statsEl.closest('.news-card');
+    const shotEl = card && card.querySelector('.news-headshot-img');
+    if (shotEl) {
+      const isMiLB = shotEl.dataset.ismilb === '1';
+      const mlbUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/w_120,q_auto:best,f_auto/v1/people/${id}/headshot/67/current`;
+      const milbUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_120/v1/people/${id}/headshot/milb/current`;
+      shotEl.dataset.milbfb = milbUrl;
+      shotEl.onerror = function() {
+        const fb = this.dataset.milbfb;
+        if (fb && this.src !== fb) { this.src = fb; delete this.dataset.milbfb; }
+        else { this.src = HEADSHOT_PLACEHOLDER; fetchExternalHeadshot(this, this.dataset.player); }
+      };
+      shotEl.src = isMiLB ? milbUrl : mlbUrl;
+    }
+
+    // Fetch stats
+    const today = new Date();
+    const fmtD  = d => d.toISOString().slice(0, 10);
+    const d30   = new Date(today); d30.setDate(d30.getDate() - 30);
+    const d7    = new Date(today); d7.setDate(d7.getDate() - 7);
+    const grp   = isPit ? 'pitching' : 'hitting';
+    const base  = `https://statsapi.mlb.com/api/v1/people/${id}/stats`;
+
+    const [ytdR, l30R, l7R] = await Promise.all([
+      fetch(`${base}?stats=season&season=2026&group=${grp}&gameType=R`).then(r => r.json()).catch(() => null),
+      fetch(`${base}?stats=byDateRange&season=2026&group=${grp}&startDate=${fmtD(d30)}&endDate=${fmtD(today)}&gameType=R`).then(r => r.json()).catch(() => null),
+      fetch(`${base}?stats=byDateRange&season=2026&group=${grp}&startDate=${fmtD(d7)}&endDate=${fmtD(today)}&gameType=R`).then(r => r.json()).catch(() => null),
+    ]);
+
+    let gameLog = [];
+    if (isPit) {
+      const glR = await fetch(`${base}?stats=gameLog&season=2026&group=pitching&gameType=R`).then(r => r.json()).catch(() => null);
+      const all = (glR && glR.stats && glR.stats[0] && glR.stats[0].splits) || [];
+      gameLog = all.filter(s => s.stat && s.stat.gamesStarted >= 1);
+    }
+
+    const ytd = ytdR && ytdR.stats && ytdR.stats[0] && ytdR.stats[0].splits && ytdR.stats[0].splits[0] && ytdR.stats[0].splits[0].stat;
+    const l30 = l30R && l30R.stats && l30R.stats[0] && l30R.stats[0].splits && l30R.stats[0].splits[0] && l30R.stats[0].splits[0].stat;
+    const l7  = l7R  && l7R.stats  && l7R.stats[0]  && l7R.stats[0].splits  && l7R.stats[0].splits[0]  && l7R.stats[0].splits[0].stat;
+
+    statsEl.innerHTML = buildNewsStatsHtml(ytd || null, l30 || null, l7 || null, gameLog, isPit);
+  } catch(e) {
+    statsEl.innerHTML = '<div class="news-empty">Stats unavailable</div>';
+  }
+}
+
+function fmtHitStat(s) {
+  if (!s) return null;
+  const parts = [];
+  if (s.gamesPlayed != null) parts.push(s.gamesPlayed + ' G');
+  if (s.avg)                 parts.push(parseFloat(s.avg).toFixed(3) + ' AVG');
+  if (s.obp)                 parts.push(parseFloat(s.obp).toFixed(3) + ' OBP');
+  if (s.slg)                 parts.push(parseFloat(s.slg).toFixed(3) + ' SLG');
+  if (s.homeRuns != null)    parts.push(s.homeRuns + ' HR');
+  if (s.rbi != null)         parts.push(s.rbi + ' RBI');
+  if (s.stolenBases != null) parts.push(s.stolenBases + ' SB');
+  return parts.length ? parts.join(' \xb7 ') : null;
+}
+
+function fmtPitStat(s) {
+  if (!s) return null;
+  const parts = [];
+  const g  = s.gamesPlayed != null  ? s.gamesPlayed : null;
+  const gs = s.gamesStarted != null ? s.gamesStarted : null;
+  if (g != null)  parts.push(g + ' G' + (gs != null ? '/' + gs + ' GS' : ''));
+  if (s.inningsPitched) parts.push(s.inningsPitched + ' IP');
+  if (s.era)      parts.push(parseFloat(s.era).toFixed(2) + ' ERA');
+  if (s.whip)     parts.push(parseFloat(s.whip).toFixed(2) + ' WHIP');
+  if (s.strikeOuts != null) parts.push(s.strikeOuts + ' K');
+  if (s.baseOnBalls != null) parts.push(s.baseOnBalls + ' BB');
+  return parts.length ? parts.join(' \xb7 ') : null;
+}
+
+function aggGameLog(splits) {
+  let outs = 0, er = 0, ha = 0, bb = 0, so = 0;
+  splits.forEach(s => {
+    const ip = s.stat && s.stat.inningsPitched ? String(s.stat.inningsPitched) : '0';
+    const [w, f] = ip.split('.').map(Number);
+    outs += (w || 0) * 3 + (f || 0);
+    er   += (s.stat && s.stat.earnedRuns) || 0;
+    ha   += (s.stat && s.stat.hits)       || 0;
+    bb   += (s.stat && s.stat.baseOnBalls)|| 0;
+    so   += (s.stat && s.stat.strikeOuts) || 0;
+  });
+  const ipDec = outs / 3;
+  const era  = ipDec > 0 ? ((er / ipDec) * 9).toFixed(2) : '—';
+  const whip = ipDec > 0 ? ((ha + bb) / ipDec).toFixed(2) : '—';
+  const ipStr= Math.floor(outs / 3) + '.' + (outs % 3);
+  return splits.length + ' GS \xb7 ' + ipStr + ' IP \xb7 ' + era + ' ERA \xb7 ' + so + ' K';
+}
+
+function fmtLastStart(s) {
+  if (!s) return null;
+  const dt   = s.date ? s.date.slice(5).replace('-', '/') : '';
+  const opp  = (s.opponent && s.opponent.abbreviation) || '';
+  const home = s.isHome;
+  const vs   = opp ? (home ? ' vs ' : ' @ ') + opp : '';
+  const ip   = (s.stat && s.stat.inningsPitched) || '—';
+  const k    = s.stat && s.stat.strikeOuts != null ? s.stat.strikeOuts : '—';
+  const er   = s.stat && s.stat.earnedRuns != null ? s.stat.earnedRuns : '—';
+  const bb   = s.stat && s.stat.baseOnBalls != null ? s.stat.baseOnBalls : '—';
+  return dt + vs + ': ' + ip + ' IP, ' + k + ' K, ' + er + ' ER, ' + bb + ' BB';
+}
+
+function buildNewsStatsHtml(ytd, l30, l7, gameLog, isPit) {
+  const row = (badgeCls, label, text) =>
+    text ? `<div class="news-stat-row"><span class="news-stat-badge ${badgeCls}">${label}</span><span class="news-stat-text">${text}</span></div>` : '';
+
+  if (!isPit) {
+    const a = fmtHitStat(ytd), b = fmtHitStat(l30), c = fmtHitStat(l7);
+    if (!a && !b && !c) return '<div class="news-empty">No 2026 stats yet</div>';
+    return '<div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">2026 Stats</div>' +
+      row('nsb-ytd', '2026 YTD', a) + row('nsb-l30', 'Last 30', b) + row('nsb-l7', 'Last 7', c);
+  } else {
+    const a    = fmtPitStat(ytd);
+    const last5= gameLog.length ? aggGameLog(gameLog.slice(-5)) : null;
+    const lastG= gameLog.length ? fmtLastStart(gameLog[gameLog.length - 1]) : null;
+    if (!a && !last5 && !lastG) return '<div class="news-empty">No 2026 stats yet</div>';
+    return '<div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">2026 Stats</div>' +
+      row('nsb-ytd', '2026 YTD', a) + row('nsb-l5', 'L5 Starts', last5) + row('nsb-last', 'Last Start', lastG);
+  }
+}
+
+// ── Page init ─────────────────────────────────────────────────────────────────
+
+function initNewsPage() {
+  document.getElementById('news-loading').style.display = 'block';
+  document.getElementById('news-content').style.display = 'none';
+
+  // Collect all MiLB players across every team (deduplicated)
+  const seen = new Set();
+  const milbAll = [];
+  Object.values(LEAGUE).forEach(players => {
+    players.forEach(p => {
+      if ((STATUS_MAP[p.status] || 'MLB') === 'MiLB' && !seen.has(p.player)) {
+        seen.add(p.player);
+        milbAll.push(p);
+      }
+    });
+  });
+
+  const milbHit = milbAll.filter(p => !newsIsPitcher(p));
+  const milbPit = milbAll.filter(p =>  newsIsPitcher(p));
+
+  // Draft + Asian from NEWS_DATA
+  const draftHit = [], draftPit = [], asianHit = [], asianPit = [];
+  Object.entries(NEWS_DATA).forEach(([name, nd]) => {
+    if (nd.category === 'draft') {
+      // Find in LEAGUE if already signed
+      let lp = null;
+      for (const ps of Object.values(LEAGUE)) {
+        lp = ps.find(p => p.player === name || p.player.endsWith(' ' + name));
+        if (lp) break;
+      }
+      const card = { player: lp || { player: name, mlb_team: nd.org || '', position: nd.positionOverride || '', status: '' }, nd };
+      nd.isPitcher ? draftPit.push(card) : draftHit.push(card);
+    } else if (nd.category === 'asian') {
+      let lp = null;
+      for (const ps of Object.values(LEAGUE)) {
+        lp = ps.find(p => p.player === name || p.player.endsWith(' ' + name));
+        if (lp) break;
+      }
+      const card = { player: lp || { player: name, mlb_team: nd.org || '', position: nd.positionOverride || '', status: '' }, nd };
+      nd.isPitcher ? asianPit.push(card) : asianHit.push(card);
+    }
+  });
+
+  const renderGrid = (elId, items, section, isLeague) => {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    if (!items.length) { el.innerHTML = '<div class="news-empty">No players in this category</div>'; return; }
+    el.innerHTML = isLeague
+      ? items.map(p => buildNewsCard(p, getNewsEntry(p.player), section)).join('')
+      : items.map(({ player, nd }) => buildNewsCard(player, nd, section)).join('');
+  };
+
+  renderGrid('news-milb-hitters',   milbHit,   'milb',  true);
+  renderGrid('news-milb-pitchers',  milbPit,   'milb',  true);
+  renderGrid('news-draft-hitters',  draftHit,  'draft', false);
+  renderGrid('news-draft-pitchers', draftPit,  'draft', false);
+  renderGrid('news-asian-hitters',  asianHit,  'asian', false);
+  renderGrid('news-asian-pitchers', asianPit,  'asian', false);
+
+  const cnt = document.getElementById('news-milb-count');
+  if (cnt) cnt.textContent = milbAll.length + ' players';
+
+  document.getElementById('news-loading').style.display = 'none';
+  document.getElementById('news-content').style.display = 'block';
+
+  // Async stats + headshot loading per card
+  document.querySelectorAll('#page-news .news-stats-area').forEach(el => loadNewsCardStats(el));
+}
 </script>
 </body>
 </html>
