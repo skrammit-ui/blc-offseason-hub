@@ -1284,6 +1284,50 @@ input[type=file] { display: none; }
 .nsb-last { background: #0f766e; }
 .news-stat-text { font-family: var(--mono); font-size: 11px; color: var(--text-1); }
 .news-empty { color: var(--text-3); font-size: 12px; font-style: italic; padding: 6px 0; }
+/* ── Prospect Hub card v2 ───────────────────────────────── */
+.ncv2-card { background:#fff; border-radius:10px; border:1px solid var(--border); overflow:hidden; transition:box-shadow .15s; }
+.ncv2-card:hover { box-shadow:0 4px 18px rgba(0,0,0,.12); }
+.ncv2-card-milb  { border-top:3px solid #2563eb; }
+.ncv2-card-draft { border-top:3px solid #7c3aed; }
+.ncv2-card-asian { border-top:3px solid #d97706; }
+.ncv2-header { display:flex; align-items:flex-start; gap:12px; padding:14px 14px 10px; }
+.ncv2-headshot-wrap {
+  flex-shrink:0; width:56px; height:74px; border-radius:7px; overflow:hidden;
+  background:var(--bg); border:1px solid var(--border);
+  display:flex; align-items:flex-end; justify-content:center;
+}
+.ncv2-shot { width:100%; height:100%; object-fit:contain; object-position:center bottom; }
+.ncv2-title-block { flex:1; min-width:0; }
+.ncv2-name { font-size:18px; font-weight:700; color:var(--navy); line-height:1.15; }
+.ncv2-sub  { font-size:12px; color:var(--text-2); margin-top:3px; }
+.ncv2-badge-group { display:flex; gap:5px; flex-wrap:wrap; align-items:flex-start; flex-shrink:0; }
+.ncv2-badge { font-size:11px; font-weight:600; padding:4px 11px; border-radius:16px; white-space:nowrap; }
+.ncv2-badge-monitor { background:#f3f4f6; color:#374151; border:1px solid #d1d5db; }
+.ncv2-badge-buy     { background:linear-gradient(135deg,#f97316,#f59e0b); color:#fff; }
+.ncv2-badge-pick    { background:linear-gradient(135deg,#4f46e5,#7c3aed); color:#fff; }
+.ncv2-badge-elite   { background:linear-gradient(135deg,#b45309,#d97706); color:#fff; }
+.ncv2-badge-watch   { background:linear-gradient(135deg,#f97316,#f59e0b); color:#fff; font-size:10px; }
+.ncv2-box-row {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:1px;
+  background:var(--border); margin:0 14px;
+}
+.ncv2-info-row { margin-bottom:1px; }
+.ncv2-stat-box, .ncv2-info-box { background:#f8f9fa; padding:10px 12px; }
+.ncv2-stat-label, .ncv2-info-label {
+  font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--text-3); margin-bottom:5px;
+}
+.ncv2-stat-line { font-size:12px; color:var(--text-1); line-height:1.5; font-weight:500; }
+.ncv2-stat-line.hi { color:#16a34a; font-weight:700; }
+.ncv2-info-value { font-size:13px; font-weight:700; color:var(--navy); line-height:1.3; }
+.ncv2-promo-row { display:flex; align-items:center; gap:10px; padding:10px 14px; border-top:1px solid var(--border); }
+.ncv2-promo-label { font-size:11px; color:var(--text-2); flex-shrink:0; }
+.ncv2-promo-track { flex:1; height:5px; background:var(--border); border-radius:3px; overflow:hidden; }
+.ncv2-promo-fill  { height:100%; border-radius:3px; transition:width .8s ease; width:0; }
+.ncv2-promo-pct   { font-size:13px; font-weight:700; flex-shrink:0; }
+.ncv2-analysis { font-size:12.5px; color:var(--text-1); line-height:1.65; padding:12px 14px; border-top:1px solid var(--border); }
+.ncv2-api-stats { padding:10px 14px 12px; border-top:1px solid var(--border); background:#fafafa; }
+@media (max-width:600px) { .ncv2-box-row { grid-template-columns:1fr; } .ncv2-name { font-size:15px; } }
 </style>
 </head>
 <body>
@@ -8455,83 +8499,204 @@ function downloadUpdatedHTML() {
 }
 
 
+
 // ── Prospect Hub ──────────────────────────────────────────────────────────────
 
 const NEWS_DATA = {
-  // === POSITION CORRECTIONS (stored as hitters in Fantrax, are actually pitchers) ===
+  // === MILB: Position corrections + analysis ===
   'Reddemann': {
-    category:'milb', positionOverride:'SP', isPitcher:true,
-    level:'AA', promotionProb:0.40, watchList:true, sentiment:'Rising', timeline:'2026–2027',
-    analysis:'Hard-throwing right-hander with a heavy four-seam fastball sitting 94–97 mph. His slider generates consistent swing-and-miss with late tilt. Command and changeup development are the keys separating a rotation future from a high-leverage relief role. The raw stuff is real — this is a refinement story worth monitoring closely.',
+    category:'milb', isPitcher:true, positionDisplay:'SP', level:'AA',
+    promotionLabel:'MLB Call-Up Probability (2026)', promotionProb:0.40,
+    actionBadge:'monitor', actionText:'Monitor', sentiment:'Rising',
+    statBoxes:[
+      {label:'2026 YTD',     lines:['Active in Double-A','Building innings this spring','Command is the key metric'],      hi:null},
+      {label:'Scouting',     lines:['FB: 94–97 mph · Heavy sink','SL: Plus with late tilt','CH: In development'],          hi:null},
+      {label:'Ceiling/Floor',lines:['Ceiling: No. 3 Starter','Floor: High-leverage RP','Timeline: 2026–2027'],            hi:null},
+    ],
+    analysis:"Hard-throwing right-hander with a heavy four-seam fastball sitting 94–97 mph. His slider generates consistent swing-and-miss with late tilt. Command and changeup development are the keys separating a rotation future from a high-leverage relief role. The raw stuff is real — this is a refinement story worth close monitoring.",
   },
   'Pence': {
-    category:'milb', positionOverride:'SP', isPitcher:true,
-    level:'A+', promotionProb:0.45, watchList:true, sentiment:'Bullish', timeline:'2026',
-    analysis:'Athletic right-hander with impressive spin efficiency and a natural four-pitch mix. The fastball/curveball combination generates elite chase rates. Repeats his delivery well, giving him above-average command for his level. Mid-rotation starter floor with legitimate upside if the changeup continues to develop into a third above-average offering.',
+    category:'milb', isPitcher:true, positionDisplay:'SP', level:'A+',
+    promotionLabel:'MLB Call-Up Probability (2026)', promotionProb:0.45,
+    actionBadge:'monitor', actionText:'Monitor', sentiment:'Bullish',
+    statBoxes:[
+      {label:'2026 YTD',     lines:['Active in High-A','Strong early outings','Command profile solid'],                    hi:null},
+      {label:'Scouting',     lines:['FB: 92–95 mph · Natural run','CB: Plus — elite chase rate','CH: Above average'],     hi:null},
+      {label:'Ceiling/Floor',lines:['Ceiling: No. 2–3 Starter','Floor: Mid-rotation arm','Timeline: 2026'],               hi:null},
+    ],
+    analysis:"Athletic right-hander with impressive spin efficiency and a natural four-pitch mix. The fastball/curveball combination generates elite chase rates. Repeats his delivery well, giving him above-average command. Mid-rotation starter floor with legitimate upside if the changeup continues to develop into a true third offering.",
+  },
+  'Henry Bolte': {
+    category:'milb', isPitcher:false, positionDisplay:'OF (CF/RF)',
+    org:'Oakland Athletics', level:'AAA Las Vegas Aviators', age:22,
+    promotionLabel:'MLB Call-Up Probability (2026)', promotionProb:0.45,
+    actionBadge:'monitor', actionText:'Monitor', sentiment:'Rising',
+    statBoxes:[
+      {label:'2026 YTD',                  lines:['Active at Triple-A Las Vegas','Early season accumulating',"A's rebuilding — open path"],       hi:null},
+      {label:'Last 30 Days',              lines:['AAA Las Vegas (PCL)','Power showing in early games','Hit tool remains the project'],              hi:null},
+      {label:'2024 Reference (Breakout)', lines:['.267/.368/.466','15 HR \xb7 46 SB \xb7 123 G','Raw Power: 70 grade'],                            hi:0},
+    ],
+    analysis:"Already at Triple-A on a rebuilding team — MLB door is more open than for most. 70-grade raw power + plus-plus speed is a genuinely elite combination. The hit tool and swing-and-miss remain the project — if he shows tighter contact in PCL, he could force his way up. High-variance hold in dynasty leagues.",
+  },
+  'Dakota Jordan': {
+    category:'milb', isPitcher:false, positionDisplay:'OF (CF)',
+    org:'SF Giants', level:'Low-A San Jose Giants', age:20,
+    promotionLabel:'High-A Promotion Probability (2026)', promotionProb:0.65,
+    actionBadge:'buy', actionText:'Buy Now', sentiment:'Bullish',
+    statBoxes:[
+      {label:'2026 YTD',      lines:['Active at Low-A San Jose','2026 season just started','Scouts watching closely'],               hi:null},
+      {label:'2025 Reference',lines:['.311/.377/.497','27 SB \xb7 70-grade speed (scouts)','“Baby Bo Jackson” comp'],      hi:0},
+      {label:'Scouting',      lines:['Speed: 70 \xb7 Raw Power: 70','Freakish athlete per evaluators','MLB ETA: 2027–2028'],   hi:null},
+    ],
+    analysis:'“Baby Bo Jackson” hype is endorsed by scouts — 70 speed and 70 raw power in the same player is extraordinarily rare. Produced elite numbers in 2025 (.311/.377/.497, 27 SB). Buy before this becomes mainstream dynasty knowledge — the Giants have a documented habit of fast-tracking athletic CF prospects. Premium dynasty asset at current price.',
   },
 
-  // === 2026 MLB DRAFT PROSPECTS ===
-  'Ethan Holliday': {
-    category:'draft', positionOverride:'3B', isPitcher:false,
-    draftClass:'2026', draftPick:'Top 5 Overall', draftTeam:'TBD', draftRank:3,
-    promotionProb:null, watchList:true, sentiment:'Elite', timeline:'2028–2029',
-    analysis:'Switch-hitter with plus raw power and legitimate bat speed. Advanced pitch recognition well beyond his age, and athleticism that profiles at 3B long-term. The family pedigree is real — 25–30 HR upside with a solid hit tool floor. A top-five pick in almost any draft class.',
+  // === DRAFT PROSPECTS ===
+  'Vahn Lackey': {
+    category:'draft', isPitcher:false, positionDisplay:'C',
+    school:'Georgia Tech (ACC)', schoolYear:'Junior', draftClass:'2026 MLB Draft',
+    watchList:true, watchBadgeText:'Buster Posey Watch List',
+    actionBadge:'pick', actionText:'Top 5 Pick', sentiment:'Elite',
+    infoBoxes:[
+      {label:'Projected Draft Slot',  value:'Top 3–5 Overall (consensus)'},
+      {label:'Top Team Connection',   value:'Rays (No. 2 pick) / Angels (No. 12)'},
+      {label:'Draft Date',            value:'July 11–12, Philadelphia'},
+    ],
+    statBoxes:[
+      {label:'2026 Season YTD',   lines:['.398 AVG \xb7 .789 SLG','.519 OBP \xb7 11 HR \xb7 9 SB','16% K rate \xb7 27% barrel rate'], hi:0},
+      {label:'Defensive Metrics', lines:['1.83s pop time (elite)','Max EV: 112.7 mph','Arm: 80 grade (top of scale)'],                 hi:0},
+      {label:'2025 Breakout Ref', lines:['.347/.421/.500','6 HR \xb7 14 2B \xb7 18 SB','32.5% caught stealing rate'],                 hi:0},
+    ],
+    analysis:'Junior year has been a monster. Barrel rate jumped from 17% → 27%; power profile completely changed. Two-way athleticism (plays multiple positions in emergencies). Buster Posey Award Watch List — Posey, Varitek, Wieters pedigree from Georgia Tech catching. Adley Rutschman comp. Premier dynasty asset in any league that drafts amateurs.',
   },
-  'Kade Anderson': {
-    category:'draft', positionOverride:'SP', isPitcher:true,
-    draftClass:'2026', draftPick:'Top 10 Overall', draftTeam:'TBD', draftRank:6,
-    promotionProb:null, watchList:true, sentiment:'Elite', timeline:'2028',
-    analysis:'Left-hander with one of the most polished three-pitch mixes in the class. Fastball sits 93–96 mph with natural arm-side run, backed by a power curveball and an advanced changeup. Exceptional feel for sequencing and a strike-throwing profile that gives him a legitimate no. 2 starter ceiling.',
+  'Jared Grindlinger': {
+    category:'draft', isPitcher:false, positionDisplay:'1B/LHP/OF',
+    school:'Huntington Beach HS (CA)', schoolYear:"Class 2026 (reclassified from ’27)", draftClass:'2026 MLB Draft',
+    watchList:false, actionBadge:'pick', actionText:'Top 15–17 Pick', sentiment:'Rising',
+    infoBoxes:[
+      {label:'Projected Draft Slot',  value:'~#13–17 Overall (rising)'},
+      {label:'Mock Team Connection',  value:'Cardinals (BA Staff Draft #13)'},
+      {label:'Commitment',            value:'Tennessee (signability factor)'},
+    ],
+    statBoxes:[
+      {label:'2025 HS Hitting',  lines:['.343 AVG \xb7 2 HR \xb7 17 RBI','Plus bat-to-ball, all-fields approach','Above-avg power (trending up)'], hi:0},
+      {label:'2025 HS Pitching', lines:['0.87 ERA \xb7 5-0 \xb7 32.1 IP','34 K \xb7 Fastball up to 96 mph','Slider + CH flash plus'],            hi:0},
+      {label:'Draft Context',    lines:['Age: 17 (youngest top prospect)','Two-way — teams prefer bat','+18 spots in April rankings'],        hi:null},
+    ],
+    analysis:"Youngest early-round prospect in the class; reclassified from 2027 just this February. Two-way talent with legitimate first-round tools on both sides. Teams lean toward taking him as a hitter. Committed to Tennessee but signability plays a role in where he goes. High ceiling, wide range of outcomes — dynasty: stash and hold.",
   },
   'Chase Burns': {
-    category:'draft', positionOverride:'SP', isPitcher:true,
-    draftClass:'2024', draftPick:'2nd Overall (2024)', draftTeam:'Cincinnati Reds', draftRank:1,
-    promotionProb:0.92, watchList:true, sentiment:'Elite', timeline:'2026',
-    analysis:'The consensus top arm from the 2024 class already projects as a near-term MLB ace. His 99 mph fastball/slider combo is historically elite for a college arm, and his advanced command allows him to operate effectively at the top of every count. A mid-2026 MLB debut is realistic.',
-  },
-  'Jac Caglianone': {
-    category:'draft', positionOverride:'1B', isPitcher:false,
-    draftClass:'2024', draftPick:'7th Overall (2024)', draftTeam:'Kansas City Royals', draftRank:7,
-    promotionProb:0.70, watchList:true, sentiment:'Bullish', timeline:'2026–2027',
-    analysis:'Most electric raw power in the 2024 draft class. The Royals are developing him as a first baseman, and his in-game power has translated immediately to pro ball. 70-grade raw power is the calling card; if he cuts the strikeout rate, this is a 35-HR upside player at a premium fantasy position.',
+    category:'draft', isPitcher:true, positionDisplay:'SP',
+    school:'Wake Forest', schoolYear:'2024 Draft', draftClass:'2024 MLB Draft',
+    watchList:false, actionBadge:'elite', actionText:'Ace Track', sentiment:'Elite',
+    infoBoxes:[
+      {label:'Drafted',              value:'2nd Overall (2024)'},
+      {label:'Organization',         value:'Cincinnati Reds'},
+      {label:'MLB ETA',              value:'Mid-2026 (likely)'},
+    ],
+    statBoxes:[
+      {label:'Arsenal',          lines:['FB: 98–101 mph','SL: Historically elite miss rate','3-pitch mix maturing'],  hi:0},
+      {label:'2025 Track',       lines:['Dominant at Double-A','K/9 above 12.0','Advanced command for age'],          hi:0},
+      {label:'Prospect Status',  lines:['Top-5 SP prospect MLB','Timeline: 2026 debut','Dynasty: Ace upside'],        hi:null},
+    ],
+    promotionProb:0.90, promotionLabel:'MLB Debut Probability (2026)',
+    analysis:"The consensus top arm from the 2024 class already projects as a near-term MLB ace. His 99 mph fastball/slider combo is historically elite for a college arm, and his advanced command allows him to operate effectively at the top of every count. A mid-2026 MLB debut is realistic — this is a dynasty cornerstone.",
   },
   'Hagen Smith': {
-    category:'draft', positionOverride:'SP', isPitcher:true,
-    draftClass:'2024', draftPick:'5th Overall (2024)', draftTeam:'Oakland Athletics', draftRank:5,
-    promotionProb:0.65, watchList:false, sentiment:'Rising', timeline:'2027',
-    analysis:'Left-hander with a devastating slider that generates plus chase rates at every level. Ability to miss bats with multiple pitches gives him a high floor. Command is above-average for a college arm, and he has shown the ability to work deep into starts as he moves up the system.',
+    category:'draft', isPitcher:true, positionDisplay:'SP',
+    school:'Arkansas', schoolYear:'2024 Draft', draftClass:'2024 MLB Draft',
+    watchList:false, actionBadge:'pick', actionText:'Top 10 Pick', sentiment:'Rising',
+    infoBoxes:[
+      {label:'Drafted',       value:'5th Overall (2024)'},
+      {label:'Organization',  value:'Oakland Athletics'},
+      {label:'MLB ETA',       value:'2027'},
+    ],
+    statBoxes:[
+      {label:'Arsenal',         lines:['FB: 92–95 mph \xb7 Arm-side run','SL: Plus — elite chase rates','CH: Above average'],       hi:0},
+      {label:'2025 Track',      lines:['Advancing through A/A+ levels','Command translating well','Deep-count durability improving'], hi:null},
+      {label:'Prospect Status', lines:['Top-15 SP prospect MLB','Mid-rotation floor','Ceiling: No. 2 SP'],                             hi:null},
+    ],
+    promotionProb:0.50, promotionLabel:'MLB Debut Probability (2026)',
+    analysis:"Left-hander with a devastating slider that generates plus chase rates at every level. Ability to miss bats with multiple pitches gives him a high floor. Command is above-average for a college arm, and he has shown durability working deep into starts. Mid-rotation floor with legitimate upside.",
+  },
+  'Jac Caglianone': {
+    category:'draft', isPitcher:false, positionDisplay:'1B',
+    school:'Florida', schoolYear:'2024 Draft', draftClass:'2024 MLB Draft',
+    watchList:false, actionBadge:'monitor', actionText:'Monitor', sentiment:'Bullish',
+    infoBoxes:[
+      {label:'Drafted',       value:'7th Overall (2024)'},
+      {label:'Organization',  value:'Kansas City Royals'},
+      {label:'MLB ETA',       value:'2026–2027'},
+    ],
+    statBoxes:[
+      {label:'Power Profile', lines:['Raw Power: 70 grade','Exit velocity: Elite','HR projection: 30–35+'], hi:0},
+      {label:'Hit Tool',      lines:['K% improving in pro ball','Bat speed: Plus','All-fields approach'],   hi:null},
+      {label:'Status',        lines:['Double-A track in 2025','1B projection (Royals)','High floor, high K risk'], hi:null},
+    ],
+    promotionProb:0.65, promotionLabel:'MLB Debut Probability (2026)',
+    analysis:"Most electric raw power in the 2024 draft class. The Royals are developing him as a first baseman, and his in-game power has translated immediately to pro ball. 70-grade raw power is the calling card; if he cuts the strikeout rate, this is a 35-HR upside player at a premium fantasy position.",
   },
 
-  // === ASIAN / INTERNATIONAL PLAYERS ===
+  // === ASIAN / INTERNATIONAL ===
   'Roki Sasaki': {
-    category:'asian', positionOverride:'SP', isPitcher:true,
+    category:'asian', isPitcher:true, positionDisplay:'SP',
     org:'Los Angeles Dodgers', level:'MLB',
-    promotionProb:1.0, watchList:false, sentiment:'Elite', timeline:'Now',
-    analysis:'One of the most electrifying arms to emerge from NPB in a generation. His splitter is arguably the best pitch in baseball — opposing hitters posted under .100 against it in Japan, and the results have carried over to MLB. The fastball sits 98–101 mph with exceptional ride. A future Cy Young winner.',
+    promotionProb:1.0, promotionLabel:'Established MLB Status',
+    actionBadge:'elite', actionText:'Ace', sentiment:'Elite',
+    statBoxes:[
+      {label:'Arsenal',      lines:['FB: 98–101 mph \xb7 Elite ride','SPL: Best pitch in baseball','SL: Plus with tight break'],   hi:0},
+      {label:'MLB Track',    lines:['1st full MLB season (2026)','K/9: 12.1+ pace','Top-10 SP in baseball'],                       hi:null},
+      {label:'Dynasty Value',lines:['Premier hold — elite upside','Full health: Ace ceiling','Contract: Team-controlled deal'], hi:null},
+    ],
+    analysis:"One of the most electrifying arms to emerge from NPB in a generation. His splitter is arguably the best pitch in baseball. The fastball sits 98–101 mph with exceptional ride. Still on a favorable team-controlled deal due to international posting rules. Future Cy Young winner — dynasty cornerstone.",
   },
   'Yoshinobu Yamamoto': {
-    category:'asian', positionOverride:'SP', isPitcher:true,
+    category:'asian', isPitcher:true, positionDisplay:'SP',
     org:'Los Angeles Dodgers', level:'MLB',
-    promotionProb:1.0, watchList:false, sentiment:'Elite', timeline:'Now',
-    analysis:'The $325M investment is fully justified. His NPB résumé was historically dominant, and the transition to MLB has been seamless when healthy. Commands four pitches to four quadrants with elite efficiency, with a plus-plus splitter as his primary out pitch. A top-5 pitcher in baseball at full strength.',
+    promotionProb:1.0, promotionLabel:'Established MLB Status',
+    actionBadge:'elite', actionText:'Ace', sentiment:'Elite',
+    statBoxes:[
+      {label:'Arsenal',       lines:['FB: 97–100 mph \xb7 Plus ride','SPL: Plus-plus out pitch','4-seam/SPL/CB/CH mix'],              hi:0},
+      {label:'Contract',      lines:['$325M / 12 years','Opt-out after Year 6','2024 injury: Monitor'],                              hi:null},
+      {label:'Dynasty Value', lines:['Top-5 SP when healthy','Injury history: Risk factor','Hold — elite ceiling'],              hi:null},
+    ],
+    analysis:"The $325M investment is fully justified. Commands four pitches to four quadrants with elite efficiency; plus-plus splitter is his primary out pitch. When healthy, a top-5 pitcher in baseball. Monitor workload carefully — his 2024 injury adds meaningful risk but the ceiling is undeniable.",
   },
   'Jung Hoo Lee': {
-    category:'asian', positionOverride:'OF', isPitcher:false,
+    category:'asian', isPitcher:false, positionDisplay:'OF',
     org:'San Francisco Giants', level:'MLB',
-    promotionProb:1.0, watchList:true, sentiment:'Bullish', timeline:'Now',
-    analysis:'Elite contact hitter whose KBO excellence translated faster than almost any recent position player. His pitch recognition is exceptional and he makes consistent hard contact to all fields. Plus defensive center fielder who covers ground effortlessly. The speed/contact/defense combination keeps his floor extremely high.',
+    promotionProb:1.0, promotionLabel:'Established MLB Status',
+    actionBadge:'monitor', actionText:'Monitor', sentiment:'Bullish',
+    statBoxes:[
+      {label:'Hit Profile',   lines:['Contact: Elite (70 grade)','Speed: Plus (60 grade)','Power: Below-avg (45)'], hi:0},
+      {label:'KBO Career',    lines:['.340/.421/.541 career','3x KBO Golden Glove','KBO batting champion (2x)'],    hi:0},
+      {label:'Fantasy Value', lines:['SB: 20+ floor','AVG: .290+ floor','HR: 10–15 ceiling'],                      hi:null},
+    ],
+    analysis:"Elite contact hitter whose KBO excellence translated faster than almost any recent position player. Pitch recognition is exceptional and he makes consistent hard contact to all fields. Plus defender in CF. The speed/contact/defense combination keeps his floor extremely high — target for AVG/SB categories.",
   },
   'Hyeseong Kim': {
-    category:'asian', positionOverride:'SS/2B', isPitcher:false,
+    category:'asian', isPitcher:false, positionDisplay:'SS/2B',
     org:'Los Angeles Dodgers', level:'MLB',
-    promotionProb:1.0, watchList:true, sentiment:'Rising', timeline:'Now',
-    analysis:"KBO's most prolific stolen base artist brings genuine 30–40 SB upside to fantasy rosters. Contact approach has translated well, and his plate discipline is better than advertised. Defensive versatility at SS/2B gives him everyday utility value, and his speed plays anywhere in the lineup.",
+    promotionProb:1.0, promotionLabel:'Established MLB Status',
+    actionBadge:'buy', actionText:'Buy Now', sentiment:'Rising',
+    statBoxes:[
+      {label:'Speed Profile', lines:["KBO: 3x SB leader",'30–40 SB upside at MLB level','Plus athlete (65 run grade)'], hi:0},
+      {label:'KBO Career',    lines:['.311 career AVG','Best SS in KBO 2023–24','Dodgers: $35M / 5 years'],              hi:null},
+      {label:'Fantasy Value', lines:['SB: 30+ realistic floor','SS/2B: Premium position','Buy window: Now'],                 hi:null},
+    ],
+    analysis:"KBO's most prolific stolen base artist brings genuine 30–40 SB upside to fantasy rosters. Contact approach has translated well, and plate discipline is better than advertised. Defensive versatility at SS/2B gives him everyday utility value. The buy window is now before his speed is fully priced in.",
   },
   'Seok-Min Oh': {
-    category:'asian', positionOverride:'SP', isPitcher:true,
+    category:'asian', isPitcher:true, positionDisplay:'SP',
     org:'St. Louis Cardinals', level:'AAA',
-    promotionProb:0.65, watchList:true, sentiment:'Bullish', timeline:'2026',
-    analysis:"KBO's dominant right-hander arrived in the Cardinals system with an outstanding professional track record. His splitter is a genuine MLB-caliber out pitch, and his fastball command is exceptional. Historical comps for pitchers of his profile transitioning from KBO are encouraging. A mid-2026 MLB debut is very achievable.",
+    promotionProb:0.65, promotionLabel:'MLB Debut Probability (2026)',
+    actionBadge:'monitor', actionText:'Monitor', sentiment:'Bullish',
+    statBoxes:[
+      {label:'Arsenal',      lines:['SPL: MLB-caliber out pitch','FB: 92–95 mph \xb7 Command +','CB / CH: Above average'],     hi:0},
+      {label:'KBO Career',   lines:['3.12 ERA over 4 seasons','K/9: 9.4 career','ERA title (2023)'],                          hi:0},
+      {label:'MLB Path',     lines:['AAA assignment: Spring 2026','Debut window: Mid-2026','Cardinals need rotation depth'],  hi:null},
+    ],
+    analysis:"KBO's dominant right-hander arrived in the Cardinals system with an outstanding professional track record. His splitter is a genuine MLB-caliber out pitch, and his fastball command is exceptional. Historical comps for pitchers of this profile transitioning from KBO are encouraging — a mid-2026 MLB debut is very achievable.",
   },
 };
 
@@ -8549,117 +8714,112 @@ function newsIsPitcher(player) {
   return isPitcher(player.position);
 }
 
-function newsPromoColor(p) {
-  return p >= 0.70 ? '#16a34a' : p >= 0.45 ? '#d97706' : '#dc2626';
+function buildStatBox(box) {
+  const bodyLines = (box.lines || []).map((l, i) =>
+    `<div class="ncv2-stat-line${(box.hi !== null && box.hi !== undefined && i === box.hi) ? ' hi' : ''}">${escHtml(l)}</div>`
+  ).join('');
+  return `<div class="ncv2-stat-box"><div class="ncv2-stat-label">${escHtml(box.label)}</div>${bodyLines}</div>`;
 }
 
-function newsSentimentCls(s) {
-  const v = (s || '').toLowerCase();
-  if (v === 'elite')    return 'news-tag-elite';
-  if (v === 'bullish')  return 'news-tag-bullish';
-  if (v === 'rising')   return 'news-tag-rising';
-  if (v === 'cautious') return 'news-tag-cautious';
-  return 'news-tag-neutral';
+function buildInfoBox(box) {
+  return `<div class="ncv2-info-box"><div class="ncv2-info-label">${escHtml(box.label)}</div><div class="ncv2-info-value">${escHtml(box.value)}</div></div>`;
 }
 
-function buildNewsHeadshot(player, nd) {
-  const pName   = escHtml((player && player.player) || '');
-  const isMiLBp = player
-    ? (STATUS_MAP[player.status] === 'MiLB')
-    : (nd && nd.level && nd.level !== 'MLB');
-  const ss = 'width:100%;height:100%;object-fit:contain;object-position:center bottom';
-  return `<img class="news-headshot-img" data-player="${pName}" data-ismilb="${isMiLBp?'1':'0'}" style="${ss}" src="${HEADSHOT_PLACEHOLDER}" loading="lazy">`;
+function buildActionBadge(style, text) {
+  if (!style || !text) return '';
+  const cls = { monitor:'ncv2-badge-monitor', buy:'ncv2-badge-buy', pick:'ncv2-badge-pick', elite:'ncv2-badge-elite' }[style] || 'ncv2-badge-monitor';
+  const prefix = style === 'buy' ? '🔥 ' : '';
+  return `<span class="ncv2-badge ${cls}">${prefix}${escHtml(text)}</span>`;
 }
 
 function buildNewsCard(player, nd, section) {
-  const name      = (player && player.player) || (nd && Object.keys(NEWS_DATA).find(k => NEWS_DATA[k] === nd)) || '?';
-  const pos       = (nd && nd.positionOverride) || (player && player.position) || '';
-  const pit       = (nd && nd.isPitcher !== undefined) ? nd.isPitcher : isPitcher(pos);
-  const teamOrg   = (nd && nd.org) || (player && player.mlb_team) || '';
-  const level     = (nd && nd.level) || (player ? ((STATUS_MAP[player.status]||'MLB') === 'MiLB' ? 'MiLB' : 'MLB') : '');
-  const orgLine   = [teamOrg, level].filter(Boolean).join(' \xb7 ');
-  const prob      = nd && nd.promotionProb;
-  const watchList = nd && nd.watchList;
-  const sentiment = (nd && nd.sentiment) || '';
-  const timeline  = (nd && nd.timeline) || '';
-  const analysis  = (nd && nd.analysis) || '';
-  const isDraft   = section === 'draft';
+  const name    = (player && player.player) || '?';
+  const pos     = (nd && (nd.positionDisplay || nd.positionOverride)) || (player && player.position) || '';
+  const pit     = (nd && nd.isPitcher !== undefined) ? nd.isPitcher : isPitcher(pos);
+  const isDraft = section === 'draft';
+  const safe    = escHtml(name);
 
-  const cardCls   = `news-card news-card-${section}`;
-  const safe      = escHtml(name);
-  const cardId    = 'nc-' + name.replace(/[^a-zA-Z0-9]/g, '-');
+  // Subtitle
+  let sub;
+  if (isDraft) {
+    sub = [pos, nd && nd.school, nd && nd.schoolYear, nd && nd.draftClass].filter(Boolean).map(escHtml).join(' \xb7 ');
+  } else {
+    const org   = (nd && nd.org) || (player && player.mlb_team) || '';
+    const level = (nd && nd.level) || '';
+    const age   = (nd && nd.age) ? 'Age ' + nd.age : '';
+    sub = [pos, org, level, age].filter(Boolean).map(escHtml).join(' \xb7 ');
+  }
 
-  const posBadge   = pos  ? `<span class="news-tag news-tag-pos">${escHtml(pos)}</span>` : '';
-  const watchBadge = watchList ? `<span class="news-tag news-tag-watch">⭐ Watch</span>` : '';
-  const sentBadge  = sentiment ? `<span class="news-tag ${newsSentimentCls(sentiment)}">${escHtml(sentiment)}</span>` : '';
-  const timeBadge  = timeline  ? `<span class="news-tag news-tag-timeline">⏱ ${escHtml(timeline)}</span>` : '';
+  // Badges
+  const watchBadge  = nd && nd.watchList && nd.watchBadgeText
+    ? `<span class="ncv2-badge ncv2-badge-watch">🔥 ${escHtml(nd.watchBadgeText)}</span>` : '';
+  const actionBadge = nd ? buildActionBadge(nd.actionBadge, nd.actionText) : '';
 
+  // Box rows
+  const infoHtml  = isDraft && nd && nd.infoBoxes
+    ? `<div class="ncv2-box-row ncv2-info-row">${nd.infoBoxes.map(buildInfoBox).join('')}</div>` : '';
+  const statHtml  = nd && nd.statBoxes
+    ? `<div class="ncv2-box-row" style="margin-top:1px">${nd.statBoxes.map(buildStatBox).join('')}</div>` : '';
+
+  // Promo bar
   let promoHtml = '';
-  if (prob !== null && prob !== undefined) {
-    const pct = Math.round(prob * 100);
-    const col = newsPromoColor(prob);
-    promoHtml = `<div class="news-promo-wrap">
-      <div class="news-promo-header"><span>MLB Promo Probability</span><span style="font-weight:700;color:${col}">${pct}%</span></div>
-      <div class="news-promo-track"><div class="news-promo-fill" style="width:${pct}%;background:${col}"></div></div>
+  if (nd && nd.promotionProb !== null && nd.promotionProb !== undefined) {
+    const pct = Math.round(nd.promotionProb * 100);
+    const col = pct >= 70 ? '#16a34a' : pct >= 45 ? '#d97706' : '#dc2626';
+    promoHtml = `<div class="ncv2-promo-row">
+      <span class="ncv2-promo-label">${escHtml((nd && nd.promotionLabel) || 'Promotion Probability')}</span>
+      <div class="ncv2-promo-track"><div class="ncv2-promo-fill" style="width:${pct}%;background:${col}"></div></div>
+      <span class="ncv2-promo-pct" style="color:${col}">${pct}%</span>
     </div>`;
   }
 
-  let draftHtml = '';
-  if (isDraft && nd && nd.draftPick) {
-    const teamStr = nd.draftTeam && nd.draftTeam !== 'TBD'
-      ? `<div style="font-size:11px;color:var(--text-2);margin-top:3px">→ ${escHtml(nd.draftTeam)}</div>` : '';
-    const clsStr  = nd.draftClass
-      ? `<div style="font-size:10px;color:var(--text-3);margin-top:2px">${escHtml(nd.draftClass)} Draft Class</div>` : '';
-    draftHtml = `<div class="news-draft-proj">
-      <div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#7c3aed;margin-bottom:4px">Draft Projection</div>
-      <div style="font-size:14px;font-weight:700;color:#3b1c6e">${escHtml(nd.draftPick)}</div>
-      ${teamStr}${clsStr}
-    </div>`;
-  }
+  // Analysis
+  const analysisHtml = nd && nd.analysis ? `<div class="ncv2-analysis">${escHtml(nd.analysis)}</div>` : '';
 
-  const statsLoadAttr = `data-player="${safe}" data-ispitcher="${pit ? '1' : '0'}"`;
+  // Headshot
+  const isMiLBp = player
+    ? (STATUS_MAP[player.status] === 'MiLB')
+    : (nd && nd.level && nd.level !== 'MLB');
+  const shotHtml = `<div class="ncv2-headshot-wrap"><img class="ncv2-shot" data-player="${safe}" data-ismilb="${isMiLBp?'1':'0'}" src="${HEADSHOT_PLACEHOLDER}" loading="lazy" style="width:100%;height:100%;object-fit:contain;object-position:center bottom"></div>`;
 
-  return `<div class="${cardCls}" id="${cardId}">
-    <div class="news-card-header">
-      <div class="news-headshot-wrap">${buildNewsHeadshot(player, nd)}</div>
-      <div class="news-card-info">
-        <div class="news-player-name">${safe}</div>
-        ${orgLine ? `<div class="news-player-org">${escHtml(orgLine)}</div>` : ''}
-        <div class="news-tags">${posBadge}${watchBadge}${sentBadge}${timeBadge}</div>
-        ${promoHtml}
+  // API stats area (MiLB + Asian MLB; not for draft HS/college with no MLB ID)
+  const showApiStats = nd && nd.category !== 'draft';
+  const apiHtml = showApiStats
+    ? `<div class="ncv2-api-stats news-stats-area" data-player="${safe}" data-ispitcher="${pit?'1':'0'}"><div class="news-empty">Loading 2026 stats…</div></div>`
+    : '';
+
+  return `<div class="ncv2-card ncv2-card-${section}">
+    <div class="ncv2-header">
+      ${shotHtml}
+      <div class="ncv2-title-block">
+        <div class="ncv2-name">${safe}</div>
+        <div class="ncv2-sub">${sub}</div>
       </div>
+      <div class="ncv2-badge-group">${watchBadge}${actionBadge}</div>
     </div>
-    ${analysis ? `<div class="news-analysis">${escHtml(analysis)}</div>` : ''}
-    ${draftHtml}
-    <div class="news-stats-area" ${statsLoadAttr}>
-      <div class="news-empty">Loading stats…</div>
-    </div>
+    ${infoHtml}${statHtml}${promoHtml}${analysisHtml}${apiHtml}
   </div>`;
 }
 
-// ── Stats fetching ─────────────────────────────────────────────────────────────
+// ── Async stats loader (unchanged logic, updated container class) ──────────────
 
 async function loadNewsCardStats(statsEl) {
   const playerName = statsEl.dataset.player;
   const isPit      = statsEl.dataset.ispitcher === '1';
   try {
-    const enc = encodeURIComponent(playerName);
-    const sr  = await fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${enc}&sportIds=1,11,12,13,14,15,16`);
-    const sd  = await sr.json();
+    const enc  = encodeURIComponent(playerName);
+    const sr   = await fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${enc}&sportIds=1,11,12,13,14,15,16`);
+    const sd   = await sr.json();
     const person = sd.people && sd.people[0];
-
-    if (!person) {
-      statsEl.innerHTML = '<div class="news-empty">Stats unavailable</div>';
-      return;
-    }
+    if (!person) { statsEl.innerHTML = '<div class="news-empty">Stats unavailable</div>'; return; }
     const id = person.id;
 
     // Update headshot
-    const card   = statsEl.closest('.news-card');
-    const shotEl = card && card.querySelector('.news-headshot-img');
+    const card   = statsEl.closest('.ncv2-card');
+    const shotEl = card && card.querySelector('.ncv2-shot');
     if (shotEl) {
       const isMiLB = shotEl.dataset.ismilb === '1';
-      const mlbUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/w_120,q_auto:best,f_auto/v1/people/${id}/headshot/67/current`;
+      const mlbUrl  = `https://img.mlbstatic.com/mlb-photos/image/upload/w_120,q_auto:best,f_auto/v1/people/${id}/headshot/67/current`;
       const milbUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_120/v1/people/${id}/headshot/milb/current`;
       shotEl.dataset.milbfb = milbUrl;
       shotEl.onerror = function() {
@@ -8670,32 +8830,30 @@ async function loadNewsCardStats(statsEl) {
       shotEl.src = isMiLB ? milbUrl : mlbUrl;
     }
 
-    // Fetch stats
     const today = new Date();
     const fmtD  = d => d.toISOString().slice(0, 10);
-    const d30   = new Date(today); d30.setDate(d30.getDate() - 30);
-    const d7    = new Date(today); d7.setDate(d7.getDate() - 7);
-    const grp   = isPit ? 'pitching' : 'hitting';
-    const base  = `https://statsapi.mlb.com/api/v1/people/${id}/stats`;
+    const d30 = new Date(today); d30.setDate(d30.getDate() - 30);
+    const d7  = new Date(today); d7.setDate(d7.getDate() - 7);
+    const grp = isPit ? 'pitching' : 'hitting';
+    const base = `https://statsapi.mlb.com/api/v1/people/${id}/stats`;
 
     const [ytdR, l30R, l7R] = await Promise.all([
-      fetch(`${base}?stats=season&season=2026&group=${grp}&gameType=R`).then(r => r.json()).catch(() => null),
-      fetch(`${base}?stats=byDateRange&season=2026&group=${grp}&startDate=${fmtD(d30)}&endDate=${fmtD(today)}&gameType=R`).then(r => r.json()).catch(() => null),
-      fetch(`${base}?stats=byDateRange&season=2026&group=${grp}&startDate=${fmtD(d7)}&endDate=${fmtD(today)}&gameType=R`).then(r => r.json()).catch(() => null),
+      fetch(`${base}?stats=season&season=2026&group=${grp}&gameType=R`).then(r=>r.json()).catch(()=>null),
+      fetch(`${base}?stats=byDateRange&season=2026&group=${grp}&startDate=${fmtD(d30)}&endDate=${fmtD(today)}&gameType=R`).then(r=>r.json()).catch(()=>null),
+      fetch(`${base}?stats=byDateRange&season=2026&group=${grp}&startDate=${fmtD(d7)}&endDate=${fmtD(today)}&gameType=R`).then(r=>r.json()).catch(()=>null),
     ]);
 
     let gameLog = [];
     if (isPit) {
-      const glR = await fetch(`${base}?stats=gameLog&season=2026&group=pitching&gameType=R`).then(r => r.json()).catch(() => null);
+      const glR = await fetch(`${base}?stats=gameLog&season=2026&group=pitching&gameType=R`).then(r=>r.json()).catch(()=>null);
       const all = (glR && glR.stats && glR.stats[0] && glR.stats[0].splits) || [];
       gameLog = all.filter(s => s.stat && s.stat.gamesStarted >= 1);
     }
 
-    const ytd = ytdR && ytdR.stats && ytdR.stats[0] && ytdR.stats[0].splits && ytdR.stats[0].splits[0] && ytdR.stats[0].splits[0].stat;
-    const l30 = l30R && l30R.stats && l30R.stats[0] && l30R.stats[0].splits && l30R.stats[0].splits[0] && l30R.stats[0].splits[0].stat;
-    const l7  = l7R  && l7R.stats  && l7R.stats[0]  && l7R.stats[0].splits  && l7R.stats[0].splits[0]  && l7R.stats[0].splits[0].stat;
-
-    statsEl.innerHTML = buildNewsStatsHtml(ytd || null, l30 || null, l7 || null, gameLog, isPit);
+    const ytd = ytdR && ytdR.stats && ytdR.stats[0] && ytdR.stats[0].splits && ytdR.stats[0].splits[0] && ytdR.stats[0].splits[0].stat || null;
+    const l30 = l30R && l30R.stats && l30R.stats[0] && l30R.stats[0].splits && l30R.stats[0].splits[0] && l30R.stats[0].splits[0].stat || null;
+    const l7  = l7R  && l7R.stats  && l7R.stats[0]  && l7R.stats[0].splits  && l7R.stats[0].splits[0]  && l7R.stats[0].splits[0].stat  || null;
+    statsEl.innerHTML = buildNewsStatsHtml(ytd, l30, l7, gameLog, isPit);
   } catch(e) {
     statsEl.innerHTML = '<div class="news-empty">Stats unavailable</div>';
   }
@@ -8717,14 +8875,14 @@ function fmtHitStat(s) {
 function fmtPitStat(s) {
   if (!s) return null;
   const parts = [];
-  const g  = s.gamesPlayed != null  ? s.gamesPlayed : null;
+  const g = s.gamesPlayed != null ? s.gamesPlayed : null;
   const gs = s.gamesStarted != null ? s.gamesStarted : null;
-  if (g != null)  parts.push(g + ' G' + (gs != null ? '/' + gs + ' GS' : ''));
-  if (s.inningsPitched) parts.push(s.inningsPitched + ' IP');
-  if (s.era)      parts.push(parseFloat(s.era).toFixed(2) + ' ERA');
-  if (s.whip)     parts.push(parseFloat(s.whip).toFixed(2) + ' WHIP');
-  if (s.strikeOuts != null) parts.push(s.strikeOuts + ' K');
-  if (s.baseOnBalls != null) parts.push(s.baseOnBalls + ' BB');
+  if (g != null)               parts.push(g + ' G' + (gs != null ? '/' + gs + ' GS' : ''));
+  if (s.inningsPitched)        parts.push(s.inningsPitched + ' IP');
+  if (s.era)                   parts.push(parseFloat(s.era).toFixed(2) + ' ERA');
+  if (s.whip)                  parts.push(parseFloat(s.whip).toFixed(2) + ' WHIP');
+  if (s.strikeOuts != null)    parts.push(s.strikeOuts + ' K');
+  if (s.baseOnBalls != null)   parts.push(s.baseOnBalls + ' BB');
   return parts.length ? parts.join(' \xb7 ') : null;
 }
 
@@ -8733,48 +8891,44 @@ function aggGameLog(splits) {
   splits.forEach(s => {
     const ip = s.stat && s.stat.inningsPitched ? String(s.stat.inningsPitched) : '0';
     const [w, f] = ip.split('.').map(Number);
-    outs += (w || 0) * 3 + (f || 0);
-    er   += (s.stat && s.stat.earnedRuns) || 0;
-    ha   += (s.stat && s.stat.hits)       || 0;
-    bb   += (s.stat && s.stat.baseOnBalls)|| 0;
-    so   += (s.stat && s.stat.strikeOuts) || 0;
+    outs += (w||0)*3 + (f||0);
+    er += (s.stat && s.stat.earnedRuns) || 0;
+    ha += (s.stat && s.stat.hits) || 0;
+    bb += (s.stat && s.stat.baseOnBalls) || 0;
+    so += (s.stat && s.stat.strikeOuts) || 0;
   });
   const ipDec = outs / 3;
-  const era  = ipDec > 0 ? ((er / ipDec) * 9).toFixed(2) : '—';
-  const whip = ipDec > 0 ? ((ha + bb) / ipDec).toFixed(2) : '—';
-  const ipStr= Math.floor(outs / 3) + '.' + (outs % 3);
-  return splits.length + ' GS \xb7 ' + ipStr + ' IP \xb7 ' + era + ' ERA \xb7 ' + so + ' K';
+  return splits.length + ' GS \xb7 ' + Math.floor(outs/3) + '.' + (outs%3) + ' IP \xb7 ' +
+    (ipDec > 0 ? ((er/ipDec)*9).toFixed(2) : '—') + ' ERA \xb7 ' + so + ' K';
 }
 
 function fmtLastStart(s) {
   if (!s) return null;
-  const dt   = s.date ? s.date.slice(5).replace('-', '/') : '';
-  const opp  = (s.opponent && s.opponent.abbreviation) || '';
-  const home = s.isHome;
-  const vs   = opp ? (home ? ' vs ' : ' @ ') + opp : '';
-  const ip   = (s.stat && s.stat.inningsPitched) || '—';
-  const k    = s.stat && s.stat.strikeOuts != null ? s.stat.strikeOuts : '—';
-  const er   = s.stat && s.stat.earnedRuns != null ? s.stat.earnedRuns : '—';
-  const bb   = s.stat && s.stat.baseOnBalls != null ? s.stat.baseOnBalls : '—';
+  const dt  = s.date ? s.date.slice(5).replace('-', '/') : '';
+  const opp = (s.opponent && s.opponent.abbreviation) || '';
+  const vs  = opp ? (s.isHome ? ' vs ' : ' @ ') + opp : '';
+  const ip  = (s.stat && s.stat.inningsPitched) || '—';
+  const k   = s.stat && s.stat.strikeOuts  != null ? s.stat.strikeOuts  : '—';
+  const er  = s.stat && s.stat.earnedRuns  != null ? s.stat.earnedRuns  : '—';
+  const bb  = s.stat && s.stat.baseOnBalls != null ? s.stat.baseOnBalls : '—';
   return dt + vs + ': ' + ip + ' IP, ' + k + ' K, ' + er + ' ER, ' + bb + ' BB';
 }
 
 function buildNewsStatsHtml(ytd, l30, l7, gameLog, isPit) {
-  const row = (badgeCls, label, text) =>
-    text ? `<div class="news-stat-row"><span class="news-stat-badge ${badgeCls}">${label}</span><span class="news-stat-text">${text}</span></div>` : '';
-
+  const row = (cls, label, text) => text
+    ? `<div class="news-stat-row"><span class="news-stat-badge ${cls}">${label}</span><span class="news-stat-text">${text}</span></div>` : '';
   if (!isPit) {
     const a = fmtHitStat(ytd), b = fmtHitStat(l30), c = fmtHitStat(l7);
     if (!a && !b && !c) return '<div class="news-empty">No 2026 stats yet</div>';
-    return '<div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">2026 Stats</div>' +
-      row('nsb-ytd', '2026 YTD', a) + row('nsb-l30', 'Last 30', b) + row('nsb-l7', 'Last 7', c);
+    return '<div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Live 2026 Stats</div>' +
+      row('nsb-ytd','2026 YTD',a) + row('nsb-l30','Last 30',b) + row('nsb-l7','Last 7',c);
   } else {
-    const a    = fmtPitStat(ytd);
-    const last5= gameLog.length ? aggGameLog(gameLog.slice(-5)) : null;
-    const lastG= gameLog.length ? fmtLastStart(gameLog[gameLog.length - 1]) : null;
-    if (!a && !last5 && !lastG) return '<div class="news-empty">No 2026 stats yet</div>';
-    return '<div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">2026 Stats</div>' +
-      row('nsb-ytd', '2026 YTD', a) + row('nsb-l5', 'L5 Starts', last5) + row('nsb-last', 'Last Start', lastG);
+    const a = fmtPitStat(ytd);
+    const l5 = gameLog.length ? aggGameLog(gameLog.slice(-5)) : null;
+    const lg = gameLog.length ? fmtLastStart(gameLog[gameLog.length-1]) : null;
+    if (!a && !l5 && !lg) return '<div class="news-empty">No 2026 stats yet</div>';
+    return '<div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Live 2026 Stats</div>' +
+      row('nsb-ytd','2026 YTD',a) + row('nsb-l5','L5 Starts',l5) + row('nsb-last','Last Start',lg);
   }
 }
 
@@ -8784,41 +8938,25 @@ function initNewsPage() {
   document.getElementById('news-loading').style.display = 'block';
   document.getElementById('news-content').style.display = 'none';
 
-  // Collect all MiLB players across every team (deduplicated)
-  const seen = new Set();
-  const milbAll = [];
-  Object.values(LEAGUE).forEach(players => {
-    players.forEach(p => {
-      if ((STATUS_MAP[p.status] || 'MLB') === 'MiLB' && !seen.has(p.player)) {
-        seen.add(p.player);
-        milbAll.push(p);
-      }
-    });
-  });
-
-  const milbHit = milbAll.filter(p => !newsIsPitcher(p));
-  const milbPit = milbAll.filter(p =>  newsIsPitcher(p));
+  // MiLB: only currentTeam players
+  const myPlayers = LEAGUE[currentTeam] || [];
+  const milbAll   = myPlayers.filter(p => (STATUS_MAP[p.status] || 'MLB') === 'MiLB');
+  const milbHit   = milbAll.filter(p => !newsIsPitcher(p));
+  const milbPit   = milbAll.filter(p =>  newsIsPitcher(p));
 
   // Draft + Asian from NEWS_DATA
   const draftHit = [], draftPit = [], asianHit = [], asianPit = [];
   Object.entries(NEWS_DATA).forEach(([name, nd]) => {
-    if (nd.category === 'draft') {
-      // Find in LEAGUE if already signed
+    if (nd.category === 'draft' || nd.category === 'asian') {
       let lp = null;
       for (const ps of Object.values(LEAGUE)) {
         lp = ps.find(p => p.player === name || p.player.endsWith(' ' + name));
         if (lp) break;
       }
-      const card = { player: lp || { player: name, mlb_team: nd.org || '', position: nd.positionOverride || '', status: '' }, nd };
-      nd.isPitcher ? draftPit.push(card) : draftHit.push(card);
-    } else if (nd.category === 'asian') {
-      let lp = null;
-      for (const ps of Object.values(LEAGUE)) {
-        lp = ps.find(p => p.player === name || p.player.endsWith(' ' + name));
-        if (lp) break;
-      }
-      const card = { player: lp || { player: name, mlb_team: nd.org || '', position: nd.positionOverride || '', status: '' }, nd };
-      nd.isPitcher ? asianPit.push(card) : asianHit.push(card);
+      const synth = lp || { player: name, mlb_team: nd.org || '', position: nd.positionDisplay || '', status: '' };
+      const item = { player: synth, nd };
+      if (nd.category === 'draft') { nd.isPitcher ? draftPit.push(item) : draftHit.push(item); }
+      else                         { nd.isPitcher ? asianPit.push(item) : asianHit.push(item); }
     }
   });
 
@@ -8831,20 +8969,19 @@ function initNewsPage() {
       : items.map(({ player, nd }) => buildNewsCard(player, nd, section)).join('');
   };
 
-  renderGrid('news-milb-hitters',   milbHit,   'milb',  true);
-  renderGrid('news-milb-pitchers',  milbPit,   'milb',  true);
-  renderGrid('news-draft-hitters',  draftHit,  'draft', false);
-  renderGrid('news-draft-pitchers', draftPit,  'draft', false);
-  renderGrid('news-asian-hitters',  asianHit,  'asian', false);
-  renderGrid('news-asian-pitchers', asianPit,  'asian', false);
+  renderGrid('news-milb-hitters',   milbHit,  'milb',  true);
+  renderGrid('news-milb-pitchers',  milbPit,  'milb',  true);
+  renderGrid('news-draft-hitters',  draftHit, 'draft', false);
+  renderGrid('news-draft-pitchers', draftPit, 'draft', false);
+  renderGrid('news-asian-hitters',  asianHit, 'asian', false);
+  renderGrid('news-asian-pitchers', asianPit, 'asian', false);
 
   const cnt = document.getElementById('news-milb-count');
-  if (cnt) cnt.textContent = milbAll.length + ' players';
+  if (cnt) cnt.textContent = milbAll.length + ' on your roster';
 
   document.getElementById('news-loading').style.display = 'none';
   document.getElementById('news-content').style.display = 'block';
 
-  // Async stats + headshot loading per card
   document.querySelectorAll('#page-news .news-stats-area').forEach(el => loadNewsCardStats(el));
 }
 </script>
