@@ -1222,7 +1222,7 @@ input[type=file] { display: none; }
   color: var(--text-3); padding: 5px 0 8px; border-bottom: 1px solid var(--border); margin-bottom: 12px;
 }
 .news-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); gap: 10px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(210px,1fr)); gap: 12px;
 }
 @media (max-width:600px) { .news-grid { grid-template-columns: 1fr; } }
 .news-card {
@@ -1287,9 +1287,20 @@ input[type=file] { display: none; }
 /* ── Prospect Hub card v2 ───────────────────────────────── */
 .ncv2-card { background:#fff; border-radius:10px; border:1px solid var(--border); overflow:hidden; transition:box-shadow .15s; }
 .ncv2-card:hover { box-shadow:0 4px 18px rgba(0,0,0,.12); }
-.ncv2-card-milb  { border-top:3px solid #2563eb; }
-.ncv2-card-draft { border-top:3px solid #7c3aed; }
-.ncv2-card-asian { border-top:3px solid #d97706; }
+.ncv2-card-milb  { }
+.ncv2-card-draft { }
+.ncv2-card-asian { }
+/* ── Baseball card layout ── */
+.bc-band { position:relative; height:130px; overflow:hidden; display:flex; align-items:flex-end; justify-content:center; border-radius:9px 9px 0 0; }
+.bc-band-milb  { background:linear-gradient(155deg,#0f2547 0%,#1d4ed8 55%,#3b82f6 100%); }
+.bc-band-draft { background:linear-gradient(155deg,#2e1065 0%,#6d28d9 55%,#8b5cf6 100%); }
+.bc-band-asian { background:linear-gradient(155deg,#451a03 0%,#b45309 55%,#f59e0b 100%); }
+.bc-shot { width:100px; height:128px; object-fit:contain; object-position:center bottom; position:relative; z-index:1; filter:drop-shadow(0 -4px 10px rgba(0,0,0,.35)); }
+.bc-badge-corner { position:absolute; top:8px; right:8px; display:flex; flex-direction:column; gap:4px; align-items:flex-end; z-index:2; }
+.bc-nameplate { padding:10px 12px 8px; text-align:center; border-bottom:1px solid var(--border); }
+.bc-player-name { font-size:14px; font-weight:800; color:var(--navy); letter-spacing:-.01em; line-height:1.2; }
+.bc-player-sub  { font-size:10px; color:var(--text-2); margin-top:3px; line-height:1.5; }
+.bc-draft-slot  { font-size:10px; font-weight:700; color:var(--text-2); margin-top:4px; }
 .ncv2-header { display:flex; align-items:flex-start; gap:10px; padding:10px 12px 8px; }
 .ncv2-headshot-wrap {
   flex-shrink:0; width:42px; height:56px; border-radius:6px; overflow:hidden;
@@ -8757,18 +8768,25 @@ function buildNewsCard(player, nd, section) {
   const isDraft = section === 'draft';
   const safe    = escHtml(name);
 
-  // Subtitle row under name
+  // Subtitle: position · org · level (or school for draft)
   let sub;
   if (isDraft) {
-    sub = [pos, nd && nd.school, nd && nd.schoolYear, nd && nd.draftClass].filter(Boolean).map(escHtml).join(' \xb7 ');
+    sub = [pos, nd && nd.school, nd && nd.draftClass].filter(Boolean).map(escHtml).join(' · ');
   } else {
     const org   = (nd && nd.org) || (player && player.mlb_team) || '';
     const level = (nd && nd.level) || '';
-    const age   = (nd && nd.age) ? 'Age ' + nd.age : '';
-    sub = [pos, org, level, age].filter(Boolean).map(escHtml).join(' \xb7 ');
+    sub = [pos, org, level].filter(Boolean).map(escHtml).join(' · ');
   }
 
-  // Badges — always show at least Monitor
+  // Draft slot line (compact, below subtitle)
+  let draftSlot = '';
+  if (isDraft && nd && nd.infoBoxes) {
+    const slotBox = nd.infoBoxes.find(b => b.label.toLowerCase().includes('slot'));
+    const teamBox = nd.infoBoxes.find(b => b.label.toLowerCase().includes('team'));
+    if (slotBox) draftSlot = `<div class="bc-draft-slot">${escHtml(slotBox.value)}${teamBox ? ' · ' + escHtml(teamBox.value) : ''}</div>`;
+  }
+
+  // Badges — always show at least Monitor; watch badge in corner if set
   const watchBadge  = nd && nd.watchList && nd.watchBadgeText
     ? `<span class="ncv2-badge ncv2-badge-watch">🔥 ${escHtml(nd.watchBadgeText)}</span>` : '';
   const actionBadge = buildActionBadge(
@@ -8776,29 +8794,7 @@ function buildNewsCard(player, nd, section) {
     (nd && nd.actionText)  || 'Monitor'
   );
 
-  // ── Scouting / info box row (always 3 boxes) ──────────────────────────────
-  let boxHtml = '';
-  if (isDraft && nd && nd.infoBoxes) {
-    // Draft: info boxes (slot/team/date) + stat boxes below
-    boxHtml = `<div class="ncv2-box-row ncv2-info-row">${nd.infoBoxes.map(buildInfoBox).join('')}</div>`;
-    if (nd.statBoxes) {
-      boxHtml += `<div class="ncv2-box-row" style="margin-top:1px">${nd.statBoxes.map(buildStatBox).join('')}</div>`;
-    }
-  } else if (nd && nd.statBoxes) {
-    boxHtml = `<div class="ncv2-box-row">${nd.statBoxes.map(buildStatBox).join('')}</div>`;
-  } else {
-    // No NEWS_DATA — generate generic boxes from LEAGUE player data
-    const org   = (player && player.mlb_team) || '—';
-    const lvl   = (nd && nd.level) || (player && player.status) || '—';
-    const generic = [
-      { label:'Organization',  lines:[org, pos || '—', 'MiLB System'],               hi:null },
-      { label:'2026 Status',   lines:['Active · Season in progress','Scouting in progress','Report pending'], hi:null },
-      { label:'Fantasy Intel', lines:['Monitor for call-up','Check live stats below','Add to watch list'],   hi:null },
-    ];
-    boxHtml = `<div class="ncv2-box-row">${generic.map(buildStatBox).join('')}</div>`;
-  }
-
-  // ── Promotion / status bar (every card) ──────────────────────────────────
+  // Promo bar (every card)
   const promoProb  = (nd && nd.promotionProb  != null) ? nd.promotionProb  : 0.20;
   const promoLabel = (nd && nd.promotionLabel) || 'MLB Call-Up Probability (2026)';
   const pct = Math.round(promoProb * 100);
@@ -8809,32 +8805,33 @@ function buildNewsCard(player, nd, section) {
     <span class="ncv2-promo-pct" style="color:${col}">${pct}%</span>
   </div>`;
 
-  // ── Editorial / analysis (every card) ────────────────────────────────────
+  // Editorial (every card)
   const defaultAnalysis = `${name} is currently active in the ${(player && player.mlb_team) || 'minor league'} organization. Monitor their 2026 season progress through the live stats below.`;
-  const analysis = (nd && nd.analysis) ? nd.analysis : defaultAnalysis;
+  const analysis    = (nd && nd.analysis) ? nd.analysis : defaultAnalysis;
   const analysisHtml = `<div class="ncv2-analysis">${escHtml(analysis)}</div>`;
 
-  // ── Headshot ─────────────────────────────────────────────────────────────
+  // Headshot
   const isMiLBp = player
     ? (STATUS_MAP[player.status] === 'MiLB')
     : (nd && nd.level && nd.level !== 'MLB');
-  const shotHtml = `<div class="ncv2-headshot-wrap"><img class="ncv2-shot" data-player="${safe}" data-ismilb="${isMiLBp?'1':'0'}" src="${HEADSHOT_PLACEHOLDER}" loading="lazy"></div>`;
 
-  // ── Live API stats (MiLB + Asian; not draft HS/college) ──────────────────
+  // Live stats (MiLB + Asian only)
   const apiHtml = section !== 'draft'
     ? `<div class="ncv2-api-stats news-stats-area" data-player="${safe}" data-ispitcher="${pit?'1':'0'}"><div class="news-empty">Loading 2026 stats…</div></div>`
     : '';
 
+  // ── Baseball card layout ──────────────────────────────────────────────────
   return `<div class="ncv2-card ncv2-card-${section}">
-    <div class="ncv2-header">
-      ${shotHtml}
-      <div class="ncv2-title-block">
-        <div class="ncv2-name">${safe}</div>
-        <div class="ncv2-sub">${sub}</div>
-      </div>
-      <div class="ncv2-badge-group">${watchBadge}${actionBadge}</div>
+    <div class="bc-band bc-band-${section}">
+      <img class="bc-shot ncv2-shot" data-player="${safe}" data-ismilb="${isMiLBp?'1':'0'}" src="${HEADSHOT_PLACEHOLDER}" loading="lazy">
+      <div class="bc-badge-corner">${watchBadge}${actionBadge}</div>
     </div>
-    ${boxHtml}${promoHtml}${analysisHtml}${apiHtml}
+    <div class="bc-nameplate">
+      <div class="bc-player-name">${safe}</div>
+      <div class="bc-player-sub">${sub}</div>
+      ${draftSlot}
+    </div>
+    ${promoHtml}${analysisHtml}${apiHtml}
   </div>`;
 }
 
