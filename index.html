@@ -8810,9 +8810,9 @@ async function loadNewsCardStats(statsEl) {
   const playerName = statsEl.dataset.player;
   const isPit      = statsEl.dataset.ispitcher === '1';
   try {
-    const enc  = encodeURIComponent(playerName);
-    const sr   = await fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${enc}&sportIds=1,11,12,13,14,15,16`);
-    const sd   = await sr.json();
+    const enc    = encodeURIComponent(playerName);
+    const sr     = await fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${enc}&sportIds=1,11,12,13,14,15,16`);
+    const sd     = await sr.json();
     const person = sd.people && sd.people[0];
     if (!person) { statsEl.innerHTML = '<div class="news-empty">Stats unavailable</div>'; return; }
     const id = person.id;
@@ -8833,76 +8833,114 @@ async function loadNewsCardStats(statsEl) {
       shotEl.src = isMiLB ? milbUrl : mlbUrl;
     }
 
-    const today = new Date();
-    const fmtD  = d => d.toISOString().slice(0, 10);
-    const d30 = new Date(today); d30.setDate(d30.getDate() - 30);
-    const d7  = new Date(today); d7.setDate(d7.getDate() - 7);
-    const grp = isPit ? 'pitching' : 'hitting';
+    // Single gameLog fetch — covers MiLB + MLB, no gameType restriction
     const base = `https://statsapi.mlb.com/api/v1/people/${id}/stats`;
+    const grp  = isPit ? 'pitching' : 'hitting';
+    const glR  = await fetch(`${base}?stats=gameLog&season=2026&group=${grp}`).then(r=>r.json()).catch(()=>null);
+    const allGames = (glR && glR.stats && glR.stats[0] && glR.stats[0].splits) || [];
 
-    const [ytdR, l30R, l7R] = await Promise.all([
-      fetch(`${base}?stats=season&season=2026&group=${grp}&gameType=R`).then(r=>r.json()).catch(()=>null),
-      fetch(`${base}?stats=byDateRange&season=2026&group=${grp}&startDate=${fmtD(d30)}&endDate=${fmtD(today)}&gameType=R`).then(r=>r.json()).catch(()=>null),
-      fetch(`${base}?stats=byDateRange&season=2026&group=${grp}&startDate=${fmtD(d7)}&endDate=${fmtD(today)}&gameType=R`).then(r=>r.json()).catch(()=>null),
-    ]);
-
-    let gameLog = [];
-    if (isPit) {
-      const glR = await fetch(`${base}?stats=gameLog&season=2026&group=pitching&gameType=R`).then(r=>r.json()).catch(()=>null);
-      const all = (glR && glR.stats && glR.stats[0] && glR.stats[0].splits) || [];
-      gameLog = all.filter(s => s.stat && s.stat.gamesStarted >= 1);
+    if (!allGames.length) {
+      statsEl.innerHTML = '<div class="news-empty">No 2026 stats yet</div>';
+      return;
     }
 
-    const ytd = ytdR && ytdR.stats && ytdR.stats[0] && ytdR.stats[0].splits && ytdR.stats[0].splits[0] && ytdR.stats[0].splits[0].stat || null;
-    const l30 = l30R && l30R.stats && l30R.stats[0] && l30R.stats[0].splits && l30R.stats[0].splits[0] && l30R.stats[0].splits[0].stat || null;
-    const l7  = l7R  && l7R.stats  && l7R.stats[0]  && l7R.stats[0].splits  && l7R.stats[0].splits[0]  && l7R.stats[0].splits[0].stat  || null;
-    statsEl.innerHTML = buildNewsStatsHtml(ytd, l30, l7, gameLog, isPit);
+    const today = new Date();
+    const d30   = new Date(today); d30.setDate(d30.getDate() - 30);
+    const d7    = new Date(today); d7.setDate(d7.getDate() - 7);
+    const gDate = s => s.date ? new Date(s.date) : null;
+
+    if (!isPit) {
+      const l30Games = allGames.filter(s => { const d = gDate(s); return d && d >= d30; });
+      const l7Games  = allGames.filter(s => { const d = gDate(s); return d && d >= d7; });
+      statsEl.innerHTML = buildNewsStatsHtml([
+        { cls:'nsb-ytd', label:'2026 YTD', text: aggHitLog(allGames)   },
+        { cls:'nsb-l30', label:'Last 30',  text: aggHitLog(l30Games)   },
+        { cls:'nsb-l7',  label:'Last 7',   text: aggHitLog(l7Games)    },
+      ]);
+    } else {
+      const starts = allGames.filter(s => s.stat && s.stat.gamesStarted >= 1);
+      statsEl.innerHTML = buildNewsStatsHtml([
+        { cls:'nsb-ytd',  label:'2026 YTD',  text: aggPitLog(allGames)                                      },
+        { cls:'nsb-l5',   label:'L5 Starts', text: starts.length ? aggGameLog(starts.slice(-5)) : null      },
+        { cls:'nsb-last', label:'Last Start', text: starts.length ? fmtLastStart(starts[starts.length-1]) : null },
+      ]);
+    }
   } catch(e) {
     statsEl.innerHTML = '<div class="news-empty">Stats unavailable</div>';
   }
 }
 
-function fmtHitStat(s) {
-  if (!s) return null;
-  const parts = [];
-  if (s.gamesPlayed != null) parts.push(s.gamesPlayed + ' G');
-  if (s.avg)                 parts.push(parseFloat(s.avg).toFixed(3) + ' AVG');
-  if (s.obp)                 parts.push(parseFloat(s.obp).toFixed(3) + ' OBP');
-  if (s.slg)                 parts.push(parseFloat(s.slg).toFixed(3) + ' SLG');
-  if (s.homeRuns != null)    parts.push(s.homeRuns + ' HR');
-  if (s.rbi != null)         parts.push(s.rbi + ' RBI');
-  if (s.stolenBases != null) parts.push(s.stolenBases + ' SB');
-  return parts.length ? parts.join(' \xb7 ') : null;
+function aggHitLog(splits) {
+  if (!splits || !splits.length) return null;
+  let g = 0, ab = 0, h = 0, d2 = 0, t = 0, hr = 0, rbi = 0, sb = 0, bb = 0, hbp = 0, sf = 0;
+  splits.forEach(s => {
+    const st = s.stat || {};
+    g++;
+    ab  += st.atBats       || 0;
+    h   += st.hits         || 0;
+    d2  += st.doubles      || 0;
+    t   += st.triples      || 0;
+    hr  += st.homeRuns     || 0;
+    rbi += st.rbi          || 0;
+    sb  += st.stolenBases  || 0;
+    bb  += st.baseOnBalls  || 0;
+    hbp += st.hitByPitch   || 0;
+    sf  += st.sacFlies     || 0;
+  });
+  if (!g) return null;
+  const avg    = ab > 0 ? h / ab : null;
+  const obpDen = ab + bb + hbp + sf;
+  const obp    = obpDen > 0 ? (h + bb + hbp) / obpDen : null;
+  const tb     = (h - d2 - t - hr) + d2*2 + t*3 + hr*4;
+  const slg    = ab > 0 ? tb / ab : null;
+  const parts  = [g + ' G'];
+  if (avg !== null) parts.push(avg.toFixed(3) + ' AVG');
+  if (obp !== null) parts.push(obp.toFixed(3) + ' OBP');
+  if (slg !== null) parts.push(slg.toFixed(3) + ' SLG');
+  parts.push(hr + ' HR', rbi + ' RBI', sb + ' SB');
+  return parts.join(' \xb7 ');
 }
 
-function fmtPitStat(s) {
-  if (!s) return null;
-  const parts = [];
-  const g = s.gamesPlayed != null ? s.gamesPlayed : null;
-  const gs = s.gamesStarted != null ? s.gamesStarted : null;
-  if (g != null)               parts.push(g + ' G' + (gs != null ? '/' + gs + ' GS' : ''));
-  if (s.inningsPitched)        parts.push(s.inningsPitched + ' IP');
-  if (s.era)                   parts.push(parseFloat(s.era).toFixed(2) + ' ERA');
-  if (s.whip)                  parts.push(parseFloat(s.whip).toFixed(2) + ' WHIP');
-  if (s.strikeOuts != null)    parts.push(s.strikeOuts + ' K');
-  if (s.baseOnBalls != null)   parts.push(s.baseOnBalls + ' BB');
-  return parts.length ? parts.join(' \xb7 ') : null;
+function aggPitLog(splits) {
+  if (!splits || !splits.length) return null;
+  let outs = 0, er = 0, h = 0, bb = 0, so = 0, g = 0, gs = 0;
+  splits.forEach(s => {
+    const st = s.stat || {};
+    g++;
+    const ip = String(st.inningsPitched || '0');
+    const [w, f] = ip.split('.').map(Number);
+    outs += (w||0)*3 + (f||0);
+    er   += st.earnedRuns  || 0;
+    h    += st.hits        || 0;
+    bb   += st.baseOnBalls || 0;
+    so   += st.strikeOuts  || 0;
+    if (st.gamesStarted >= 1) gs++;
+  });
+  if (!g) return null;
+  const ipStr = Math.floor(outs/3) + '.' + (outs%3);
+  const ipDec = outs / 3;
+  const era   = ipDec > 0 ? ((er*9)/ipDec).toFixed(2) : '—';
+  const whip  = ipDec > 0 ? ((h+bb)/ipDec).toFixed(2) : '—';
+  return `${g} G/${gs} GS \xb7 ${ipStr} IP \xb7 ${era} ERA \xb7 ${whip} WHIP \xb7 ${so} K`;
 }
 
 function aggGameLog(splits) {
-  let outs = 0, er = 0, ha = 0, bb = 0, so = 0;
+  if (!splits || !splits.length) return null;
+  let outs = 0, er = 0, h = 0, bb = 0, so = 0;
   splits.forEach(s => {
     const ip = s.stat && s.stat.inningsPitched ? String(s.stat.inningsPitched) : '0';
     const [w, f] = ip.split('.').map(Number);
     outs += (w||0)*3 + (f||0);
-    er += (s.stat && s.stat.earnedRuns) || 0;
-    ha += (s.stat && s.stat.hits) || 0;
+    er += (s.stat && s.stat.earnedRuns)  || 0;
+    h  += (s.stat && s.stat.hits)        || 0;
     bb += (s.stat && s.stat.baseOnBalls) || 0;
-    so += (s.stat && s.stat.strikeOuts) || 0;
+    so += (s.stat && s.stat.strikeOuts)  || 0;
   });
+  const ipStr = Math.floor(outs/3) + '.' + (outs%3);
   const ipDec = outs / 3;
-  return splits.length + ' GS \xb7 ' + Math.floor(outs/3) + '.' + (outs%3) + ' IP \xb7 ' +
-    (ipDec > 0 ? ((er/ipDec)*9).toFixed(2) : '—') + ' ERA \xb7 ' + so + ' K';
+  const era   = ipDec > 0 ? ((er/ipDec)*9).toFixed(2) : '—';
+  const whip  = ipDec > 0 ? ((h+bb)/ipDec).toFixed(2) : '—';
+  return `${splits.length} GS \xb7 ${ipStr} IP \xb7 ${era} ERA \xb7 ${whip} WHIP \xb7 ${so} K`;
 }
 
 function fmtLastStart(s) {
@@ -8914,26 +8952,17 @@ function fmtLastStart(s) {
   const k   = s.stat && s.stat.strikeOuts  != null ? s.stat.strikeOuts  : '—';
   const er  = s.stat && s.stat.earnedRuns  != null ? s.stat.earnedRuns  : '—';
   const bb  = s.stat && s.stat.baseOnBalls != null ? s.stat.baseOnBalls : '—';
-  return dt + vs + ': ' + ip + ' IP, ' + k + ' K, ' + er + ' ER, ' + bb + ' BB';
+  return `${dt}${vs}: ${ip} IP, ${k} K, ${er} ER, ${bb} BB`;
 }
 
-function buildNewsStatsHtml(ytd, l30, l7, gameLog, isPit) {
-  const row = (cls, label, text) => text
-    ? `<div class="news-stat-row"><span class="news-stat-badge ${cls}">${label}</span><span class="news-stat-text">${text}</span></div>` : '';
-  if (!isPit) {
-    const a = fmtHitStat(ytd), b = fmtHitStat(l30), c = fmtHitStat(l7);
-    if (!a && !b && !c) return '<div class="news-empty">No 2026 stats yet</div>';
-    return '<div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Live 2026 Stats</div>' +
-      row('nsb-ytd','2026 YTD',a) + row('nsb-l30','Last 30',b) + row('nsb-l7','Last 7',c);
-  } else {
-    const a = fmtPitStat(ytd);
-    const l5 = gameLog.length ? aggGameLog(gameLog.slice(-5)) : null;
-    const lg = gameLog.length ? fmtLastStart(gameLog[gameLog.length-1]) : null;
-    if (!a && !l5 && !lg) return '<div class="news-empty">No 2026 stats yet</div>';
-    return '<div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Live 2026 Stats</div>' +
-      row('nsb-ytd','2026 YTD',a) + row('nsb-l5','L5 Starts',l5) + row('nsb-last','Last Start',lg);
-  }
+function buildNewsStatsHtml(rows) {
+  const formatted = rows.filter(r => r.text).map(r =>
+    `<div class="news-stat-row"><span class="news-stat-badge ${r.cls}">${r.label}</span><span class="news-stat-text">${r.text}</span></div>`
+  ).join('');
+  if (!formatted) return '<div class="news-empty">No 2026 stats yet</div>';
+  return '<div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Live 2026 Stats</div>' + formatted;
 }
+
 
 // ── Page init ─────────────────────────────────────────────────────────────────
 
