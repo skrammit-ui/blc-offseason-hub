@@ -1222,7 +1222,7 @@ input[type=file] { display: none; }
   color: var(--text-3); padding: 5px 0 8px; border-bottom: 1px solid var(--border); margin-bottom: 12px;
 }
 .news-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(400px,1fr)); gap: 14px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); gap: 10px;
 }
 @media (max-width:600px) { .news-grid { grid-template-columns: 1fr; } }
 .news-card {
@@ -1290,44 +1290,44 @@ input[type=file] { display: none; }
 .ncv2-card-milb  { border-top:3px solid #2563eb; }
 .ncv2-card-draft { border-top:3px solid #7c3aed; }
 .ncv2-card-asian { border-top:3px solid #d97706; }
-.ncv2-header { display:flex; align-items:flex-start; gap:12px; padding:14px 14px 10px; }
+.ncv2-header { display:flex; align-items:flex-start; gap:10px; padding:10px 12px 8px; }
 .ncv2-headshot-wrap {
-  flex-shrink:0; width:56px; height:74px; border-radius:7px; overflow:hidden;
+  flex-shrink:0; width:42px; height:56px; border-radius:6px; overflow:hidden;
   background:var(--bg); border:1px solid var(--border);
   display:flex; align-items:flex-end; justify-content:center;
 }
 .ncv2-shot { width:100%; height:100%; object-fit:contain; object-position:center bottom; }
 .ncv2-title-block { flex:1; min-width:0; }
-.ncv2-name { font-size:18px; font-weight:700; color:var(--navy); line-height:1.15; }
-.ncv2-sub  { font-size:12px; color:var(--text-2); margin-top:3px; }
-.ncv2-badge-group { display:flex; gap:5px; flex-wrap:wrap; align-items:flex-start; flex-shrink:0; }
-.ncv2-badge { font-size:11px; font-weight:600; padding:4px 11px; border-radius:16px; white-space:nowrap; }
+.ncv2-name { font-size:14px; font-weight:700; color:var(--navy); line-height:1.2; }
+.ncv2-sub  { font-size:11px; color:var(--text-2); margin-top:2px; }
+.ncv2-badge-group { display:flex; gap:4px; flex-wrap:wrap; align-items:flex-start; flex-shrink:0; }
+.ncv2-badge { font-size:10px; font-weight:600; padding:3px 8px; border-radius:12px; white-space:nowrap; }
 .ncv2-badge-monitor { background:#f3f4f6; color:#374151; border:1px solid #d1d5db; }
 .ncv2-badge-buy     { background:linear-gradient(135deg,#f97316,#f59e0b); color:#fff; }
 .ncv2-badge-pick    { background:linear-gradient(135deg,#4f46e5,#7c3aed); color:#fff; }
 .ncv2-badge-elite   { background:linear-gradient(135deg,#b45309,#d97706); color:#fff; }
-.ncv2-badge-watch   { background:linear-gradient(135deg,#f97316,#f59e0b); color:#fff; font-size:10px; }
+.ncv2-badge-watch   { background:linear-gradient(135deg,#f97316,#f59e0b); color:#fff; font-size:9px; }
 .ncv2-box-row {
   display:grid; grid-template-columns:repeat(3,1fr); gap:1px;
-  background:var(--border); margin:0 14px;
+  background:var(--border); margin:0 10px;
 }
 .ncv2-info-row { margin-bottom:1px; }
-.ncv2-stat-box, .ncv2-info-box { background:#f8f9fa; padding:10px 12px; }
+.ncv2-stat-box, .ncv2-info-box { background:#f8f9fa; padding:7px 9px; }
 .ncv2-stat-label, .ncv2-info-label {
-  font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
-  color:var(--text-3); margin-bottom:5px;
+  font-size:8px; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--text-3); margin-bottom:3px;
 }
-.ncv2-stat-line { font-size:12px; color:var(--text-1); line-height:1.5; font-weight:500; }
+.ncv2-stat-line { font-size:11px; color:var(--text-1); line-height:1.45; font-weight:500; }
 .ncv2-stat-line.hi { color:#16a34a; font-weight:700; }
-.ncv2-info-value { font-size:13px; font-weight:700; color:var(--navy); line-height:1.3; }
-.ncv2-promo-row { display:flex; align-items:center; gap:10px; padding:10px 14px; border-top:1px solid var(--border); }
-.ncv2-promo-label { font-size:11px; color:var(--text-2); flex-shrink:0; }
-.ncv2-promo-track { flex:1; height:5px; background:var(--border); border-radius:3px; overflow:hidden; }
+.ncv2-info-value { font-size:12px; font-weight:700; color:var(--navy); line-height:1.25; }
+.ncv2-promo-row { display:flex; align-items:center; gap:8px; padding:7px 12px; border-top:1px solid var(--border); }
+.ncv2-promo-label { font-size:10px; color:var(--text-2); flex-shrink:0; }
+.ncv2-promo-track { flex:1; height:4px; background:var(--border); border-radius:3px; overflow:hidden; }
 .ncv2-promo-fill  { height:100%; border-radius:3px; transition:width .8s ease; width:0; }
-.ncv2-promo-pct   { font-size:13px; font-weight:700; flex-shrink:0; }
-.ncv2-analysis { font-size:12.5px; color:var(--text-1); line-height:1.65; padding:12px 14px; border-top:1px solid var(--border); }
-.ncv2-api-stats { padding:10px 14px 12px; border-top:1px solid var(--border); background:#fafafa; }
-@media (max-width:600px) { .ncv2-box-row { grid-template-columns:1fr; } .ncv2-name { font-size:15px; } }
+.ncv2-promo-pct   { font-size:12px; font-weight:700; flex-shrink:0; }
+.ncv2-analysis { font-size:11.5px; color:var(--text-1); line-height:1.6; padding:8px 12px; border-top:1px solid var(--border); }
+.ncv2-api-stats { padding:7px 12px 10px; border-top:1px solid var(--border); background:#fafafa; }
+@media (max-width:600px) { .ncv2-box-row { grid-template-columns:1fr; } .ncv2-name { font-size:13px; } }
 </style>
 </head>
 <body>
@@ -2196,14 +2196,6 @@ input[type=file] { display: none; }
 </div>
 
 
-</main>
-</div>
-
-<!-- Edit popover -->
-<div id="edit-popover">
-  <div class="pop-label" id="pop-label">Round</div>
-  <div class="pop-grid" id="pop-grid"></div>
-</div>
 
 <!-- ════════════════════════════════════════
      PROSPECT HUB PAGE
@@ -2266,6 +2258,14 @@ input[type=file] { display: none; }
   </div>
 </div>
 
+</main>
+</div>
+
+<!-- Edit popover -->
+<div id="edit-popover">
+  <div class="pop-label" id="pop-label">Round</div>
+  <div class="pop-grid" id="pop-grid"></div>
+</div>
 <div id="toast"></div>
 
 <script>
@@ -8711,7 +8711,10 @@ function getNewsEntry(playerName) {
 function newsIsPitcher(player) {
   const nd = getNewsEntry(player.player);
   if (nd && nd.isPitcher !== undefined) return nd.isPitcher;
-  return isPitcher(player.position);
+  // isPitcher() requires ALL parts to be pitcher positions; here we just need ANY
+  const parts = (player.position || '').split(/[,\/]/).map(p => p.trim().toUpperCase()).filter(Boolean);
+  const pitSlots = new Set(['SP','RP','P','CP','CL']);
+  return parts.length > 0 && parts.some(p => pitSlots.has(p));
 }
 
 function buildStatBox(box) {
@@ -8783,7 +8786,7 @@ function buildNewsCard(player, nd, section) {
   const shotHtml = `<div class="ncv2-headshot-wrap"><img class="ncv2-shot" data-player="${safe}" data-ismilb="${isMiLBp?'1':'0'}" src="${HEADSHOT_PLACEHOLDER}" loading="lazy" style="width:100%;height:100%;object-fit:contain;object-position:center bottom"></div>`;
 
   // API stats area (MiLB + Asian MLB; not for draft HS/college with no MLB ID)
-  const showApiStats = nd && nd.category !== 'draft';
+  const showApiStats = section !== 'draft';
   const apiHtml = showApiStats
     ? `<div class="ncv2-api-stats news-stats-area" data-player="${safe}" data-ispitcher="${pit?'1':'0'}"><div class="news-empty">Loading 2026 stats…</div></div>`
     : '';
