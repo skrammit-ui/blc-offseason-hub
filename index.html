@@ -1222,8 +1222,9 @@ input[type=file] { display: none; }
   color: var(--text-3); padding: 5px 0 8px; border-bottom: 1px solid var(--border); margin-bottom: 12px;
 }
 .news-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(210px,1fr)); gap: 12px;
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 12px;
 }
+@media (max-width:960px) { .news-grid { grid-template-columns: repeat(2,1fr); } }
 @media (max-width:600px) { .news-grid { grid-template-columns: 1fr; } }
 .news-card {
   background: #fff; border-radius: 10px; border: 1px solid var(--border);
@@ -1341,7 +1342,15 @@ input[type=file] { display: none; }
 .ncv2-promo-fill  { height:100%; border-radius:3px; transition:width .8s ease; width:0; }
 .ncv2-promo-pct   { font-size:12px; font-weight:700; flex-shrink:0; }
 .ncv2-analysis { font-size:11.5px; color:var(--text-1); line-height:1.6; padding:8px 12px; border-top:1px solid var(--border); }
-.ncv2-api-stats { padding:7px 12px 10px; border-top:1px solid var(--border); background:#fafafa; }
+.ncv2-api-stats { padding:6px 10px 8px; border-top:1px solid var(--border); background:#fafafa; }
+.bc-stats-tbl { width:100%; border-collapse:collapse; font-size:10px; font-family:var(--mono); }
+.bc-stats-tbl thead tr { background:#f1f3f5; }
+.bc-stats-tbl th { font-size:9px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--text-3); padding:4px 5px; text-align:center; border-bottom:1px solid var(--border); }
+.bc-stats-tbl th:first-child { text-align:left; }
+.bc-stats-tbl td { padding:3px 5px; color:var(--text-1); text-align:center; border-bottom:1px solid var(--border); font-size:10px; }
+.bc-stats-tbl td.sc { text-align:left; font-weight:700; color:var(--text-3); font-size:8.5px; letter-spacing:.04em; text-transform:uppercase; width:26px; }
+.bc-stats-tbl tbody tr:last-child td { border-bottom:none; }
+.bc-stats-tbl tbody tr:nth-child(even) { background:#f8f9fb; }
 @media (max-width:600px) { .ncv2-box-row { grid-template-columns:1fr; } .ncv2-name { font-size:13px; } }
 </style>
 </head>
@@ -8831,7 +8840,7 @@ function buildNewsCard(player, nd, section) {
       <div class="bc-player-sub">${sub}</div>
       ${draftSlot}
     </div>
-    ${promoHtml}${analysisHtml}${apiHtml}
+    ${apiHtml}${promoHtml}${analysisHtml}
   </div>`;
 }
 
@@ -8907,85 +8916,73 @@ async function loadNewsCardStats(statsEl) {
     if (!isPit) {
       const l30Games = allGames.filter(s => { const d = gDate(s); return d && d >= d30; });
       const l7Games  = allGames.filter(s => { const d = gDate(s); return d && d >= d7; });
-      statsEl.innerHTML = buildNewsStatsHtml([
-        fmtHitBox(allGames,  '2026 YTD'),
-        fmtHitBox(l30Games,  'Last 30'),
-        fmtHitBox(l7Games,   'Last 7'),
-      ]);
+      statsEl.innerHTML = buildStatsTable(allGames, l30Games, l7Games, 'L30', 'L7', false);
     } else {
       const starts = allGames.filter(s => s.stat && s.stat.gamesStarted >= 1);
-      statsEl.innerHTML = buildNewsStatsHtml([
-        fmtPitBox(allGames,         '2026 YTD'),
-        fmtPitBox(starts.slice(-5), 'L5 Starts'),
-        fmtLastStartBox(starts[starts.length - 1]),
-      ]);
+      const lastSt = starts.length ? [starts[starts.length - 1]] : [];
+      statsEl.innerHTML = buildStatsTable(allGames, starts.slice(-5), lastSt, 'L5', 'Last', true);
     }
   } catch(e) {
     statsEl.innerHTML = '<div class="news-empty">Stats unavailable</div>';
   }
 }
 
-function fmtHitBox(splits, label) {
-  if (!splits || !splits.length) return { label, lines: ['—', '—', '—'], hi: null };
-  let g=0, ab=0, h=0, d2=0, t=0, hr=0, rbi=0, sb=0, bb=0, hbp=0, sf=0;
+function computeHitStats(splits) {
+  if (!splits || !splits.length) return null;
+  let ab=0, h=0, d2=0, t=0, hr=0, rbi=0, sb=0, bb=0, hbp=0, sf=0, r=0;
   splits.forEach(s => {
     const st = s.stat || {};
-    g++; ab+=st.atBats||0; h+=st.hits||0; d2+=st.doubles||0; t+=st.triples||0;
+    ab+=st.atBats||0; h+=st.hits||0; d2+=st.doubles||0; t+=st.triples||0;
     hr+=st.homeRuns||0; rbi+=st.rbi||0; sb+=st.stolenBases||0;
-    bb+=st.baseOnBalls||0; hbp+=st.hitByPitch||0; sf+=st.sacFlies||0;
+    bb+=st.baseOnBalls||0; hbp+=st.hitByPitch||0; sf+=st.sacFlies||0; r+=st.runs||0;
   });
-  const avg  = ab > 0 ? (h/ab).toFixed(3) : '—';
   const obpD = ab+bb+hbp+sf;
-  const obp  = obpD > 0 ? ((h+bb+hbp)/obpD).toFixed(3) : '—';
-  const tb   = (h-d2-t-hr) + d2*2 + t*3 + hr*4;
-  const slg  = ab > 0 ? (tb/ab).toFixed(3) : '—';
-  return { label, hi:null, lines: [
-    g + ' G \xb7 ' + avg + ' AVG',
-    obp + ' OBP \xb7 ' + slg + ' SLG',
-    hr + ' HR \xb7 ' + rbi + ' RBI \xb7 ' + sb + ' SB',
-  ]};
+  return {
+    hab: h+'/'+ab, r, hr, rbi, sb,
+    obp: obpD>0 ? ((h+bb+hbp)/obpD).toFixed(3) : '—',
+  };
 }
 
-function fmtPitBox(splits, label) {
-  if (!splits || !splits.length) return { label, lines: ['—', '—', '—'], hi: null };
-  let outs=0, er=0, h=0, bb=0, so=0, g=0, gs=0;
+function computePitStats(splits) {
+  if (!splits || !splits.length) return null;
+  let outs=0, er=0, h=0, bb=0, so=0, gs=0, sv=0, hld=0, qs=0;
   splits.forEach(s => {
     const st = s.stat || {};
-    g++;
     const ip = String(st.inningsPitched||'0'); const [w,f] = ip.split('.').map(Number);
-    outs += (w||0)*3+(f||0); er+=st.earnedRuns||0; h+=st.hits||0;
+    const o = (w||0)*3+(f||0);
+    outs+=o; er+=st.earnedRuns||0; h+=st.hits||0;
     bb+=st.baseOnBalls||0; so+=st.strikeOuts||0;
-    if (st.gamesStarted>=1) gs++;
+    sv+=st.saves||0; hld+=st.holds||0;
+    if (st.gamesStarted>=1) { gs++; if (o>=18 && (st.earnedRuns||0)<=3) qs++; }
   });
-  const ipStr = Math.floor(outs/3)+'.'+outs%3;
-  const ipD   = outs/3;
-  const era   = ipD>0 ? ((er*9)/ipD).toFixed(2) : '—';
-  const whip  = ipD>0 ? ((h+bb)/ipD).toFixed(2) : '—';
-  return { label, hi:null, lines: [
-    g + ' G/' + gs + ' GS \xb7 ' + ipStr + ' IP',
-    era + ' ERA \xb7 ' + whip + ' WHIP',
-    so + ' K \xb7 ' + bb + ' BB',
-  ]};
+  const ipD = outs/3;
+  return {
+    ip:   Math.floor(outs/3)+'.'+outs%3,
+    k:    so,
+    k9:   ipD>0 ? ((so*9)/ipD).toFixed(1)  : '—',
+    qs:   gs>0  ? qs : '—',
+    svh:  sv+hld || '—',
+    era:  ipD>0 ? ((er*9)/ipD).toFixed(2)  : '—',
+    whip: ipD>0 ? ((h+bb)/ipD).toFixed(2)  : '—',
+  };
 }
 
-function fmtLastStartBox(s) {
-  if (!s) return { label: 'Last Start', lines: ['—', '—', '—'], hi: null };
-  const dt  = s.date ? s.date.slice(5).replace('-','/') : '—';
-  const opp = (s.opponent && s.opponent.abbreviation) || '';
-  const vs  = opp ? (s.isHome ? 'vs ' : '@ ') + opp : '';
-  const ip  = (s.stat && s.stat.inningsPitched) || '—';
-  const k   = s.stat && s.stat.strikeOuts  != null ? s.stat.strikeOuts  : '—';
-  const er  = s.stat && s.stat.earnedRuns  != null ? s.stat.earnedRuns  : '—';
-  const bb  = s.stat && s.stat.baseOnBalls != null ? s.stat.baseOnBalls : '—';
-  return { label: 'Last Start', hi:null, lines: [dt + (vs?' \xb7 '+vs:''), ip+' IP \xb7 '+k+' K', er+' ER \xb7 '+bb+' BB'] };
-}
-
-function buildNewsStatsHtml(boxes) {
-  const allEmpty = boxes.every(b => b.lines.every(l => l === '—'));
-  if (allEmpty) return '<div class="news-empty">No 2026 stats yet</div>';
-  const hdr  = '<div style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:0 0 4px">Live 2026 Stats</div>';
-  const grid = '<div class="ncv2-box-row" style="margin-bottom:0">' + boxes.map(buildStatBox).join('') + '</div>';
-  return hdr + grid;
+function buildStatsTable(ytd, c2, c3, c2Lbl, c3Lbl, isPit) {
+  const dash = '—';
+  const v = (obj, key) => { if (!obj) return dash; const x = obj[key]; return x != null ? x : dash; };
+  const rows = isPit
+    ? [['IP','ip'],['K','k'],['K/9','k9'],['QS','qs'],['SVH','svh'],['ERA','era'],['WHIP','whip']]
+    : [['H/AB','hab'],['R','r'],['HR','hr'],['RBI','rbi'],['SB','sb'],['OBP','obp']];
+  const a = isPit ? computePitStats(ytd) : computeHitStats(ytd);
+  const b = isPit ? computePitStats(c2)  : computeHitStats(c2);
+  const c = isPit ? computePitStats(c3)  : computeHitStats(c3);
+  if (!a && !b && !c) return '<div class="news-empty">No 2026 stats yet</div>';
+  const hdr = '<div style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:0 0 4px">2026 Stats</div>';
+  const hdrs = '<tr><th></th><th>YTD</th><th>'+c2Lbl+'</th><th>'+c3Lbl+'</th></tr>';
+  const body = rows.map(([lbl,key]) =>
+    '<tr><td class="sc">'+lbl+'</td><td>'+v(a,key)+'</td><td>'+v(b,key)+'</td><td>'+v(c,key)+'</td></tr>'
+  ).join('');
+  return hdr+'<table class="bc-stats-tbl"><thead>'+hdrs+'</thead><tbody>'+body+'</tbody></table>';
 }
 
 
