@@ -8527,26 +8527,18 @@ function downloadUpdatedHTML() {
 
 const NEWS_DATA = {
   // === MILB: Position corrections + analysis ===
-  'Reddemann': {
-    category:'milb', isPitcher:true, positionDisplay:'SP', level:'AA',
-    promotionLabel:'MLB Call-Up Probability (2026)', promotionProb:0.40,
-    actionBadge:'monitor', actionText:'Monitor', sentiment:'Rising',
-    statBoxes:[
-      {label:'2026 YTD',     lines:['Active in Double-A','Building innings this spring','Command is the key metric'],      hi:null},
-      {label:'Scouting',     lines:['FB: 94–97 mph · Heavy sink','SL: Plus with late tilt','CH: In development'],          hi:null},
-      {label:'Ceiling/Floor',lines:['Ceiling: No. 3 Starter','Floor: High-leverage RP','Timeline: 2026–2027'],            hi:null},
-    ],
+  'Logan Reddemann': {
+    category:'draft', isPitcher:true, positionDisplay:'SP',
+    school:'TBD', draftClass:'2026 MLB Draft',
+    promotionLabel:'MLB Debut Probability (Post-Draft)', promotionProb:0.30,
+    actionBadge:'monitor', actionText:'Monitor',
     analysis:"Hard-throwing right-hander with a heavy four-seam fastball sitting 94–97 mph. His slider generates consistent swing-and-miss with late tilt. Command and changeup development are the keys separating a rotation future from a high-leverage relief role. The raw stuff is real — this is a refinement story worth close monitoring.",
   },
-  'Pence': {
-    category:'milb', isPitcher:true, positionDisplay:'SP', level:'A+',
-    promotionLabel:'MLB Call-Up Probability (2026)', promotionProb:0.45,
-    actionBadge:'monitor', actionText:'Monitor', sentiment:'Bullish',
-    statBoxes:[
-      {label:'2026 YTD',     lines:['Active in High-A','Strong early outings','Command profile solid'],                    hi:null},
-      {label:'Scouting',     lines:['FB: 92–95 mph · Natural run','CB: Plus — elite chase rate','CH: Above average'],     hi:null},
-      {label:'Ceiling/Floor',lines:['Ceiling: No. 2–3 Starter','Floor: Mid-rotation arm','Timeline: 2026'],               hi:null},
-    ],
+  'Striker Pence': {
+    category:'draft', isPitcher:true, positionDisplay:'SP',
+    school:'TBD', draftClass:'2026 MLB Draft',
+    promotionLabel:'MLB Debut Probability (Post-Draft)', promotionProb:0.30,
+    actionBadge:'monitor', actionText:'Monitor',
     analysis:"Athletic right-hander with impressive spin efficiency and a natural four-pitch mix. The fastball/curveball combination generates elite chase rates. Repeats his delivery well, giving him above-average command. Mid-rotation starter floor with legitimate upside if the changeup continues to develop into a true third offering.",
   },
   'Henry Bolte': {
@@ -8593,7 +8585,7 @@ const NEWS_DATA = {
     analysis:'Junior year has been a monster. Barrel rate jumped from 17% → 27%; power profile completely changed. Two-way athleticism (plays multiple positions in emergencies). Buster Posey Award Watch List — Posey, Varitek, Wieters pedigree from Georgia Tech catching. Adley Rutschman comp. Premier dynasty asset in any league that drafts amateurs.',
   },
   'Jared Grindlinger': {
-    category:'draft', isPitcher:false, positionDisplay:'1B/LHP/OF',
+    category:'draft', isPitcher:true,  positionDisplay:'P/1B',
     school:'Huntington Beach HS (CA)', schoolYear:"Class 2026 (reclassified from ’27)", draftClass:'2026 MLB Draft',
     watchList:false, actionBadge:'pick', actionText:'Top 15–17 Pick', sentiment:'Rising',
     infoBoxes:[
@@ -8609,7 +8601,7 @@ const NEWS_DATA = {
     analysis:"Youngest early-round prospect in the class; reclassified from 2027 just this February. Two-way talent with legitimate first-round tools on both sides. Teams lean toward taking him as a hitter. Committed to Tennessee but signability plays a role in where he goes. High ceiling, wide range of outcomes — dynasty: stash and hold.",
   },
   'Chase Burns': {
-    category:'draft', isPitcher:true, positionDisplay:'SP',
+    category:'mlb', isPitcher:true, positionDisplay:'SP',
     school:'Wake Forest', schoolYear:'2024 Draft', draftClass:'2024 MLB Draft',
     watchList:false, actionBadge:'elite', actionText:'Ace Track', sentiment:'Elite',
     infoBoxes:[
@@ -8626,7 +8618,7 @@ const NEWS_DATA = {
     analysis:"The consensus top arm from the 2024 class already projects as a near-term MLB ace. His 99 mph fastball/slider combo is historically elite for a college arm, and his advanced command allows him to operate effectively at the top of every count. A mid-2026 MLB debut is realistic — this is a dynasty cornerstone.",
   },
   'Hagen Smith': {
-    category:'draft', isPitcher:true, positionDisplay:'SP',
+    category:'milb', isPitcher:true, positionDisplay:'SP',
     school:'Arkansas', schoolYear:'2024 Draft', draftClass:'2024 MLB Draft',
     watchList:false, actionBadge:'pick', actionText:'Top 10 Pick', sentiment:'Rising',
     infoBoxes:[
@@ -8643,7 +8635,7 @@ const NEWS_DATA = {
     analysis:"Left-hander with a devastating slider that generates plus chase rates at every level. Ability to miss bats with multiple pitches gives him a high floor. Command is above-average for a college arm, and he has shown durability working deep into starts. Mid-rotation floor with legitimate upside.",
   },
   'Jac Caglianone': {
-    category:'draft', isPitcher:false, positionDisplay:'1B',
+    category:'milb', isPitcher:false, positionDisplay:'1B',
     school:'Florida', schoolYear:'2024 Draft', draftClass:'2024 MLB Draft',
     watchList:false, actionBadge:'monitor', actionText:'Monitor', sentiment:'Bullish',
     infoBoxes:[
@@ -8659,10 +8651,24 @@ const NEWS_DATA = {
     promotionProb:0.65, promotionLabel:'MLB Debut Probability (2026)',
     analysis:"Most electric raw power in the 2024 draft class. The Royals are developing him as a first baseman, and his in-game power has translated immediately to pro ball. 70-grade raw power is the calling card; if he cuts the strikeout rate, this is a 35-HR upside player at a premium fantasy position.",
   },
+  'Cameron Flukey': {
+    category:'draft', isPitcher:true, positionDisplay:'SP',
+    school:'TBD', draftClass:'2026 MLB Draft',
+    promotionLabel:'MLB Debut Probability (Post-Draft)', promotionProb:0.25,
+    actionBadge:'monitor', actionText:'Monitor',
+    analysis:"2026 draft-eligible right-hander with intriguing arm strength and a projectable frame. Evaluators note fast-developing secondary pitches and a competitive approach on the mound. A name to watch closely through the spring draft window as teams determine where he fits in the first few rounds.",
+  },
+  'Cade Townsend': {
+    category:'draft', isPitcher:true, positionDisplay:'SP',
+    school:'TBD', draftClass:'2026 MLB Draft',
+    promotionLabel:'MLB Debut Probability (Post-Draft)', promotionProb:0.25,
+    actionBadge:'monitor', actionText:'Monitor',
+    analysis:"Hard-throwing 2026 draft prospect whose fastball plays above its raw velocity thanks to elite extension and spin. Secondary pitches are still developing but flash enough to project as a mid-rotation starter. High-upside arm with a wide range of outcomes depending on signing bonus and where he develops.",
+  },
 
   // === ASIAN / INTERNATIONAL ===
   'Roki Sasaki': {
-    category:'asian', isPitcher:true, positionDisplay:'SP',
+    category:'mlb', isPitcher:true, positionDisplay:'SP',
     org:'Los Angeles Dodgers', level:'MLB',
     promotionProb:1.0, promotionLabel:'Established MLB Status',
     actionBadge:'elite', actionText:'Ace', sentiment:'Elite',
@@ -8674,7 +8680,7 @@ const NEWS_DATA = {
     analysis:"One of the most electrifying arms to emerge from NPB in a generation. His splitter is arguably the best pitch in baseball. The fastball sits 98–101 mph with exceptional ride. Still on a favorable team-controlled deal due to international posting rules. Future Cy Young winner — dynasty cornerstone.",
   },
   'Yoshinobu Yamamoto': {
-    category:'asian', isPitcher:true, positionDisplay:'SP',
+    category:'mlb', isPitcher:true, positionDisplay:'SP',
     org:'Los Angeles Dodgers', level:'MLB',
     promotionProb:1.0, promotionLabel:'Established MLB Status',
     actionBadge:'elite', actionText:'Ace', sentiment:'Elite',
@@ -8686,7 +8692,7 @@ const NEWS_DATA = {
     analysis:"The $325M investment is fully justified. Commands four pitches to four quadrants with elite efficiency; plus-plus splitter is his primary out pitch. When healthy, a top-5 pitcher in baseball. Monitor workload carefully — his 2024 injury adds meaningful risk but the ceiling is undeniable.",
   },
   'Jung Hoo Lee': {
-    category:'asian', isPitcher:false, positionDisplay:'OF',
+    category:'mlb', isPitcher:false, positionDisplay:'OF',
     org:'San Francisco Giants', level:'MLB',
     promotionProb:1.0, promotionLabel:'Established MLB Status',
     actionBadge:'monitor', actionText:'Monitor', sentiment:'Bullish',
@@ -8698,7 +8704,7 @@ const NEWS_DATA = {
     analysis:"Elite contact hitter whose KBO excellence translated faster than almost any recent position player. Pitch recognition is exceptional and he makes consistent hard contact to all fields. Plus defender in CF. The speed/contact/defense combination keeps his floor extremely high — target for AVG/SB categories.",
   },
   'Hyeseong Kim': {
-    category:'asian', isPitcher:false, positionDisplay:'SS/2B',
+    category:'mlb', isPitcher:false, positionDisplay:'SS/2B',
     org:'Los Angeles Dodgers', level:'MLB',
     promotionProb:1.0, promotionLabel:'Established MLB Status',
     actionBadge:'buy', actionText:'Buy Now', sentiment:'Rising',
@@ -8710,7 +8716,7 @@ const NEWS_DATA = {
     analysis:"KBO's most prolific stolen base artist brings genuine 30–40 SB upside to fantasy rosters. Contact approach has translated well, and plate discipline is better than advertised. Defensive versatility at SS/2B gives him everyday utility value. The buy window is now before his speed is fully priced in.",
   },
   'Seok-Min Oh': {
-    category:'asian', isPitcher:true, positionDisplay:'SP',
+    category:'milb', isPitcher:true, positionDisplay:'SP',
     org:'St. Louis Cardinals', level:'AAA',
     promotionProb:0.65, promotionLabel:'MLB Debut Probability (2026)',
     actionBadge:'monitor', actionText:'Monitor', sentiment:'Bullish',
@@ -8720,6 +8726,13 @@ const NEWS_DATA = {
       {label:'MLB Path',     lines:['AAA assignment: Spring 2026','Debut window: Mid-2026','Cardinals need rotation depth'],  hi:null},
     ],
     analysis:"KBO's dominant right-hander arrived in the Cardinals system with an outstanding professional track record. His splitter is a genuine MLB-caliber out pitch, and his fastball command is exceptional. Historical comps for pitchers of this profile transitioning from KBO are encouraging — a mid-2026 MLB debut is very achievable.",
+  },
+  'Astuki Taneichi': {
+    category:'asian', isPitcher:true, positionDisplay:'SP',
+    org:'NPB / Pre-MLB', level:'NPB',
+    promotionLabel:'MLB Posting Probability (2026–2027)', promotionProb:0.45,
+    actionBadge:'monitor', actionText:'Monitor',
+    analysis:"Japanese right-hander drawing serious MLB scouting attention as a near-term posting candidate. Evaluators highlight advanced pitch sequencing, a deep four-pitch arsenal, and exceptional command for his age. Historical NPB-to-MLB comps at his profile are encouraging. A dynasty asset worth acquiring ahead of his eventual posting announcement.",
   },
   'Teruaki Sato': {
     category:'asian', isPitcher:false, positionDisplay:'OF/1B',
@@ -8740,7 +8753,9 @@ const NEWS_DATA = {
 function getNewsEntry(playerName) {
   if (NEWS_DATA[playerName]) return NEWS_DATA[playerName];
   const last = playerName.trim().split(' ').pop();
-  return NEWS_DATA[last] || null;
+  if (NEWS_DATA[last]) return NEWS_DATA[last];
+  const byLast = Object.entries(NEWS_DATA).find(([k]) => k.split(' ').pop() === last);
+  return byLast ? byLast[1] : null;
 }
 
 function newsIsPitcher(player) {
