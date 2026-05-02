@@ -1307,6 +1307,10 @@ input[type=file] { display: none; }
 .ncv2-badge-pick    { background:linear-gradient(135deg,#4f46e5,#7c3aed); color:#fff; }
 .ncv2-badge-elite   { background:linear-gradient(135deg,#b45309,#d97706); color:#fff; }
 .ncv2-badge-watch   { background:linear-gradient(135deg,#f97316,#f59e0b); color:#fff; font-size:9px; }
+.ncv2-badge-hold    { background:linear-gradient(135deg,#16a34a,#15803d); color:#fff; }
+.ncv2-badge-wait    { background:linear-gradient(135deg,#0ea5e9,#0284c7); color:#fff; }
+.ncv2-badge-stash   { background:linear-gradient(135deg,#7c3aed,#4f46e5); color:#fff; }
+.ncv2-badge-sell    { background:linear-gradient(135deg,#dc2626,#b91c1c); color:#fff; }
 .ncv2-box-row {
   display:grid; grid-template-columns:repeat(3,1fr); gap:1px;
   background:var(--border); margin:0 10px;
@@ -8697,6 +8701,18 @@ const NEWS_DATA = {
     ],
     analysis:"KBO's dominant right-hander arrived in the Cardinals system with an outstanding professional track record. His splitter is a genuine MLB-caliber out pitch, and his fastball command is exceptional. Historical comps for pitchers of this profile transitioning from KBO are encouraging — a mid-2026 MLB debut is very achievable.",
   },
+  'Teruaki Sato': {
+    category:'asian', isPitcher:false, positionDisplay:'OF/1B',
+    org:'TBD (MLB Organization)', level:'MiLB',
+    promotionProb:0.60, promotionLabel:'MLB Debut Probability (2026)',
+    actionBadge:'buy', actionText:'Buy Now', sentiment:'Bullish',
+    statBoxes:[
+      {label:'NPB Career (Hanshin)', lines:['4 seasons · .262 AVG','87 HR · Power: 70 grade','Speed: 55 · K% trending up'],      hi:0},
+      {label:'Scouting Report',     lines:['Raw Power: 75 grade (elite)','BB% rising — plate discipline+','OF/1B positional flex'], hi:null},
+      {label:'MLB Outlook',         lines:['30–35 HR ceiling at MLB level','LHP platoon split: watch','Timeline: 2026 MLB debut'],   hi:null},
+    ],
+    analysis:"One of NPB\'s premier power bats over four seasons with Hanshin. His raw power grades elite — 75 grade by most evaluations — and his walk rate has climbed every year, signaling real plate discipline growth. If promoted to MLB, 30+ HR potential makes him a must-roster asset. Buy early before mainstream fantasy prices him in.",
+  },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -8729,7 +8745,7 @@ function buildInfoBox(box) {
 
 function buildActionBadge(style, text) {
   if (!style || !text) return '';
-  const cls = { monitor:'ncv2-badge-monitor', buy:'ncv2-badge-buy', pick:'ncv2-badge-pick', elite:'ncv2-badge-elite' }[style] || 'ncv2-badge-monitor';
+  const cls = { monitor:'ncv2-badge-monitor', buy:'ncv2-badge-buy', pick:'ncv2-badge-pick', elite:'ncv2-badge-elite', hold:'ncv2-badge-hold', wait:'ncv2-badge-wait', stash:'ncv2-badge-stash', sell:'ncv2-badge-sell' }[style] || 'ncv2-badge-monitor';
   const prefix = style === 'buy' ? '🔥 ' : '';
   return `<span class="ncv2-badge ${cls}">${prefix}${escHtml(text)}</span>`;
 }
@@ -8755,7 +8771,7 @@ function buildNewsCard(player, nd, section) {
   // Badges
   const watchBadge  = nd && nd.watchList && nd.watchBadgeText
     ? `<span class="ncv2-badge ncv2-badge-watch">🔥 ${escHtml(nd.watchBadgeText)}</span>` : '';
-  const actionBadge = nd ? buildActionBadge(nd.actionBadge, nd.actionText) : '';
+  const actionBadge = nd ? buildActionBadge(nd.actionBadge, nd.actionText) : buildActionBadge('monitor', 'Monitor');
 
   // Box rows
   const infoHtml  = isDraft && nd && nd.infoBoxes
@@ -8763,13 +8779,15 @@ function buildNewsCard(player, nd, section) {
   const statHtml  = nd && nd.statBoxes
     ? `<div class="ncv2-box-row" style="margin-top:1px">${nd.statBoxes.map(buildStatBox).join('')}</div>` : '';
 
-  // Promo bar
+  // Promo bar — always show for MiLB; default 20% if no NEWS_DATA entry
   let promoHtml = '';
-  if (nd && nd.promotionProb !== null && nd.promotionProb !== undefined) {
-    const pct = Math.round(nd.promotionProb * 100);
+  const promoProb  = (nd && nd.promotionProb != null) ? nd.promotionProb : (section === 'milb' ? 0.20 : null);
+  const promoLabel = (nd && nd.promotionLabel) || 'MLB Call-Up Probability (2026)';
+  if (promoProb !== null) {
+    const pct = Math.round(promoProb * 100);
     const col = pct >= 70 ? '#16a34a' : pct >= 45 ? '#d97706' : '#dc2626';
     promoHtml = `<div class="ncv2-promo-row">
-      <span class="ncv2-promo-label">${escHtml((nd && nd.promotionLabel) || 'Promotion Probability')}</span>
+      <span class="ncv2-promo-label">${escHtml(promoLabel)}</span>
       <div class="ncv2-promo-track"><div class="ncv2-promo-fill" data-w="${pct}" style="background:${col}"></div></div>
       <span class="ncv2-promo-pct" style="color:${col}">${pct}%</span>
     </div>`;
@@ -8832,11 +8850,23 @@ async function loadNewsCardStats(statsEl) {
       shotEl.src = isMiLB ? milbUrl : mlbUrl;
     }
 
-    // Single gameLog fetch — covers MiLB + MLB, no gameType restriction
-    const base = `https://statsapi.mlb.com/api/v1/people/${id}/stats`;
-    const grp  = isPit ? 'pitching' : 'hitting';
-    const glR  = await fetch(`${base}?stats=gameLog&season=2026&group=${grp}`).then(r=>r.json()).catch(()=>null);
-    const allGames = (glR && glR.stats && glR.stats[0] && glR.stats[0].splits) || [];
+    // Use player's sport level so MiLB players get minor-league game logs
+    const sportId = (person.sport && person.sport.id) || 1;
+    const base    = `https://statsapi.mlb.com/api/v1/people/${id}/stats`;
+    const grp     = isPit ? 'pitching' : 'hitting';
+
+    // Fetch with explicit sportId; fall back without it (e.g. player promoted mid-season)
+    let allGames = [];
+    const tryFetch = async url => {
+      const r = await fetch(url).then(x=>x.json()).catch(()=>null);
+      // Collect splits across all stat entries (handles multi-level seasons)
+      return ((r && r.stats) || []).flatMap(s => s.splits || []);
+    };
+    allGames = await tryFetch(`${base}?stats=gameLog&season=2026&group=${grp}&sportId=${sportId}`);
+    if (!allGames.length) {
+      // Try without sportId — catches MLB players and edge cases
+      allGames = await tryFetch(`${base}?stats=gameLog&season=2026&group=${grp}`);
+    }
 
     if (!allGames.length) {
       statsEl.innerHTML = '<div class="news-empty">No 2026 stats yet</div>';
@@ -8971,7 +9001,11 @@ function initNewsPage() {
 
   // MiLB: only currentTeam players
   const myPlayers = LEAGUE[currentTeam] || [];
-  const milbAll   = myPlayers.filter(p => (STATUS_MAP[p.status] || 'MLB') === 'MiLB');
+  const milbAll   = myPlayers.filter(p => {
+    if ((STATUS_MAP[p.status] || 'MLB') !== 'MiLB') return false;
+    const _nd = getNewsEntry(p.player);
+    return !_nd || !_nd.category || _nd.category === 'milb';
+  });
   const milbHit   = milbAll.filter(p => !newsIsPitcher(p));
   const milbPit   = milbAll.filter(p =>  newsIsPitcher(p));
 
