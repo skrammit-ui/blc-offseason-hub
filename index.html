@@ -8753,11 +8753,11 @@ function buildActionBadge(style, text) {
 function buildNewsCard(player, nd, section) {
   const name    = (player && player.player) || '?';
   const pos     = (nd && (nd.positionDisplay || nd.positionOverride)) || (player && player.position) || '';
-  const pit     = (nd && nd.isPitcher !== undefined) ? nd.isPitcher : isPitcher(pos);
+  const pit     = (nd && nd.isPitcher !== undefined) ? nd.isPitcher : newsIsPitcherPos(pos);
   const isDraft = section === 'draft';
   const safe    = escHtml(name);
 
-  // Subtitle
+  // Subtitle row under name
   let sub;
   if (isDraft) {
     sub = [pos, nd && nd.school, nd && nd.schoolYear, nd && nd.draftClass].filter(Boolean).map(escHtml).join(' \xb7 ');
@@ -8768,43 +8768,60 @@ function buildNewsCard(player, nd, section) {
     sub = [pos, org, level, age].filter(Boolean).map(escHtml).join(' \xb7 ');
   }
 
-  // Badges
+  // Badges — always show at least Monitor
   const watchBadge  = nd && nd.watchList && nd.watchBadgeText
     ? `<span class="ncv2-badge ncv2-badge-watch">🔥 ${escHtml(nd.watchBadgeText)}</span>` : '';
-  const actionBadge = nd ? buildActionBadge(nd.actionBadge, nd.actionText) : buildActionBadge('monitor', 'Monitor');
+  const actionBadge = buildActionBadge(
+    (nd && nd.actionBadge) || 'monitor',
+    (nd && nd.actionText)  || 'Monitor'
+  );
 
-  // Box rows
-  const infoHtml  = isDraft && nd && nd.infoBoxes
-    ? `<div class="ncv2-box-row ncv2-info-row">${nd.infoBoxes.map(buildInfoBox).join('')}</div>` : '';
-  const statHtml  = nd && nd.statBoxes
-    ? `<div class="ncv2-box-row" style="margin-top:1px">${nd.statBoxes.map(buildStatBox).join('')}</div>` : '';
-
-  // Promo bar — always show for MiLB; default 20% if no NEWS_DATA entry
-  let promoHtml = '';
-  const promoProb  = (nd && nd.promotionProb != null) ? nd.promotionProb : (section === 'milb' ? 0.20 : null);
-  const promoLabel = (nd && nd.promotionLabel) || 'MLB Call-Up Probability (2026)';
-  if (promoProb !== null) {
-    const pct = Math.round(promoProb * 100);
-    const col = pct >= 70 ? '#16a34a' : pct >= 45 ? '#d97706' : '#dc2626';
-    promoHtml = `<div class="ncv2-promo-row">
-      <span class="ncv2-promo-label">${escHtml(promoLabel)}</span>
-      <div class="ncv2-promo-track"><div class="ncv2-promo-fill" data-w="${pct}" style="background:${col}"></div></div>
-      <span class="ncv2-promo-pct" style="color:${col}">${pct}%</span>
-    </div>`;
+  // ── Scouting / info box row (always 3 boxes) ──────────────────────────────
+  let boxHtml = '';
+  if (isDraft && nd && nd.infoBoxes) {
+    // Draft: info boxes (slot/team/date) + stat boxes below
+    boxHtml = `<div class="ncv2-box-row ncv2-info-row">${nd.infoBoxes.map(buildInfoBox).join('')}</div>`;
+    if (nd.statBoxes) {
+      boxHtml += `<div class="ncv2-box-row" style="margin-top:1px">${nd.statBoxes.map(buildStatBox).join('')}</div>`;
+    }
+  } else if (nd && nd.statBoxes) {
+    boxHtml = `<div class="ncv2-box-row">${nd.statBoxes.map(buildStatBox).join('')}</div>`;
+  } else {
+    // No NEWS_DATA — generate generic boxes from LEAGUE player data
+    const org   = (player && player.mlb_team) || '—';
+    const lvl   = (nd && nd.level) || (player && player.status) || '—';
+    const generic = [
+      { label:'Organization',  lines:[org, pos || '—', 'MiLB System'],               hi:null },
+      { label:'2026 Status',   lines:['Active · Season in progress','Scouting in progress','Report pending'], hi:null },
+      { label:'Fantasy Intel', lines:['Monitor for call-up','Check live stats below','Add to watch list'],   hi:null },
+    ];
+    boxHtml = `<div class="ncv2-box-row">${generic.map(buildStatBox).join('')}</div>`;
   }
 
-  // Analysis
-  const analysisHtml = nd && nd.analysis ? `<div class="ncv2-analysis">${escHtml(nd.analysis)}</div>` : '';
+  // ── Promotion / status bar (every card) ──────────────────────────────────
+  const promoProb  = (nd && nd.promotionProb  != null) ? nd.promotionProb  : 0.20;
+  const promoLabel = (nd && nd.promotionLabel) || 'MLB Call-Up Probability (2026)';
+  const pct = Math.round(promoProb * 100);
+  const col = pct >= 70 ? '#16a34a' : pct >= 45 ? '#d97706' : '#dc2626';
+  const promoHtml = `<div class="ncv2-promo-row">
+    <span class="ncv2-promo-label">${escHtml(promoLabel)}</span>
+    <div class="ncv2-promo-track"><div class="ncv2-promo-fill" data-w="${pct}" style="background:${col}"></div></div>
+    <span class="ncv2-promo-pct" style="color:${col}">${pct}%</span>
+  </div>`;
 
-  // Headshot
+  // ── Editorial / analysis (every card) ────────────────────────────────────
+  const defaultAnalysis = `${name} is currently active in the ${(player && player.mlb_team) || 'minor league'} organization. Monitor their 2026 season progress through the live stats below.`;
+  const analysis = (nd && nd.analysis) ? nd.analysis : defaultAnalysis;
+  const analysisHtml = `<div class="ncv2-analysis">${escHtml(analysis)}</div>`;
+
+  // ── Headshot ─────────────────────────────────────────────────────────────
   const isMiLBp = player
     ? (STATUS_MAP[player.status] === 'MiLB')
     : (nd && nd.level && nd.level !== 'MLB');
-  const shotHtml = `<div class="ncv2-headshot-wrap"><img class="ncv2-shot" data-player="${safe}" data-ismilb="${isMiLBp?'1':'0'}" src="${HEADSHOT_PLACEHOLDER}" loading="lazy" style="width:100%;height:100%;object-fit:contain;object-position:center bottom"></div>`;
+  const shotHtml = `<div class="ncv2-headshot-wrap"><img class="ncv2-shot" data-player="${safe}" data-ismilb="${isMiLBp?'1':'0'}" src="${HEADSHOT_PLACEHOLDER}" loading="lazy"></div>`;
 
-  // API stats area (MiLB + Asian MLB; not for draft HS/college with no MLB ID)
-  const showApiStats = section !== 'draft';
-  const apiHtml = showApiStats
+  // ── Live API stats (MiLB + Asian; not draft HS/college) ──────────────────
+  const apiHtml = section !== 'draft'
     ? `<div class="ncv2-api-stats news-stats-area" data-player="${safe}" data-ispitcher="${pit?'1':'0'}"><div class="news-empty">Loading 2026 stats…</div></div>`
     : '';
 
@@ -8817,17 +8834,22 @@ function buildNewsCard(player, nd, section) {
       </div>
       <div class="ncv2-badge-group">${watchBadge}${actionBadge}</div>
     </div>
-    ${infoHtml}${statHtml}${promoHtml}${analysisHtml}${apiHtml}
+    ${boxHtml}${promoHtml}${analysisHtml}${apiHtml}
   </div>`;
 }
 
-// ── Async stats loader (unchanged logic, updated container class) ──────────────
+// Fallback pitcher check when nd.isPitcher is not set
+function newsIsPitcherPos(pos) {
+  const parts = (pos || '').split(/[,\/]/).map(p => p.trim().toUpperCase()).filter(Boolean);
+  const pSlots = new Set(['SP','RP','P','CP','CL']);
+  return parts.length > 0 && parts.some(p => pSlots.has(p));
+}
 
+// ── Async stats loader ────────────────────────────────────────────────────────
 async function loadNewsCardStats(statsEl) {
   const playerName = statsEl.dataset.player;
   const isPit      = statsEl.dataset.ispitcher === '1';
   try {
-    // Search across all sport levels — people/search does not return sport.id reliably
     const searchPerson = async query => {
       const r = await fetch(
         `https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(query)}&sportIds=1,11,12,13,14,15,16`
@@ -8835,7 +8857,6 @@ async function loadNewsCardStats(statsEl) {
       return r && r.people && r.people[0];
     };
     let person = await searchPerson(playerName);
-    // Last-name fallback (handles accents / name order variants)
     if (!person) {
       const last  = playerName.trim().split(' ').pop();
       const first = playerName.trim().split(' ')[0].toLowerCase();
@@ -8865,8 +8886,7 @@ async function loadNewsCardStats(statsEl) {
       shotEl.src = isMiLB ? milbUrl : mlbUrl;
     }
 
-    // Parallel fetch across every sport level — people/search does not reliably expose
-    // sport.id, so we hit all minor-league tiers at once and take the richest result
+    // Parallel fetch across all sport levels — take the richest result
     const base = `https://statsapi.mlb.com/api/v1/people/${id}/stats`;
     const grp  = isPit ? 'pitching' : 'hitting';
     const getGL = sid => fetch(`${base}?stats=gameLog&season=2026&group=${grp}&sportId=${sid}`)
@@ -8891,16 +8911,16 @@ async function loadNewsCardStats(statsEl) {
       const l30Games = allGames.filter(s => { const d = gDate(s); return d && d >= d30; });
       const l7Games  = allGames.filter(s => { const d = gDate(s); return d && d >= d7; });
       statsEl.innerHTML = buildNewsStatsHtml([
-        { cls:'nsb-ytd', label:'2026 YTD', text: aggHitLog(allGames)   },
-        { cls:'nsb-l30', label:'Last 30',  text: aggHitLog(l30Games)   },
-        { cls:'nsb-l7',  label:'Last 7',   text: aggHitLog(l7Games)    },
+        fmtHitBox(allGames,  '2026 YTD'),
+        fmtHitBox(l30Games,  'Last 30'),
+        fmtHitBox(l7Games,   'Last 7'),
       ]);
     } else {
       const starts = allGames.filter(s => s.stat && s.stat.gamesStarted >= 1);
       statsEl.innerHTML = buildNewsStatsHtml([
-        { cls:'nsb-ytd',  label:'2026 YTD',  text: aggPitLog(allGames)                                      },
-        { cls:'nsb-l5',   label:'L5 Starts', text: starts.length ? aggGameLog(starts.slice(-5)) : null      },
-        { cls:'nsb-last', label:'Last Start', text: starts.length ? fmtLastStart(starts[starts.length-1]) : null },
+        fmtPitBox(allGames,         '2026 YTD'),
+        fmtPitBox(starts.slice(-5), 'L5 Starts'),
+        fmtLastStartBox(starts[starts.length - 1]),
       ]);
     }
   } catch(e) {
@@ -8908,101 +8928,69 @@ async function loadNewsCardStats(statsEl) {
   }
 }
 
-function aggHitLog(splits) {
-  if (!splits || !splits.length) return null;
-  let g = 0, ab = 0, h = 0, d2 = 0, t = 0, hr = 0, rbi = 0, sb = 0, bb = 0, hbp = 0, sf = 0;
+function fmtHitBox(splits, label) {
+  if (!splits || !splits.length) return { label, lines: ['—', '—', '—'], hi: null };
+  let g=0, ab=0, h=0, d2=0, t=0, hr=0, rbi=0, sb=0, bb=0, hbp=0, sf=0;
+  splits.forEach(s => {
+    const st = s.stat || {};
+    g++; ab+=st.atBats||0; h+=st.hits||0; d2+=st.doubles||0; t+=st.triples||0;
+    hr+=st.homeRuns||0; rbi+=st.rbi||0; sb+=st.stolenBases||0;
+    bb+=st.baseOnBalls||0; hbp+=st.hitByPitch||0; sf+=st.sacFlies||0;
+  });
+  const avg  = ab > 0 ? (h/ab).toFixed(3) : '—';
+  const obpD = ab+bb+hbp+sf;
+  const obp  = obpD > 0 ? ((h+bb+hbp)/obpD).toFixed(3) : '—';
+  const tb   = (h-d2-t-hr) + d2*2 + t*3 + hr*4;
+  const slg  = ab > 0 ? (tb/ab).toFixed(3) : '—';
+  return { label, hi:null, lines: [
+    g + ' G \xb7 ' + avg + ' AVG',
+    obp + ' OBP \xb7 ' + slg + ' SLG',
+    hr + ' HR \xb7 ' + rbi + ' RBI \xb7 ' + sb + ' SB',
+  ]};
+}
+
+function fmtPitBox(splits, label) {
+  if (!splits || !splits.length) return { label, lines: ['—', '—', '—'], hi: null };
+  let outs=0, er=0, h=0, bb=0, so=0, g=0, gs=0;
   splits.forEach(s => {
     const st = s.stat || {};
     g++;
-    ab  += st.atBats       || 0;
-    h   += st.hits         || 0;
-    d2  += st.doubles      || 0;
-    t   += st.triples      || 0;
-    hr  += st.homeRuns     || 0;
-    rbi += st.rbi          || 0;
-    sb  += st.stolenBases  || 0;
-    bb  += st.baseOnBalls  || 0;
-    hbp += st.hitByPitch   || 0;
-    sf  += st.sacFlies     || 0;
+    const ip = String(st.inningsPitched||'0'); const [w,f] = ip.split('.').map(Number);
+    outs += (w||0)*3+(f||0); er+=st.earnedRuns||0; h+=st.hits||0;
+    bb+=st.baseOnBalls||0; so+=st.strikeOuts||0;
+    if (st.gamesStarted>=1) gs++;
   });
-  if (!g) return null;
-  const avg    = ab > 0 ? h / ab : null;
-  const obpDen = ab + bb + hbp + sf;
-  const obp    = obpDen > 0 ? (h + bb + hbp) / obpDen : null;
-  const tb     = (h - d2 - t - hr) + d2*2 + t*3 + hr*4;
-  const slg    = ab > 0 ? tb / ab : null;
-  const parts  = [g + ' G'];
-  if (avg !== null) parts.push(avg.toFixed(3) + ' AVG');
-  if (obp !== null) parts.push(obp.toFixed(3) + ' OBP');
-  if (slg !== null) parts.push(slg.toFixed(3) + ' SLG');
-  parts.push(hr + ' HR', rbi + ' RBI', sb + ' SB');
-  return parts.join(' \xb7 ');
+  const ipStr = Math.floor(outs/3)+'.'+outs%3;
+  const ipD   = outs/3;
+  const era   = ipD>0 ? ((er*9)/ipD).toFixed(2) : '—';
+  const whip  = ipD>0 ? ((h+bb)/ipD).toFixed(2) : '—';
+  return { label, hi:null, lines: [
+    g + ' G/' + gs + ' GS \xb7 ' + ipStr + ' IP',
+    era + ' ERA \xb7 ' + whip + ' WHIP',
+    so + ' K \xb7 ' + bb + ' BB',
+  ]};
 }
 
-function aggPitLog(splits) {
-  if (!splits || !splits.length) return null;
-  let outs = 0, er = 0, h = 0, bb = 0, so = 0, g = 0, gs = 0;
-  splits.forEach(s => {
-    const st = s.stat || {};
-    g++;
-    const ip = String(st.inningsPitched || '0');
-    const [w, f] = ip.split('.').map(Number);
-    outs += (w||0)*3 + (f||0);
-    er   += st.earnedRuns  || 0;
-    h    += st.hits        || 0;
-    bb   += st.baseOnBalls || 0;
-    so   += st.strikeOuts  || 0;
-    if (st.gamesStarted >= 1) gs++;
-  });
-  if (!g) return null;
-  const ipStr = Math.floor(outs/3) + '.' + (outs%3);
-  const ipDec = outs / 3;
-  const era   = ipDec > 0 ? ((er*9)/ipDec).toFixed(2) : '—';
-  const whip  = ipDec > 0 ? ((h+bb)/ipDec).toFixed(2) : '—';
-  return `${g} G/${gs} GS \xb7 ${ipStr} IP \xb7 ${era} ERA \xb7 ${whip} WHIP \xb7 ${so} K`;
-}
-
-function aggGameLog(splits) {
-  if (!splits || !splits.length) return null;
-  let outs = 0, er = 0, h = 0, bb = 0, so = 0;
-  splits.forEach(s => {
-    const ip = s.stat && s.stat.inningsPitched ? String(s.stat.inningsPitched) : '0';
-    const [w, f] = ip.split('.').map(Number);
-    outs += (w||0)*3 + (f||0);
-    er += (s.stat && s.stat.earnedRuns)  || 0;
-    h  += (s.stat && s.stat.hits)        || 0;
-    bb += (s.stat && s.stat.baseOnBalls) || 0;
-    so += (s.stat && s.stat.strikeOuts)  || 0;
-  });
-  const ipStr = Math.floor(outs/3) + '.' + (outs%3);
-  const ipDec = outs / 3;
-  const era   = ipDec > 0 ? ((er/ipDec)*9).toFixed(2) : '—';
-  const whip  = ipDec > 0 ? ((h+bb)/ipDec).toFixed(2) : '—';
-  return `${splits.length} GS \xb7 ${ipStr} IP \xb7 ${era} ERA \xb7 ${whip} WHIP \xb7 ${so} K`;
-}
-
-function fmtLastStart(s) {
-  if (!s) return null;
-  const dt  = s.date ? s.date.slice(5).replace('-', '/') : '';
+function fmtLastStartBox(s) {
+  if (!s) return { label: 'Last Start', lines: ['—', '—', '—'], hi: null };
+  const dt  = s.date ? s.date.slice(5).replace('-','/') : '—';
   const opp = (s.opponent && s.opponent.abbreviation) || '';
-  const vs  = opp ? (s.isHome ? ' vs ' : ' @ ') + opp : '';
+  const vs  = opp ? (s.isHome ? 'vs ' : '@ ') + opp : '';
   const ip  = (s.stat && s.stat.inningsPitched) || '—';
   const k   = s.stat && s.stat.strikeOuts  != null ? s.stat.strikeOuts  : '—';
   const er  = s.stat && s.stat.earnedRuns  != null ? s.stat.earnedRuns  : '—';
   const bb  = s.stat && s.stat.baseOnBalls != null ? s.stat.baseOnBalls : '—';
-  return `${dt}${vs}: ${ip} IP, ${k} K, ${er} ER, ${bb} BB`;
+  return { label: 'Last Start', hi:null, lines: [dt + (vs?' \xb7 '+vs:''), ip+' IP \xb7 '+k+' K', er+' ER \xb7 '+bb+' BB'] };
 }
 
-function buildNewsStatsHtml(rows) {
-  const formatted = rows.filter(r => r.text).map(r =>
-    `<div class="news-stat-row"><span class="news-stat-badge ${r.cls}">${r.label}</span><span class="news-stat-text">${r.text}</span></div>`
-  ).join('');
-  if (!formatted) return '<div class="news-empty">No 2026 stats yet</div>';
-  return '<div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Live 2026 Stats</div>' + formatted;
+function buildNewsStatsHtml(boxes) {
+  const allEmpty = boxes.every(b => b.lines.every(l => l === '—'));
+  if (allEmpty) return '<div class="news-empty">No 2026 stats yet</div>';
+  const hdr  = '<div style="font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:0 0 4px">Live 2026 Stats</div>';
+  const grid = '<div class="ncv2-box-row" style="margin-bottom:0">' + boxes.map(buildStatBox).join('') + '</div>';
+  return hdr + grid;
 }
 
-
-// ── Page init ─────────────────────────────────────────────────────────────────
 
 function initNewsPage() {
   document.getElementById('news-loading').style.display = 'block';
@@ -9018,17 +9006,17 @@ function initNewsPage() {
   const milbHit   = milbAll.filter(p => !newsIsPitcher(p));
   const milbPit   = milbAll.filter(p =>  newsIsPitcher(p));
 
-  // Draft + Asian from NEWS_DATA
+  // Draft + Asian — only players on currentTeam roster
   const draftHit = [], draftPit = [], asianHit = [], asianPit = [];
   Object.entries(NEWS_DATA).forEach(([name, nd]) => {
     if (nd.category === 'draft' || nd.category === 'asian') {
-      let lp = null;
-      for (const ps of Object.values(LEAGUE)) {
-        lp = ps.find(p => p.player === name || p.player.endsWith(' ' + name));
-        if (lp) break;
-      }
-      const synth = lp || { player: name, mlb_team: nd.org || '', position: nd.positionDisplay || '', status: '' };
-      const item = { player: synth, nd };
+      const lp = myPlayers.find(p =>
+        p.player === name ||
+        p.player.toLowerCase() === name.toLowerCase() ||
+        p.player.endsWith(' ' + name)
+      );
+      if (!lp) return; // not on this team's roster
+      const item = { player: lp, nd };
       if (nd.category === 'draft') { nd.isPitcher ? draftPit.push(item) : draftHit.push(item); }
       else                         { nd.isPitcher ? asianPit.push(item) : asianHit.push(item); }
     }
