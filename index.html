@@ -8827,10 +8827,25 @@ async function loadNewsCardStats(statsEl) {
   const playerName = statsEl.dataset.player;
   const isPit      = statsEl.dataset.ispitcher === '1';
   try {
-    const enc    = encodeURIComponent(playerName);
-    const sr     = await fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${enc}&sportIds=1,11,12,13,14,15,16`);
-    const sd     = await sr.json();
-    const person = sd.people && sd.people[0];
+    // Search across all sport levels — people/search does not return sport.id reliably
+    const searchPerson = async query => {
+      const r = await fetch(
+        `https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(query)}&sportIds=1,11,12,13,14,15,16`
+      ).then(x=>x.json()).catch(()=>null);
+      return r && r.people && r.people[0];
+    };
+    let person = await searchPerson(playerName);
+    // Last-name fallback (handles accents / name order variants)
+    if (!person) {
+      const last  = playerName.trim().split(' ').pop();
+      const first = playerName.trim().split(' ')[0].toLowerCase();
+      const r2    = await fetch(
+        `https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(last)}&sportIds=1,11,12,13,14,15,16`
+      ).then(x=>x.json()).catch(()=>null);
+      person = r2 && r2.people && r2.people.find(p =>
+        p.fullName && p.fullName.toLowerCase().startsWith(first)
+      );
+    }
     if (!person) { statsEl.innerHTML = '<div class="news-empty">Stats unavailable</div>'; return; }
     const id = person.id;
 
@@ -8850,23 +8865,17 @@ async function loadNewsCardStats(statsEl) {
       shotEl.src = isMiLB ? milbUrl : mlbUrl;
     }
 
-    // Use player's sport level so MiLB players get minor-league game logs
-    const sportId = (person.sport && person.sport.id) || 1;
-    const base    = `https://statsapi.mlb.com/api/v1/people/${id}/stats`;
-    const grp     = isPit ? 'pitching' : 'hitting';
+    // Parallel fetch across every sport level — people/search does not reliably expose
+    // sport.id, so we hit all minor-league tiers at once and take the richest result
+    const base = `https://statsapi.mlb.com/api/v1/people/${id}/stats`;
+    const grp  = isPit ? 'pitching' : 'hitting';
+    const getGL = sid => fetch(`${base}?stats=gameLog&season=2026&group=${grp}&sportId=${sid}`)
+      .then(r=>r.json())
+      .then(r => ((r && r.stats) || []).flatMap(s => s.splits || []))
+      .catch(() => []);
 
-    // Fetch with explicit sportId; fall back without it (e.g. player promoted mid-season)
-    let allGames = [];
-    const tryFetch = async url => {
-      const r = await fetch(url).then(x=>x.json()).catch(()=>null);
-      // Collect splits across all stat entries (handles multi-level seasons)
-      return ((r && r.stats) || []).flatMap(s => s.splits || []);
-    };
-    allGames = await tryFetch(`${base}?stats=gameLog&season=2026&group=${grp}&sportId=${sportId}`);
-    if (!allGames.length) {
-      // Try without sportId — catches MLB players and edge cases
-      allGames = await tryFetch(`${base}?stats=gameLog&season=2026&group=${grp}`);
-    }
+    const results  = await Promise.all([1, 11, 12, 13, 14].map(getGL));
+    const allGames = results.reduce((best, curr) => curr.length > best.length ? curr : best, []);
 
     if (!allGames.length) {
       statsEl.innerHTML = '<div class="news-empty">No 2026 stats yet</div>';
