@@ -2520,7 +2520,7 @@ function playerRow(p, status, editable, isHitter) {
     <td class="col-status">${stag}</td>
     <td class="col-rd c"${editAttr}>${rdTile(p.salary, editable)}</td>
     <td class="col-con c"${editAttr}>${conTag(p.contract, editable)}</td>
-    <td class="col-player"><strong>${p.player}</strong><span class="player-meta">${p.mlb_team} · ${p.position}</span>${mTile}${keepBtn}</td>
+    <td class="col-player"><strong>${p.player}</strong><span class="player-meta">${p.mlb_team} · ${fmtPos(p.position)}</span>${mTile}${keepBtn}</td>
     ${statCols}
   </tr>`;
 }
@@ -2575,6 +2575,9 @@ function viewTeamOverview(teamName) {
 // "MI" and "CI" are kept as-is (they are valid Fantrax position labels, not expanded).
 function parsePositions(str) {
   return (str || '').split(/[,\/]/).map(p => p.trim().toUpperCase()).filter(Boolean);
+}
+function fmtPos(str) {
+  return parsePositions(str).join('/') || str || '—';
 }
 
 const DIV_NAMES_ORDER = ['Dairy Daddies','Thunder Chickens','Iron Pigs','Flying Mummies'];
@@ -3251,7 +3254,7 @@ function processCSV(text, type, filename) {
       newLeague[mgr].push({
         player:   playerName,
         mlb_team: (r.Team || '').trim(),
-        position: (r.Position || '').trim().split(/[\/]/).map(p => p.trim()).join(','),
+        position: (r['Eligible Positions'] || r['Positions'] || r.Position || '').trim().split(/[\/,]/).map(p => p.trim()).filter(Boolean).join(','),
         status:   effectiveStatus,
         salary,
         contract,
@@ -3930,7 +3933,7 @@ function renderOverview(players, keptPlayers = {}, viewingOwn = true, managerNam
       <td class="col-status">${stag}</td>
       <td class="col-rd c"${editAttr}>${rdTile(p.salary, editable)}</td>
       <td class="col-con c"${editAttr}>${conTag(p.contract, editable)}</td>
-      <td class="col-player"><div class="col-player-inner"><strong>${p.player}</strong><span class="player-meta">${p.mlb_team} · ${p.position}</span>${keepBtn}</div></td>
+      <td class="col-player"><div class="col-player-inner"><strong>${p.player}</strong><span class="player-meta">${p.mlb_team} · ${fmtPos(p.position)}</span>${keepBtn}</div></td>
       ${statCols}
       ${mobStatCell}
     </tr>`;
@@ -4701,7 +4704,7 @@ function buildBuilderView(players) {
       playerHtml = filled
         ? `<div class="slot-player-content" style="flex:1;min-width:0;display:flex;align-items:center;gap:5px;overflow:hidden">
              <span style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${filled.player}</span>
-             <span class="slot-meta" style="flex-shrink:0">${filled.mlb_team} · ${filled.position}</span>
+             <span class="slot-meta" style="flex-shrink:0">${filled.mlb_team} · ${fmtPos(filled.position)}</span>
              ${rdTile(filled.salary)}
              ${filled.contract ? conTag(filled.contract) : ''}
            </div>
@@ -4731,7 +4734,7 @@ function buildBuilderView(players) {
       playerHtml = filled
         ? `<div class="slot-player-content" style="flex:0 1 auto;min-width:0;display:flex;align-items:center;gap:5px;overflow:hidden">
              <span class="slot-player" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1">${filled.player}</span>
-             <span class="slot-meta" style="flex-shrink:0">${filled.mlb_team} · ${filled.position}</span>
+             <span class="slot-meta" style="flex-shrink:0">${filled.mlb_team} · ${fmtPos(filled.position)}</span>
              ${rdTile(filled.salary)}
              ${filled.contract ? conTag(filled.contract) : ''}
            </div>
@@ -4771,7 +4774,7 @@ function renderPool(players, filter) {
       ondragstart="poolDragStart(event, '${p.player.replace(/'/g,"\'")}')">
       ${badge}
       <span style="flex:1;font-weight:500">${p.player}</span>
-      <span style="font-size:10px;color:var(--text-3)">${p.mlb_team} · ${p.position}</span>
+      <span style="font-size:10px;color:var(--text-3)">${p.mlb_team} · ${fmtPos(p.position)}</span>
     </div>`;
   }).join('');
 }
@@ -4988,7 +4991,7 @@ function buildDraftPlanView(players) {
       innerHtml = `
         <div class="draft-player-content" style="flex:0 1 auto;min-width:0;display:flex;align-items:center;gap:5px;overflow:hidden">
           <span class="round-player" style="cursor:grab;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1">${p.player}${isExp ? '&nbsp;<span style="font-size:9px;color:var(--red);font-family:var(--mono);font-weight:700">EXP</span>' : ''}</span>
-          <span class="round-meta" style="flex-shrink:0">${p.mlb_team}&nbsp;·&nbsp;${p.position}</span>
+          <span class="round-meta" style="flex-shrink:0">${p.mlb_team}&nbsp;·&nbsp;${fmtPos(p.position)}</span>
           ${bumpBadge}
           ${p.contract ? conTag(p.contract) : ''}
         </div>
@@ -5546,7 +5549,7 @@ function buildDraftBoard() {
         : `<td class="db-player" style="padding:4px 10px;border-bottom:1px solid var(--border)">
             <span style="font-size:12px;font-weight:600;color:var(--text)">${row.player || '—'}</span>
             ${isKeeper ? `<span style="font-size:9px;background:var(--green-lt);color:var(--green);border:1px solid #a8d5bc;border-radius:3px;padding:1px 4px;margin-left:4px;font-family:var(--mono);font-weight:600">K</span>` : ''}
-            <div style="font-size:11px;color:var(--text-3);margin-top:1px">${row.mlb_team||''} &middot; ${row.position||''}${sal ? ` &middot; Rd&nbsp;${sal}` : ''}${row.contract ? ` &middot; ${row.contract}` : ''}</div>
+            <div style="font-size:11px;color:var(--text-3);margin-top:1px">${row.mlb_team||''} &middot; ${fmtPos(row.position||'')}${sal ? ` &middot; Rd&nbsp;${sal}` : ''}${row.contract ? ` &middot; ${row.contract}` : ''}</div>
            </td>`;
 
       const pkNum = parseInt(row.pk);
@@ -5817,7 +5820,7 @@ function buildAllRostersPage() {
         <td style="padding:3px 8px;max-width:160px">
           <div style="display:flex;align-items:center;gap:4px;overflow:hidden">
             <span style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1">${p.player}</span>
-            <span style="font-size:10px;color:var(--text-3);white-space:nowrap;flex-shrink:0">${p.mlb_team || ''}${p.mlb_team && p.position ? ' · ' : ''}${p.position || ''}</span>
+            <span style="font-size:10px;color:var(--text-3);white-space:nowrap;flex-shrink:0">${p.mlb_team || ''}${p.mlb_team && p.position ? ' · ' : ''}${fmtPos(p.position)}</span>
           </div>
         </td>
         <td style="padding:3px 6px;text-align:center;white-space:nowrap">${stagHtml}</td>
@@ -6119,7 +6122,7 @@ function r5RenderBoard() {
       const conBadge  = pick.contract ? `<span style="font-size:10px;font-weight:600;color:var(--text-3)">${pick.contract}</span>` : '';
       pickContent = `<span class="r5-pick-content" style="flex:1;min-width:0;display:flex;align-items:center;flex-wrap:wrap;gap:4px">
         <span style="font-size:13px;font-weight:600;color:var(--navy)">${pick.player}</span>
-        <span style="font-size:11px;color:var(--text-3)">${pick.position} &middot; ${pick.mlb_team}</span>
+        <span style="font-size:11px;color:var(--text-3)">${fmtPos(pick.position)} &middot; ${pick.mlb_team}</span>
         ${rdBadge}${conBadge}
         <span style="font-size:10px;color:var(--text-3)">from <em>${pick.fromTeam}</em></span>
       </span>${statusSpan}`;
@@ -6193,7 +6196,7 @@ function r5RenderPool() {
       ${clickable ? `onclick="r5SelectPlayer('${safePlayer}','${safeTeam}')"` : ''}>
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.player}</div>
-        <div style="font-size:10px;color:var(--text-3)">${p.position} · ${p.mlb_team} · <em>${p.fromTeam}</em></div>
+        <div style="font-size:10px;color:var(--text-3)">${fmtPos(p.position)} · ${p.mlb_team} · <em>${p.fromTeam}</em></div>
       </div>
       <span style="font-size:10px;font-family:var(--mono);color:var(--text-3);flex-shrink:0">Rd ${p.salary}</span>
     </div>`;
@@ -6297,7 +6300,7 @@ function populateTradeRoster(side) {
     `<label style="display:flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer;border-bottom:1px solid var(--border)">
       <input type="checkbox" data-player="${p.player.replace(/"/g,'&quot;')}" onchange="updateTradePreview()">
       <span style="flex:1">${p.player}</span>
-      <span style="font-size:11px;color:var(--text-3)">${p.position} &middot; ${p.mlb_team}</span>
+      <span style="font-size:11px;color:var(--text-3)">${fmtPos(p.position)} &middot; ${p.mlb_team}</span>
     </label>`
   ).join('');
   updateTradePreview();
@@ -6569,7 +6572,7 @@ function renderPickCompare() {
           <td style="padding:3px 8px;max-width:140px">
             <div style="display:flex;align-items:center;gap:4px;overflow:hidden">
               <span style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1">${escHtml(p.player)}</span>
-              <span style="font-size:10px;color:var(--text-3);white-space:nowrap;flex-shrink:0">${escHtml(p.mlb_team||'')}${p.mlb_team&&p.position?' &middot; ':''}${escHtml(p.position||'')}</span>
+              <span style="font-size:10px;color:var(--text-3);white-space:nowrap;flex-shrink:0">${escHtml(p.mlb_team||'')}${p.mlb_team&&p.position?' &middot; ':''}${escHtml(fmtPos(p.position))}</span>
             </div>
           </td>
           <td style="padding:3px 4px;text-align:center;white-space:nowrap">${sm ? `<span class="stag ${sm.cls}" style="cursor:default">${sm.label}</span>` : ''}</td>
