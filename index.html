@@ -2584,7 +2584,7 @@ function fmtPos(str) {
   if (!parts.length) return str || '—';
   const UTILITY = new Set(['UT', 'MI', 'CI']);
   const real = parts.filter(p => !UTILITY.has(p));
-  return (real.length ? real : parts).join('/');
+  return (real.length ? real : parts).join(', ');
 }
 
 const DIV_NAMES_ORDER = ['Dairy Daddies','Thunder Chickens','Iron Pigs','Flying Mummies'];
