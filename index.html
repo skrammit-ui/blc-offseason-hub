@@ -2281,7 +2281,10 @@ input[type=file] { display: none; }
 const keeperStore = {}; // keeperStore[team][player] = 'mlb'|'milb'|'rule5'|'trade'
 let LEAGUE = {};
 let STATS = {};
-let PROJECTIONS = {}; // player → projections object
+let PROJECTIONS = {};
+let DIVISIONS = {};
+let PLAYOFFS_DATA = {};
+let MATCHUPS = [];
 
 // Editable flag — commissioner can always edit
 let IS_COMMISH = true;
