@@ -5742,7 +5742,7 @@ function buildKeepersPage() {
       const rd = p.salary || '—';
       const con = p.contract || '—';
       const mlbTeam = p.mlb_team || '';
-      const pos = p.position || '';
+      const pos = fmtPos(p.position);
 
       // Status tile
       const normStatus = STATUS_MAP[p.status] || 'MLB';
