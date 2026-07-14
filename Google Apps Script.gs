@@ -1800,32 +1800,83 @@ function debugRosterValues(ss) {
 // ── Debug: find eligible positions endpoint ───────────────────────────────────
 // Run this to probe which endpoint exposes multi-position eligibility.
 function debugEligiblePositions() {
-  // JJ Wetherholt's fantrax ID — we expect to see "2B,SS" or similar
-  const wetherholtId = '06aw3'; // JJ Wetherholt
+  const wetherholtId = '06aw3'; // JJ Wetherholt — expect "2B,SS" or similar
 
-  const endpoints = [
-    { name: 'getLeagueRosters',  params: {} },
-    { name: 'getPlayersTable',   params: { statusOrTeam: 'ROSTERED' } },
-    { name: 'getPlayersTable',   params: { statusOrTeam: 'ALL' } },
-    { name: 'getPlayersTable',   params: {} },
-    { name: 'getLeagueRosterItems', params: {} },
+  // ── A: Deep dump of getLeagueInfo — look for wetherholt anywhere ──────────
+  try {
+    const info = fetchFantrax('getLeagueInfo');
+    Logger.log('=== getLeagueInfo top keys: ' + Object.keys(info).join(', '));
+    const raw = JSON.stringify(info);
+    const idx = raw.indexOf(wetherholtId);
+    if (idx >= 0) {
+      Logger.log('getLeagueInfo: found ' + wetherholtId + ' at ' + idx + ': ' + raw.substring(Math.max(0, idx-30), idx+300));
+    } else {
+      Logger.log('getLeagueInfo: ' + wetherholtId + ' not found. Length=' + raw.length + '. First 600: ' + raw.substring(0, 600));
+    }
+  } catch(e) { Logger.log('getLeagueInfo ERROR: ' + e.message); }
+
+  // ── B: getTeamRosters — dump full raw for first team to see ALL fields ────
+  try {
+    const rosters = fetchFantrax('getTeamRosters');
+    const firstTeam = Object.values(rosters.rosters || rosters || {})[0] || {};
+    const items = firstTeam.rosterItems || firstTeam.players || [];
+    // Find Wetherholt or just dump first 2 items fully
+    const target = items.find(i => i.id === wetherholtId) || items[0] || null;
+    Logger.log('=== getTeamRosters item (all fields): ' + JSON.stringify(target));
+    // Also check raw for wetherholt
+    const raw2 = JSON.stringify(rosters);
+    const idx2 = raw2.indexOf(wetherholtId);
+    if (idx2 >= 0) {
+      Logger.log('getTeamRosters: found ' + wetherholtId + ': ' + raw2.substring(Math.max(0, idx2-30), idx2+300));
+    } else {
+      Logger.log('getTeamRosters: ' + wetherholtId + ' not in response at all');
+    }
+  } catch(e) { Logger.log('getTeamRosters ERROR: ' + e.message); }
+
+  // ── C: getPlayerIds with explicit playerIds param ─────────────────────────
+  try {
+    const pd = fetchFantrax('getPlayerIds', { playerIds: wetherholtId });
+    Logger.log('=== getPlayerIds?playerIds=06aw3: ' + JSON.stringify(pd).substring(0, 600));
+  } catch(e) { Logger.log('getPlayerIds+playerIds ERROR: ' + e.message); }
+
+  // ── D: Probe more endpoint name variations ────────────────────────────────
+  const probes = [
+    { name: 'getStandings',           params: {} },
+    { name: 'getLeagueSettings',      params: {} },
+    { name: 'getPlayerInfo',          params: { playerIds: wetherholtId } },
+    { name: 'getPlayerCard',          params: { playerId: wetherholtId } },
+    { name: 'getLeaguePlayers',       params: {} },
+    { name: 'getAllPlayers',          params: {} },
+    { name: 'getAvailablePlayers',    params: {} },
+    { name: 'getFreeAgents',          params: {} },
+    { name: 'getPlayers',             params: {} },
+    { name: 'getRosters',             params: {} },
+    { name: 'getLeagueRosterInfo',    params: {} },
+    { name: 'getPlayerPositions',     params: {} },
+    { name: 'getPositionEligibility', params: {} },
+    { name: 'getScoring',             params: {} },
+    { name: 'getMatchups',            params: {} },
+    { name: 'getTeamInfo',            params: {} },
   ];
 
-  endpoints.forEach(ep => {
+  probes.forEach(ep => {
     try {
       const data = fetchFantrax(ep.name, ep.params);
-      Logger.log('=== ' + ep.name + ' ' + JSON.stringify(ep.params) + ' ===');
-      Logger.log('Top keys: ' + Object.keys(data).join(', '));
-      // Try to find a player entry for Wetherholt
       const raw = JSON.stringify(data);
+      const topKeys = Object.keys(data).join(', ');
       const idx = raw.indexOf(wetherholtId);
       if (idx >= 0) {
-        Logger.log('Found ' + wetherholtId + ' at char ' + idx + ': ' + raw.substring(Math.max(0, idx - 20), idx + 200));
+        Logger.log('FOUND ' + ep.name + ': ' + wetherholtId + ' at ' + idx + ': ' + raw.substring(Math.max(0,idx-30), idx+300));
       } else {
-        Logger.log('ID ' + wetherholtId + ' not found — first 400 chars: ' + raw.substring(0, 400));
+        Logger.log('OK ' + ep.name + ' (no ' + wetherholtId + '): keys=' + topKeys + ' len=' + raw.length);
       }
     } catch(e) {
-      Logger.log('=== ' + ep.name + ' ERROR: ' + e.message);
+      const msg = e.message || '';
+      if (msg.includes('Unable to find method')) {
+        Logger.log('INVALID ' + ep.name);
+      } else {
+        Logger.log('ERROR ' + ep.name + ': ' + msg.substring(0, 100));
+      }
     }
   });
 }
