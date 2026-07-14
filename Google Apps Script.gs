@@ -1801,7 +1801,7 @@ function debugRosterValues(ss) {
 // Run this to probe which endpoint exposes multi-position eligibility.
 function debugEligiblePositions() {
   // JJ Wetherholt's fantrax ID — we expect to see "2B,SS" or similar
-  const wetherholtId = '08jze'; // update if wrong — check your Rosters sheet
+  const wetherholtId = '06aw3'; // JJ Wetherholt
 
   const endpoints = [
     { name: 'getLeagueRosters',  params: {} },
