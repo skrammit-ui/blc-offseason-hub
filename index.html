@@ -2586,6 +2586,27 @@ function fmtPos(str) {
 
 const DIV_NAMES_ORDER = ['Dairy Daddies','Thunder Chickens','Iron Pigs','Flying Mummies'];
 
+const BRACKET_LAYOUT = {
+  champ:  [
+    { colLabel:'Week 20\nWild Card',          ids:['wc20_0','wc20_1','wc20_2','wc20_3'] },
+    { colLabel:'Week 21\nDivisional',         ids:['ch21_0','ch21_1','ch21_2','ch21_3'] },
+    { colLabel:'Week 22\nChampionship',       ids:['ch22_0','ch22_1','ch22_2','ch22_3'] },
+    { colLabel:'Wks 23–24\nFinals',           ids:['ws','ch_3rd','ch_5th','ch_7th'] },
+  ],
+  consol: [
+    { colLabel:'Week 20\nConsol. Opener',     ids:['co20_0','co20_1','co20_2','co20_3'] },
+    { colLabel:'Week 21\nConsolation',        ids:['co21_0','co21_1','co21_2','co21_3'] },
+    { colLabel:'Week 22\nConsolation',        ids:['co22_0','co22_1','co22_2','co22_3'] },
+    { colLabel:'Wks 23–24\nFinals',           ids:['co_9th','co_11th','co_13th','co_15th'] },
+  ],
+  r5: [
+    { colLabel:'Week 20\n ',                  ids:[] },
+    { colLabel:'Week 21\nRule 5',             ids:['r5_21_0','r5_21_1'] },
+    { colLabel:'Week 22\nRule 5 Finals',      ids:['r5_22_w','r5_22_l'] },
+    { colLabel:'Wks 23–24\n ',                ids:[] },
+  ],
+};
+
 let currentStandingsYear = '2026';
 
 function buildStandingsPage() {
@@ -4576,6 +4597,11 @@ const SLOT_POS_MAP = {
   'UT1': ['C','1B','2B','3B','SS','OF','LF','CF','RF','DH','CI','MI'],
   'UT2': ['C','1B','2B','3B','SS','OF','LF','CF','RF','DH','CI','MI'],
 };
+
+function slotFits(player, slotPos) {
+  const pp = new Set(parsePositions(player.position));
+  return slotPos.some(sp => pp.has(sp.toUpperCase()));
+}
 
 function isEligibleForSlot(player, slotId) {
   if (!player) return true;
@@ -7449,6 +7475,14 @@ function buildActionBadge(style, text) {
   const prefix = style === 'buy' ? '🔥 ' : '';
   return `<span class="ncv2-badge ${cls}">${prefix}${escHtml(text)}</span>`;
 }
+
+const HEADSHOT_PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 40">' +
+  '<rect width="30" height="40" fill="#f1f5f9" rx="3"/>' +
+  '<circle cx="15" cy="13" r="7" fill="#cbd5e1"/>' +
+  '<path d="M2 40C2 26 28 26 28 40Z" fill="#cbd5e1"/>' +
+  '</svg>'
+);
 
 function buildNewsCard(player, nd, section) {
   const name    = (player && player.player) || '?';
