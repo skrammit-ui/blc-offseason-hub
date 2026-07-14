@@ -1339,6 +1339,10 @@ function refreshFantraxRosters(ss) {
   // Response shape: { period, rosters: { [fantraxTeamId]: { teamName, rosterItems: [{id, position, salary, status, contract:{name}}] } } }
   const rostersObj = data.rosters || (data.data && data.data.rosters) || {};
 
+  // Eligible positions live in getLeagueInfo.playerInfo[id].eligiblePos (comma-separated fantasy positions)
+  const leagueInfo  = fetchFantrax('getLeagueInfo');
+  const leaguePInfo = (leagueInfo && leagueInfo.playerInfo) || {};
+
   const sheet = ss.getSheetByName('Rosters');
   if (!sheet) throw new Error('Rosters sheet not found');
 
@@ -1382,8 +1386,8 @@ function refreshFantraxRosters(ss) {
 
     (teamData.rosterItems || []).forEach(item => {
       const pid      = String(item.id || '').trim();
-      const posRaw   = item.positions || item.position || '';
-      const pos      = Array.isArray(posRaw) ? posRaw.join(',') : String(posRaw).trim();
+      // Use eligiblePos from getLeagueInfo (e.g. "2B,UT,SS,MI"); fall back to roster-slot position
+      const pos = (leaguePInfo[pid] && leaguePInfo[pid].eligiblePos) || item.position || '';
       const salary   = item.salary != null ? Number(item.salary) : null;
       const status   = STATUS_FANTRAX[item.status] || '';
       const contract = item.contract ? String(item.contract.name || '') : '';
@@ -1557,6 +1561,11 @@ function buildRostersFromFantrax(ss) {
   if (!playerData || typeof playerData !== 'object') {
     return { ok: false, error: 'getPlayerIds failed' };
   }
+
+  // Eligible positions live in getLeagueInfo.playerInfo[id].eligiblePos
+  const leagueInfoData = fetchFantrax('getLeagueInfo');
+  const leaguePInfo    = (leagueInfoData && leagueInfoData.playerInfo) || {};
+
   const playerInfo = {}; // fantraxId → { name, mlb_team, position }
   Object.entries(playerData).forEach(([key, p]) => {
     if (!p || typeof p !== 'object') return;
@@ -1568,11 +1577,12 @@ function buildRostersFromFantrax(ss) {
       const parts = name.split(',');
       name = parts[1].trim() + ' ' + parts[0].trim();
     }
-    const pPosRaw = p.positions || p.position || p.pos || '';
+    const pPosRaw    = p.positions || p.position || p.pos || '';
+    const fallbackPos = Array.isArray(pPosRaw) ? pPosRaw.join(',') : String(pPosRaw).trim();
     playerInfo[id] = {
       name,
       mlb_team: String(p.team || p.mlbTeam || '').trim(),
-      position: Array.isArray(pPosRaw) ? pPosRaw.join(',') : String(pPosRaw).trim(),
+      position: (leaguePInfo[id] && leaguePInfo[id].eligiblePos) || fallbackPos,
     };
   });
 
@@ -1636,6 +1646,10 @@ function populateFantraxPlayerIds(ss) {
     return { ok: false, error: 'getPlayerIds returned unexpected shape', rawSample: JSON.stringify(data).substring(0, 400) };
   }
 
+  // Eligible positions live in getLeagueInfo.playerInfo[id].eligiblePos
+  const leagueInfoData2 = fetchFantrax('getLeagueInfo');
+  const leaguePInfo2    = (leagueInfoData2 && leagueInfoData2.playerInfo) || {};
+
   // Build lookup: bare fantraxId → { team, position }
   const playerMap = {};
   Object.entries(data).forEach(([key, p]) => {
@@ -1643,7 +1657,8 @@ function populateFantraxPlayerIds(ss) {
     const id       = String(p.fantraxId || p.id || key).trim();
     const team     = String(p.team     || p.mlbTeam || '').trim();
     const posRaw   = p.positions || p.position || p.pos || '';
-    const position = Array.isArray(posRaw) ? posRaw.join(',') : String(posRaw).trim();
+    const fallback = Array.isArray(posRaw) ? posRaw.join(',') : String(posRaw).trim();
+    const position = (leaguePInfo2[id] && leaguePInfo2[id].eligiblePos) || fallback;
     if (id) playerMap[id] = { team, position };
   });
 
