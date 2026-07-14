@@ -2277,7 +2277,7 @@ input[type=file] { display: none; }
         <div class="news-section-head-icon">&#x1F30F;</div>
         <div class="news-section-head-body">
           <div class="news-section-head-title">Global Pipeline</div>
-          <div class="news-section-head-sub">NPB &middot; KBO &middot; International signings &amp; prospects</div>
+          <div class="news-section-head-sub">NPB &middot; KBO &middot; Latin America &middot; International signings &amp; prospects</div>
         </div>
       </div>
       <div class="news-sub-label">Hitters</div>
@@ -7945,28 +7945,45 @@ function buildStatsTable(ytd, c2, c3, c2Lbl, c3Lbl, isPit) {
 }
 
 
+// Returns the effective routing category for a NEWS_DATA entry.
+// 'draft' entries auto-graduate to 'milb' when April 1 of the following
+// season arrives (e.g. 2026 draftees → 'milb' on April 1, 2027).
+function prospectEffectiveCat(nd) {
+  const cat = (nd && nd.category) || 'milb';
+  if (cat !== 'draft') return cat;
+  const m = nd.draftClass && nd.draftClass.match(/(\d{4})/);
+  if (!m) return cat;
+  const seasonStart = new Date(parseInt(m[1]) + 1, 3, 1); // April 1 of year after draft
+  return new Date() >= seasonStart ? 'milb' : 'draft';
+}
+
+// True for any international/global pipeline category.
+function isGlobalCat(cat) {
+  return cat === 'asian' || cat === 'hispanic' || cat === 'intl';
+}
+
 function initNewsPage() {
   document.getElementById('news-loading').style.display = 'block';
   document.getElementById('news-content').style.display = 'none';
 
   // Roster-first: every player comes from Fantrax — no manually added players.
   // Route each MiLB roster player to the correct section via their NEWS_DATA category:
-  //   'draft'  → Draft Prospects  (US HS/college prospects + current-year draftees)
-  //   'asian'  → Global Pipeline  (international/NPB/KBO prospects)
+  //   'draft'             → Draft Prospects  (US HS/college + current-year draftees;
+  //                          auto-graduates to milb on April 1 of the following season)
+  //   'asian'/'hispanic'/'intl' → Global Pipeline (NPB/KBO/Latin American int'l prospects)
   //   'milb' or no entry → Minor Leaguers
-  // To graduate a draft pick to MiLB after they sign, change category:'draft' → 'milb'.
   const myPlayers = LEAGUE[currentTeam] || [];
   const milbHit = [], milbPit = [], draftHit = [], draftPit = [], asianHit = [], asianPit = [];
 
   myPlayers.forEach(p => {
     if ((STATUS_MAP[p.status] || 'MLB') !== 'MiLB') return;
     const nd  = getNewsEntry(p.player);
-    const cat = (nd && nd.category) || 'milb';
+    const cat = prospectEffectiveCat(nd);
     const pit = nd && nd.isPitcher !== undefined ? nd.isPitcher : newsIsPitcherPos(p.position);
     const item = { player: p, nd };
-    if      (cat === 'draft') { pit ? draftPit.push(item) : draftHit.push(item); }
-    else if (cat === 'asian') { pit ? asianPit.push(item) : asianHit.push(item); }
-    else                      { pit ? milbPit.push(item)  : milbHit.push(item);  }
+    if      (cat === 'draft')  { pit ? draftPit.push(item) : draftHit.push(item); }
+    else if (isGlobalCat(cat)) { pit ? asianPit.push(item) : asianHit.push(item); }
+    else                       { pit ? milbPit.push(item)  : milbHit.push(item);  }
   });
 
   const renderGrid = (elId, items, section) => {
