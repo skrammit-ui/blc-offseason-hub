@@ -1782,12 +1782,15 @@ function debugRosterValues(ss) {
 
   const data = fetchFantrax('getTeamRosters');
   const firstTeam = Object.values(data.rosters || {})[0] || {};
-  const fantraxSample = (firstTeam.rosterItems || []).slice(0, 5).map(item => ({
-    id:           item.id,
-    salary:       item.salary,
-    salaryStr:    String(item.salary),
-    contractName: item.contract ? String(item.contract.name) : '',
-  }));
+  const fantraxSample = (firstTeam.rosterItems || []).slice(0, 5).map(item => {
+    // Return ALL fields so we can see what position-related keys exist
+    const out = {};
+    Object.keys(item).forEach(k => {
+      const v = item[k];
+      out[k] = (v && typeof v === 'object') ? JSON.stringify(v) : v;
+    });
+    return out;
+  });
 
   return { ok: true, sheetSample, fantraxSample, fantraxTeam: firstTeam.teamName };
 }
