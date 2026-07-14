@@ -4983,7 +4983,7 @@ function buildDraftPlanView(players) {
       ${milbOverflow ? `<span style="font-size:10px;font-weight:700;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:3px;padding:1px 5px">${milbOverflow} use MLB spots</span>` : ''}
     </div>
     <div style="width:1px;height:24px;background:var(--border)"></div>
-    <div style="font-size:11px;color:var(--text-3)"><span style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--green)">${30 - roundsUsed - milbKeptCount}</span>&nbsp;open picks</div>
+    <div style="font-size:11px;color:var(--text-3)">${(()=>{const op=30-roundsUsed-milbKeptCount;return`<span style="font-family:var(--mono);font-size:18px;font-weight:700;color:${op<0?'var(--red)':'var(--green)}'}">${op}</span>&nbsp;open picks`;})()}</div>
     <div style="font-size:11px;color:var(--text-3);margin-left:auto">Drag keepers between rounds to reassign</div>
   </div>`;
 boardHtml += `<div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Draft Board — ${plannerRoundCount} Pick${plannerRoundCount !== 1 ? 's' : ''}</div>`;
