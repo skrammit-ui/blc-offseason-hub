@@ -2581,7 +2581,10 @@ function parsePositions(str) {
 }
 function fmtPos(str) {
   const parts = parsePositions(str);
-  return parts.length ? parts.join('/') : (str || '—');
+  if (!parts.length) return str || '—';
+  const UTILITY = new Set(['UT', 'MI', 'CI']);
+  const real = parts.filter(p => !UTILITY.has(p));
+  return (real.length ? real : parts).join('/');
 }
 
 const DIV_NAMES_ORDER = ['Dairy Daddies','Thunder Chickens','Iron Pigs','Flying Mummies'];
