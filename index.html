@@ -7949,52 +7949,42 @@ function initNewsPage() {
   document.getElementById('news-loading').style.display = 'block';
   document.getElementById('news-content').style.display = 'none';
 
-  // MiLB: only currentTeam players
+  // Roster-first: every player comes from Fantrax — no manually added players.
+  // Route each MiLB roster player to the correct section via their NEWS_DATA category:
+  //   'draft'  → Draft Prospects  (US HS/college prospects + current-year draftees)
+  //   'asian'  → Global Pipeline  (international/NPB/KBO prospects)
+  //   'milb' or no entry → Minor Leaguers
+  // To graduate a draft pick to MiLB after they sign, change category:'draft' → 'milb'.
   const myPlayers = LEAGUE[currentTeam] || [];
-  const milbAll   = myPlayers.filter(p => {
-    if ((STATUS_MAP[p.status] || 'MLB') !== 'MiLB') return false;
-    const _nd = getNewsEntry(p.player);
-    return !_nd || !_nd.category || _nd.category === 'milb';
-  });
-  const milbHit   = milbAll.filter(p => !newsIsPitcher(p));
-  const milbPit   = milbAll.filter(p =>  newsIsPitcher(p));
+  const milbHit = [], milbPit = [], draftHit = [], draftPit = [], asianHit = [], asianPit = [];
 
-  // Draft + Asian — league-wide view; show all NEWS_DATA entries regardless of roster status.
-  // Roster match is attempted for org/team context but never required.
-  // Rule: US HS/college/pre-draft prospects and current-year draftees → 'draft'
-  //       They graduate to 'milb' once signed into the minor league system after the season.
-  const draftHit = [], draftPit = [], asianHit = [], asianPit = [];
-  Object.entries(NEWS_DATA).forEach(([name, nd]) => {
-    if (nd.category === 'draft' || nd.category === 'asian') {
-      const lp = myPlayers.find(p =>
-        p.player === name ||
-        p.player.toLowerCase() === name.toLowerCase() ||
-        p.player.endsWith(' ' + name)
-      ) || null;
-      const item = { player: lp || { player: name }, nd };
-      if (nd.category === 'draft') { nd.isPitcher ? draftPit.push(item) : draftHit.push(item); }
-      else                         { nd.isPitcher ? asianPit.push(item) : asianHit.push(item); }
-    }
+  myPlayers.forEach(p => {
+    if ((STATUS_MAP[p.status] || 'MLB') !== 'MiLB') return;
+    const nd  = getNewsEntry(p.player);
+    const cat = (nd && nd.category) || 'milb';
+    const pit = nd && nd.isPitcher !== undefined ? nd.isPitcher : newsIsPitcherPos(p.position);
+    const item = { player: p, nd };
+    if      (cat === 'draft') { pit ? draftPit.push(item) : draftHit.push(item); }
+    else if (cat === 'asian') { pit ? asianPit.push(item) : asianHit.push(item); }
+    else                      { pit ? milbPit.push(item)  : milbHit.push(item);  }
   });
 
-  const renderGrid = (elId, items, section, isLeague) => {
+  const renderGrid = (elId, items, section) => {
     const el = document.getElementById(elId);
     if (!el) return;
     if (!items.length) { el.innerHTML = '<div class="news-empty">No players in this category</div>'; return; }
-    el.innerHTML = isLeague
-      ? items.map(p => buildNewsCard(p, getNewsEntry(p.player), section)).join('')
-      : items.map(({ player, nd }) => buildNewsCard(player, nd, section)).join('');
+    el.innerHTML = items.map(({ player, nd }) => buildNewsCard(player, nd, section)).join('');
   };
 
-  renderGrid('news-milb-hitters',   milbHit,  'milb',  true);
-  renderGrid('news-milb-pitchers',  milbPit,  'milb',  true);
-  renderGrid('news-draft-hitters',  draftHit, 'draft', false);
-  renderGrid('news-draft-pitchers', draftPit, 'draft', false);
-  renderGrid('news-asian-hitters',  asianHit, 'asian', false);
-  renderGrid('news-asian-pitchers', asianPit, 'asian', false);
+  renderGrid('news-milb-hitters',   milbHit,  'milb');
+  renderGrid('news-milb-pitchers',  milbPit,  'milb');
+  renderGrid('news-draft-hitters',  draftHit, 'draft');
+  renderGrid('news-draft-pitchers', draftPit, 'draft');
+  renderGrid('news-asian-hitters',  asianHit, 'asian');
+  renderGrid('news-asian-pitchers', asianPit, 'asian');
 
   const cnt = document.getElementById('news-milb-count');
-  if (cnt) cnt.textContent = milbAll.length + ' on your roster';
+  if (cnt) cnt.textContent = (milbHit.length + milbPit.length) + ' on your roster';
 
   document.getElementById('news-loading').style.display = 'none';
   document.getElementById('news-content').style.display = 'block';
