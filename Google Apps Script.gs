@@ -1792,5 +1792,7 @@ function debugRosterValues(ss) {
     return out;
   });
 
+  Logger.log('Team: ' + firstTeam.teamName);
+  fantraxSample.forEach((item, i) => Logger.log('Item ' + i + ': ' + JSON.stringify(item)));
   return { ok: true, sheetSample, fantraxSample, fantraxTeam: firstTeam.teamName };
 }
