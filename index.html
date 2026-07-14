@@ -2262,7 +2262,7 @@ input[type=file] { display: none; }
         <div class="news-section-head-icon">&#x1F3AF;</div>
         <div class="news-section-head-body">
           <div class="news-section-head-title">Draft Prospects</div>
-          <div class="news-section-head-sub">2024&ndash;2026 draft intel &amp; pipeline tracking</div>
+          <div class="news-section-head-sub">2026 draftees &middot; US HS &amp; college prospects &middot; pre-draft watchlist</div>
         </div>
       </div>
       <div class="news-sub-label">Hitters</div>
@@ -7959,7 +7959,10 @@ function initNewsPage() {
   const milbHit   = milbAll.filter(p => !newsIsPitcher(p));
   const milbPit   = milbAll.filter(p =>  newsIsPitcher(p));
 
-  // Draft + Asian — only players on currentTeam roster
+  // Draft + Asian — league-wide view; show all NEWS_DATA entries regardless of roster status.
+  // Roster match is attempted for org/team context but never required.
+  // Rule: US HS/college/pre-draft prospects and current-year draftees → 'draft'
+  //       They graduate to 'milb' once signed into the minor league system after the season.
   const draftHit = [], draftPit = [], asianHit = [], asianPit = [];
   Object.entries(NEWS_DATA).forEach(([name, nd]) => {
     if (nd.category === 'draft' || nd.category === 'asian') {
@@ -7967,9 +7970,8 @@ function initNewsPage() {
         p.player === name ||
         p.player.toLowerCase() === name.toLowerCase() ||
         p.player.endsWith(' ' + name)
-      );
-      if (!lp) return; // not on this team's roster
-      const item = { player: lp, nd };
+      ) || null;
+      const item = { player: lp || { player: name }, nd };
       if (nd.category === 'draft') { nd.isPitcher ? draftPit.push(item) : draftHit.push(item); }
       else                         { nd.isPitcher ? asianPit.push(item) : asianHit.push(item); }
     }
