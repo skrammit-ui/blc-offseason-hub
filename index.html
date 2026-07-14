@@ -2380,6 +2380,9 @@ const STATUS_MAP = {
   'PAT':      'IL',
   // Other
   'Minors':  'MiLB',
+  'Minor':   'MiLB',  // alternate Fantrax label
+  'MiLB':    'MiLB',  // already normalized
+  'Draft':   'MiLB',  // newly drafted / unsigned prospects
   'Rule 5':  'Rule 5',
   'Trade':   'Trade',
   'Expired': 'Expired',
@@ -7686,12 +7689,32 @@ const NEWS_DATA = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// Normalize a player name for matching: lowercase, strip trailing periods from
+// each word so "Jr." == "Jr", "Jr." == "Jr", etc.
+function _normName(s) {
+  return (s || '').trim().toLowerCase().replace(/\.(?=\s|$)/g, '').replace(/\s+/g, ' ');
+}
+const _SUFFIXES = new Set(['jr', 'sr', 'ii', 'iii', 'iv']);
+
 function getNewsEntry(playerName) {
+  if (!playerName) return null;
+  // 1. Exact match
   if (NEWS_DATA[playerName]) return NEWS_DATA[playerName];
-  const last = playerName.trim().split(' ').pop();
-  if (NEWS_DATA[last]) return NEWS_DATA[last];
-  const byLast = Object.entries(NEWS_DATA).find(([k]) => k.split(' ').pop() === last);
-  return byLast ? byLast[1] : null;
+  // 2. Normalized match (handles Jr. vs Jr, period/case differences)
+  const normTarget = _normName(playerName);
+  const normMatch = Object.entries(NEWS_DATA).find(([k]) => _normName(k) === normTarget);
+  if (normMatch) return normMatch[1];
+  // 3. Last-name fallback, skipping Jr/Sr/II/III/IV suffixes
+  const parts = normTarget.split(' ').filter(p => !_SUFFIXES.has(p));
+  const last = parts[parts.length - 1];
+  if (last) {
+    const byLast = Object.entries(NEWS_DATA).find(([k]) => {
+      const kp = _normName(k).split(' ').filter(p => !_SUFFIXES.has(p));
+      return kp[kp.length - 1] === last;
+    });
+    if (byLast) return byLast[1];
+  }
+  return null;
 }
 
 function newsIsPitcher(player) {
@@ -7762,16 +7785,19 @@ function buildNewsCard(player, nd, section) {
     (nd && nd.actionText)  || 'Monitor'
   );
 
-  // Promo bar (every card)
-  const promoProb  = (nd && nd.promotionProb  != null) ? nd.promotionProb  : 0.20;
-  const promoLabel = (nd && nd.promotionLabel) || 'MLB Call-Up Probability (2026)';
-  const pct = Math.round(promoProb * 100);
-  const col = pct >= 70 ? '#16a34a' : pct >= 45 ? '#d97706' : '#dc2626';
-  const promoHtml = `<div class="ncv2-promo-row">
+  // Promo bar — MiLB only; not shown for Draft Prospects or Global Pipeline
+  let promoHtml = '';
+  if (section === 'milb') {
+    const promoProb  = (nd && nd.promotionProb  != null) ? nd.promotionProb  : 0.20;
+    const promoLabel = (nd && nd.promotionLabel) || 'MLB Call-Up Probability (2026)';
+    const pct = Math.round(promoProb * 100);
+    const col = pct >= 70 ? '#16a34a' : pct >= 45 ? '#d97706' : '#dc2626';
+    promoHtml = `<div class="ncv2-promo-row">
     <span class="ncv2-promo-label">${escHtml(promoLabel)}</span>
     <div class="ncv2-promo-track"><div class="ncv2-promo-fill" data-w="${pct}" style="background:${col}"></div></div>
     <span class="ncv2-promo-pct" style="color:${col}">${pct}%</span>
   </div>`;
+  }
 
   // Editorial (every card)
   const defaultAnalysis = `${name} is currently active in the ${(player && player.mlb_team) || 'minor league'} organization. Monitor their 2026 season progress through the live stats below.`;
