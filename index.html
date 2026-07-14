@@ -587,7 +587,7 @@ input[type=file] { display: none; }
   #nav-overlay.nav-open { display: block; }
 
   .topbar .brand-sub  { display: none; }
-  .commish-badge { font-size: 8px; padding: 2px 5px; }
+  .commish-badge { font-size: 10px; padding: 2px 5px; }
 
   /* Main content: full width, with top bar offset */
   .main { padding: 8px 12px; }
@@ -614,7 +614,7 @@ input[type=file] { display: none; }
   }
   /* Pop grid: fewer columns on mobile */
   #edit-popover .pop-grid { grid-template-columns: repeat(3, 1fr); }
-  #edit-popover .pop-opt { padding: 8px 4px; font-size: 12px; min-height: 36px; }
+  #edit-popover .pop-opt { padding: 8px 4px; font-size: 12px; min-height: 44px; }
 
   /* Team selector bar */
 
@@ -670,7 +670,7 @@ input[type=file] { display: none; }
     flex: 0 0 100%;
     width: 100%;
     font-family: var(--mono);
-    font-size: 9px;
+    font-size: 10px;
     color: var(--text-2);
     padding-top: 1px;
     white-space: nowrap;
@@ -701,7 +701,7 @@ input[type=file] { display: none; }
     display: block;
     flex: 0 0 100%;
     font-family: var(--mono);
-    font-size: 9px;
+    font-size: 10px;
     color: var(--text-2);
     white-space: nowrap;
     overflow-x: auto;
@@ -715,7 +715,13 @@ input[type=file] { display: none; }
   .draft-round .slot-clear { margin-left: auto; }
 
   /* Keep button — larger touch target */
-  .keep-btn { width: 22px; height: 22px; font-size: 11px; margin-left: 6px; }
+  .keep-btn { width: 30px; height: 30px; font-size: 12px; margin-left: 6px; border-radius: 6px; }
+  /* View tabs — minimum tap height */
+  .view-tab { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  /* Division DnD remove button — larger tap area */
+  .dnd-remove { min-height: 36px; min-width: 36px; padding: 0 10px; font-size: 14px; }
+  /* Nav labels — bump from 9px */
+  .nav-item .nav-label { font-size: 10px; }
 
   /* Draft round — Row 1: player info · Row 2: stats */
   .draft-round { min-height: 30px; flex-wrap: wrap; gap: 0 6px; padding: 2px 8px; margin-bottom: 1px; align-items: center; }
@@ -729,7 +735,7 @@ input[type=file] { display: none; }
   .draft-player-content { flex-direction: row !important; align-items: center !important; gap: 0 5px !important; flex-wrap: nowrap !important; overflow: hidden; }
   .draft-compact-stat { display: none; }
   /* Row 2: scrollable stats */
-  .draft-stat-mob { display: block !important; flex: 0 0 100%; font-family: var(--mono); font-size: 9px; color: var(--text-2); white-space: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-top: 1px; }
+  .draft-stat-mob { display: block !important; flex: 0 0 100%; font-family: var(--mono); font-size: 10px; color: var(--text-2); white-space: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-top: 1px; }
 
   /* Trade grid: single column */
   .tp-grid { grid-template-columns: 1fr !important; }
@@ -745,8 +751,8 @@ input[type=file] { display: none; }
   .draft-controls { margin-bottom: 4px !important; gap: 6px !important; }
   .draft-upload-hint { display: none; }
   .draft-legend { margin-bottom: 4px !important; gap: 6px !important; font-size: 10px !important; }
-  /* Team filter and open-slot selects: override the 16px iOS zoom rule */
-  #draft-team-filter, .db-mgr-select { font-size: 12px !important; padding: 3px 6px !important; }
+  /* Team filter and open-slot selects: keep at 16px to prevent iOS auto-zoom */
+  #draft-team-filter, .db-mgr-select { font-size: 16px !important; padding: 3px 6px !important; }
 
   /* ── Draft Board: condense for mobile ── */
   /* Remove horizontal scroll — table fits in single column */
@@ -1353,6 +1359,25 @@ input[type=file] { display: none; }
 .bc-stats-tbl tbody tr:last-child td { border-bottom:none; }
 .bc-stats-tbl tbody tr:nth-child(even) { background:#f8f9fb; }
 @media (max-width:600px) { .ncv2-box-row { grid-template-columns:1fr; } .ncv2-name { font-size:13px; } }
+
+/* Prospect scout stat label: too small on mobile */
+@media (max-width:768px) {
+  .bc-stats-tbl td.sc { font-size: 10px; }
+}
+
+/* Hover effects: only fire on devices with a real pointer (not touch) */
+@media (hover: none) {
+  .keep-btn:hover            { border-color: var(--border); color: var(--text-3); background: var(--surface); }
+  .keep-btn.keep-expiring:hover { border-color: var(--red); color: var(--red); background: transparent; }
+  .view-tab:hover            { border-color: var(--border); color: var(--text-3); }
+  .nav-item:hover            { box-shadow: 0 2px 6px rgba(0,0,0,.15); transform: none; }
+  .pool-card:hover           { box-shadow: none; border-color: var(--border); }
+  .dnd-remove:hover          { color: var(--text-3); }
+  /* Restore :active so touch still gets visual feedback */
+  .keep-btn:active           { border-color: var(--green); color: var(--green); background: var(--green-lt); }
+  .view-tab:active           { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .nav-item:active           { box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+}
 </style>
 </head>
 <body>
@@ -4791,6 +4816,14 @@ function buildBuilderView(players) {
     </div>`;
   });
   slotsEl.innerHTML = slotsHtml;
+
+  // Touch drag-and-drop for Keeper Builder (HTML5 DnD doesn't work on iOS/Android)
+  if (!slotsEl._touchDrag) {
+    slotsEl._touchDrag = true;
+    slotsEl.addEventListener('touchstart', _builderTouchStart, {passive:false});
+    slotsEl.addEventListener('touchmove',  _builderTouchMove,  {passive:false});
+    slotsEl.addEventListener('touchend',   _builderTouchEnd,   {passive:false});
+  }
 }
 
 function renderPool(players, filter) {
@@ -4883,6 +4916,72 @@ function slotDrop(event, slotId) {
   draggedPlayer = null;
   saveBuilderPlan();
   buildBuilderView(LEAGUE[currentTeam] || []);
+}
+
+// ── Touch drag for Keeper Builder ────────────────────────────────────────────
+// Mirrors the Draft Planner touch DnD. HTML5 DnD is unsupported on iOS/Android.
+let _blGhost = null, _blSrc = null;
+
+function _builderTouchStart(e) {
+  const row = e.target.closest('.slot-row[draggable]');
+  if (!row) return;
+  const slotId = row.id.slice('slot-'.length);
+  const p = slotAssignments[slotId];
+  if (!p) return;
+  e.preventDefault();
+  draggedPlayer = p;
+  dragSource = 'slot';
+  _blSrc = slotId;
+  const t = e.touches[0];
+  _blGhost = row.cloneNode(true);
+  Object.assign(_blGhost.style, {
+    position:'fixed', pointerEvents:'none', zIndex:'9999', opacity:'.88',
+    width: row.offsetWidth + 'px',
+    left: (t.clientX - row.offsetWidth / 2) + 'px',
+    top:  (t.clientY - 20) + 'px',
+    transform:'scale(1.03)', boxShadow:'0 8px 24px rgba(0,0,0,.22)',
+    borderRadius:'6px', transition:'none',
+  });
+  document.body.appendChild(_blGhost);
+  row.style.opacity = '.35';
+}
+
+function _builderTouchMove(e) {
+  if (!_blGhost) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  _blGhost.style.left = (t.clientX - _blGhost.offsetWidth / 2) + 'px';
+  _blGhost.style.top  = (t.clientY - 20) + 'px';
+  _blGhost.style.display = 'none';
+  const under = document.elementFromPoint(t.clientX, t.clientY);
+  _blGhost.style.display = '';
+  document.querySelectorAll('.slot-row.drag-over-ok, .slot-row.drag-over-warn')
+    .forEach(el => el.classList.remove('drag-over-ok', 'drag-over-warn'));
+  const targetRow = under?.closest('.slot-row');
+  if (targetRow && draggedPlayer) {
+    const tid = targetRow.id.slice('slot-'.length);
+    targetRow.classList.add(isEligibleForSlot(draggedPlayer, tid) ? 'drag-over-ok' : 'drag-over-warn');
+  }
+}
+
+function _builderTouchEnd(e) {
+  if (!_blGhost) return;
+  const t = e.changedTouches[0];
+  _blGhost.style.display = 'none';
+  const under = document.elementFromPoint(t.clientX, t.clientY);
+  _blGhost.remove(); _blGhost = null;
+  document.querySelectorAll('.slot-row').forEach(el => {
+    el.style.opacity = '';
+    el.classList.remove('drag-over-ok', 'drag-over-warn');
+  });
+  const targetRow = under?.closest('.slot-row');
+  if (targetRow && draggedPlayer) {
+    const tid = targetRow.id.slice('slot-'.length);
+    slotDrop({preventDefault:()=>{}}, tid);
+  } else {
+    draggedPlayer = null;
+  }
+  _blSrc = null;
 }
 
 function clearSlot(slotId) {
