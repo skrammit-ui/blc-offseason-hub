@@ -1382,7 +1382,8 @@ function refreshFantraxRosters(ss) {
 
     (teamData.rosterItems || []).forEach(item => {
       const pid      = String(item.id || '').trim();
-      const pos      = String(item.position || '').trim();
+      const posRaw   = item.positions || item.position || '';
+      const pos      = Array.isArray(posRaw) ? posRaw.join(',') : String(posRaw).trim();
       const salary   = item.salary != null ? Number(item.salary) : null;
       const status   = STATUS_FANTRAX[item.status] || '';
       const contract = item.contract ? String(item.contract.name || '') : '';
@@ -1567,10 +1568,11 @@ function buildRostersFromFantrax(ss) {
       const parts = name.split(',');
       name = parts[1].trim() + ' ' + parts[0].trim();
     }
+    const pPosRaw = p.positions || p.position || p.pos || '';
     playerInfo[id] = {
       name,
       mlb_team: String(p.team || p.mlbTeam || '').trim(),
-      position: String(p.position || p.pos || '').trim(),
+      position: Array.isArray(pPosRaw) ? pPosRaw.join(',') : String(pPosRaw).trim(),
     };
   });
 
@@ -1640,7 +1642,8 @@ function populateFantraxPlayerIds(ss) {
     if (!p || typeof p !== 'object') return;
     const id       = String(p.fantraxId || p.id || key).trim();
     const team     = String(p.team     || p.mlbTeam || '').trim();
-    const position = String(p.position || p.pos     || '').trim();
+    const posRaw   = p.positions || p.position || p.pos || '';
+    const position = Array.isArray(posRaw) ? posRaw.join(',') : String(posRaw).trim();
     if (id) playerMap[id] = { team, position };
   });
 
