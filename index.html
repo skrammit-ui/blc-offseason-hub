@@ -4665,11 +4665,13 @@ function buildBuilderView(players) {
     return slot && (slot.type === 'milb' || STATUS_MAP[p.status] === 'MiLB');
   }).length;
   const totalKeepers = mlbSlotted + milbSlotted;
-  const overLimit = totalKeepers > 40;
+  const overLimit    = totalKeepers > 40;
+  const milbOver     = milbSlotted > 25;
+  const milbColor    = milbOver ? '#d97706' : 'var(--blue)';
 
-  slotsHtml += `<div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;padding:10px 12px;background:var(--bg);border-radius:6px;border:1px solid var(--border)">
+  slotsHtml += `<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px;padding:10px 12px;background:var(--bg);border-radius:6px;border:1px solid var(--border)">
     <div style="font-size:11px;color:var(--text-3)">
-      <span style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--navy)">${totalKeepers}</span>
+      <span style="font-family:var(--mono);font-size:18px;font-weight:700;color:${overLimit ? 'var(--red)' : 'var(--navy)'}">${totalKeepers}</span>
       <span style="margin-left:4px">/ 40 total keepers</span>
     </div>
     <div style="width:1px;height:28px;background:var(--border)"></div>
@@ -4677,15 +4679,16 @@ function buildBuilderView(players) {
       <span style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--green)">${mlbSlotted}</span>
       <span style="margin-left:4px">MLB</span>
     </div>
-    <div style="font-size:11px;color:var(--text-3)">
-      <span style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--blue)">${milbSlotted}</span>
-      <span style="margin-left:4px">MiLB</span>
+    <div style="font-size:11px;color:var(--text-3);display:flex;align-items:center;gap:6px">
+      <span style="font-family:var(--mono);font-size:16px;font-weight:700;color:${milbColor}">${milbSlotted}</span>
+      <span>/ 25 MiLB spots</span>
+      ${milbOver ? `<span style="font-size:10px;font-weight:700;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:3px;padding:1px 5px">⚠ ${milbSlotted - 25} over roster limit</span>` : ''}
     </div>
     <div style="margin-left:auto">
       <div style="height:6px;width:160px;background:var(--border);border-radius:3px;overflow:hidden">
         <div style="height:100%;width:${Math.min(100, (totalKeepers/40)*100)}%;background:${overLimit ? 'var(--red)' : totalKeepers >= 36 ? 'var(--amber)' : 'var(--green)'};border-radius:3px;transition:width .2s"></div>
       </div>
-      <div style="font-size:10px;color:${overLimit ? 'var(--red)' : 'var(--text-3)'};margin-top:3px;text-align:right">${overLimit ? '⚠ Over limit by ' + (totalKeepers-40) : (40-totalKeepers) + ' slots remaining'}</div>
+      <div style="font-size:10px;color:${overLimit ? 'var(--red)' : 'var(--text-3)'};margin-top:3px;text-align:right">${overLimit ? '⚠ Over keeper limit by ' + (totalKeepers-40) : (40-totalKeepers) + ' keeper slots remaining'}</div>
     </div>
   </div>`;
 
