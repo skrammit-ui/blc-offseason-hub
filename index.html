@@ -377,7 +377,8 @@ tr.keeper-trade:hover  td { background: #ffe4cc !important; }
   min-height: 30px; transition: border-color .12s, background .12s;
 }
 .slot-row.filled { border-style: solid; border-color: var(--green); background: #edf7f1; }
-.slot-row.filled.milb-slot  { border-color: var(--blue);  background: #e8f2fd; }
+.slot-row.filled.milb-slot     { border-color: var(--blue);  background: #e8f2fd; }
+.slot-row.filled.milb-overflow { border-color: #f59e0b;  background: #fef3c7; }
 .slot-row.filled.bench-slot { border-color: #d97706; background: #fffbea; }
 .slot-row.drag-over      { border-color: var(--gold);  background: #fffdf0; }
 .slot-row.drag-over-ok   { border-color: var(--green); background: #edf7f1; }
@@ -4705,10 +4706,11 @@ function buildBuilderView(players) {
     }
     const filled = slotAssignments[slot.id];
     const isMilb = filled && STATUS_MAP[filled.status] === 'MiLB';
-    // Bench slots show yellow when filled, MiLB slots show blue when filled
+    const milbSlotIdx = slot.type === 'milb' ? parseInt(slot.id.replace('MiLB','')) : 0;
+    const isOverflowMilb = milbSlotIdx > 25 && !!filled;
     let filledCls = '';
     if (filled) {
-      if (slot.type === 'milb') filledCls = 'filled milb-slot';
+      if (slot.type === 'milb') filledCls = isOverflowMilb ? 'filled milb-overflow' : 'filled milb-slot';
       else if (slot.type === 'bench') filledCls = 'filled bench-slot';
       else filledCls = isMilb ? 'filled milb-slot' : 'filled';
     }
@@ -4768,6 +4770,7 @@ function buildBuilderView(players) {
              <span class="slot-meta" style="flex-shrink:0">${filled.mlb_team} · ${fmtPos(filled.position)}</span>
              ${rdTile(filled.salary)}
              ${filled.contract ? conTag(filled.contract) : ''}
+             ${isOverflowMilb ? '<span style="font-size:9px;font-weight:700;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:3px;padding:1px 5px;flex-shrink:0">Uses MLB spot</span>' : ''}
            </div>
            ${compactStatLine(filled)}
            <span class="slot-clear" style="margin-left:auto;flex-shrink:0" onclick="clearSlot('${slot.id}')">✕</span>
@@ -4935,9 +4938,12 @@ function buildDraftPlanView(players) {
     const type = keptMap[p.player];
     return type && type !== 'milb' && STATUS_MAP[p.status] !== 'MiLB';
   });
+  const keptMilbPlayers = players.filter(p => keptMap[p.player] === 'milb');
 
   const roundsUsed = Object.keys(draftAssignments).filter(r => draftAssignments[r]?.length).length;
   const totalKept = keptMlbPlayers.length;
+  const milbKeptCount = keptMilbPlayers.length;
+  const milbOverflow = Math.max(0, milbKeptCount - 25);
 
   // Build team's pick numbers per round from pickOrder (collect all picks, a team may have multiple per round)
   const teamPicksInRound = {};
@@ -4968,12 +4974,18 @@ function buildDraftPlanView(players) {
 
   // Summary bar
   const plannerRoundCount = hasPlannerPickOrder ? Object.keys(teamPicksInRound).length : 30;
-  let boardHtml = `<div style="display:flex;gap:20px;margin-bottom:14px;padding:10px 12px;background:var(--bg);border-radius:6px;border:1px solid var(--border);align-items:center">
+  let boardHtml = `<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;padding:10px 12px;background:var(--bg);border-radius:6px;border:1px solid var(--border);align-items:center">
     <div style="font-size:11px;color:var(--text-3)"><span style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--navy)">${totalKept}</span>&nbsp;MLB keepers</div>
     <div style="width:1px;height:24px;background:var(--border)"></div>
+    <div style="font-size:11px;color:var(--text-3);display:flex;align-items:center;gap:6px">
+      <span style="font-family:var(--mono);font-size:18px;font-weight:700;color:${milbOverflow ? '#d97706' : 'var(--blue)'}">${milbKeptCount}</span>
+      <span>/ 25 MiLB spots</span>
+      ${milbOverflow ? `<span style="font-size:10px;font-weight:700;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:3px;padding:1px 5px">${milbOverflow} use MLB spots</span>` : ''}
+    </div>
+    <div style="width:1px;height:24px;background:var(--border)"></div>
     <div style="font-size:11px;color:var(--text-3)"><span style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--green)">${30 - roundsUsed}</span>&nbsp;open picks</div>
-    <div style="font-size:11px;color:var(--text-3);margin-left:auto">Auto-populated from keeper selections · Drag keepers between rounds to reassign</div>
-  </div>
+    <div style="font-size:11px;color:var(--text-3);margin-left:auto">Drag keepers between rounds to reassign</div>
+  </div>`;
   <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Draft Board — ${plannerRoundCount} Pick${plannerRoundCount !== 1 ? 's' : ''}</div>`;
 
   // Build a flat ordered list of (r, pk) slots — one row per pick
@@ -5067,6 +5079,32 @@ function buildDraftPlanView(players) {
       ${roundBadge}
       ${innerHtml}
     </div>`;
+  }
+
+  // MiLB keepers section — shown below the pick board
+  if (keptMilbPlayers.length) {
+    boardHtml += `<div style="margin-top:20px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--blue);margin-bottom:8px;display:flex;align-items:center;gap:8px">
+        MiLB Keepers
+        ${milbOverflow ? `<span style="font-size:10px;font-weight:700;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:3px;padding:1px 6px">⚠ ${milbOverflow} exceed 25-spot limit — use MLB slots</span>` : ''}
+      </div>`;
+    keptMilbPlayers.forEach((p, i) => {
+      const isOver = i >= 25;
+      const rowBg  = isOver ? 'background:#fef3c7;border-color:#fcd34d' : 'background:#e8f2fd;border-color:var(--blue)';
+      boardHtml += `<div class="draft-round" style="border-left:3px solid;${rowBg};margin-bottom:4px">
+        <div style="display:flex;flex-direction:column;align-items:center;line-height:1.1;font-family:var(--mono);flex-shrink:0;padding-right:6px;min-width:32px">
+          <span style="font-size:8px;color:var(--text-3);letter-spacing:.05em">MiLB</span>
+          <span style="font-size:13px;font-weight:700;color:${isOver ? '#d97706' : 'var(--blue)'}">M${i+1}</span>
+        </div>
+        <div style="flex:1;min-width:0;display:flex;align-items:center;gap:5px;overflow:hidden">
+          <span style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.player}</span>
+          <span style="font-size:10px;color:var(--text-3);flex-shrink:0">${p.mlb_team} · ${fmtPos(p.position)}</span>
+          ${p.contract ? conTag(p.contract) : ''}
+          ${isOver ? '<span style="font-size:9px;font-weight:700;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:3px;padding:1px 5px;flex-shrink:0">Uses MLB spot</span>' : ''}
+        </div>
+      </div>`;
+    });
+    boardHtml += `</div>`;
   }
 
   boardEl.innerHTML = boardHtml;
