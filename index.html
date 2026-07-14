@@ -4463,11 +4463,9 @@ function prefillFromKeepers(players) {
 
   let milbIdx = 1;
   keptMilb.forEach(p => {
-    if (milbIdx <= 25) {
-      slotAssignments[`MiLB${milbIdx}`] = p;
-      usedSlots.add(`MiLB${milbIdx}`);
-      milbIdx++;
-    }
+    slotAssignments[`MiLB${milbIdx}`] = p;
+    usedSlots.add(`MiLB${milbIdx}`);
+    milbIdx++;
   });
 
   // ── Auto-populate Draft Planner using same slot logic as Draft Results ─────
@@ -4639,8 +4637,8 @@ const ROSTER_SLOTS = [
   { id:'P9',  label:'P',  type:'pit' },
   // Bench (8 spots — any player)
   ...Array.from({length:8}, (_,i) => ({ id:`BN${i+1}`, label:'BN', type:'bench' })),
-  // MiLB (25 spots)
-  ...Array.from({length:25}, (_,i) => ({ id:`MiLB${i+1}`, label:'MiLB', type:'milb' })),
+  // MiLB — 40 slots max (a GM can keep up to 40 total; all MiLB keepers must fit)
+  ...Array.from({length:40}, (_,i) => ({ id:`MiLB${i+1}`, label:'MiLB', type:'milb' })),
 ];
 
 // slotAssignments: slotId → player object
@@ -4655,7 +4653,7 @@ function buildBuilderView(players) {
   // Section headers
   let slotsHtml = '';
   let lastType = null;
-  const sectionLabels = { hit: 'Offense', pit: 'Pitching', bench: 'Bench · 8 spots', milb: 'MiLB Reserve · 25 spots' };
+  const sectionLabels = { hit: 'Offense', pit: 'Pitching', bench: 'Bench · 8 spots', milb: 'MiLB Reserve' };
 
   // Count keepers currently slotted
   const mlbSlotted  = Object.entries(slotAssignments).filter(([id, p]) => {
@@ -7227,10 +7225,20 @@ const NEWS_DATA = {
   },
   'Striker Pence': {
     category:'draft', isPitcher:true, positionDisplay:'SP',
-    school:'TBD', draftClass:'2026 MLB Draft',
-    promotionLabel:'MLB Debut Probability (Post-Draft)', promotionProb:0.30,
-    actionBadge:'monitor', actionText:'Monitor',
-    analysis:"Athletic right-hander with impressive spin efficiency and a natural four-pitch mix. The fastball/curveball combination generates elite chase rates. Repeats his delivery well, giving him above-average command. Mid-rotation starter floor with legitimate upside if the changeup continues to develop into a true third offering.",
+    school:'Santiago HS, Corona CA', draftClass:'2027 MLB Draft',
+    actionBadge:'monitor', actionText:'2027 Draft — Watch', sentiment:'Rising',
+    infoBoxes:[
+      {label:'Draft Status',   value:'Reclassified — 2027 MLB Draft class'},
+      {label:'2026 Update',    value:'Did not enter 2026 Draft — reclassified from 2028'},
+      {label:'Scouting',       value:'#1 RHP in 2027 class (early consensus)'},
+    ],
+    statBoxes:[
+      {label:'Arsenal',         lines:['FB: Up to 101 mph','Premium spin · Elite extension','Secondary pitches developing'],  hi:0},
+      {label:'Profile',         lines:['Age: 17 (eligible 2027)','Santiago HS · Corona, CA','Perfect Game standout'],        hi:null},
+      {label:'Dynasty Outlook', lines:['Top-5 pick projection (2027)','Ace ceiling if healthy','Stash now — buy window'],   hi:null},
+    ],
+    promotionLabel:'MLB Debut Probability (Post-2027 Draft)', promotionProb:0.40,
+    analysis:'Reclassified from 2028 to the 2027 draft class — did not enter 2026. The 17-year-old right-hander from Santiago HS in Corona, CA is already touching 101 mph with premium spin, making him the early consensus No. 1 arm in the 2027 class. Ace ceiling dynasty stash — lock him up before the 2027 draft.',
   },
   'Henry Bolte': {
     category:'milb', isPitcher:false, positionDisplay:'OF (CF/RF)',
@@ -7261,35 +7269,35 @@ const NEWS_DATA = {
   'Vahn Lackey': {
     category:'draft', isPitcher:false, positionDisplay:'C',
     school:'Georgia Tech (ACC)', schoolYear:'Junior', draftClass:'2026 MLB Draft',
-    watchList:true, watchBadgeText:'Buster Posey Watch List',
-    actionBadge:'pick', actionText:'Top 5 Pick', sentiment:'Elite',
+    watchList:true, watchBadgeText:'Buster Posey Award Winner',
+    actionBadge:'pick', actionText:'No. 3 Overall — Twins', sentiment:'Elite',
     infoBoxes:[
-      {label:'Projected Draft Slot',  value:'Top 3–5 Overall (consensus)'},
-      {label:'Top Team Connection',   value:'Rays (No. 2 pick) / Angels (No. 12)'},
-      {label:'Draft Date',            value:'July 11–12, Philadelphia'},
+      {label:'Drafted',     value:'No. 3 Overall — Minnesota Twins'},
+      {label:'Draft Date',  value:'July 11–12, 2026 — Philadelphia'},
+      {label:'Signing',     value:'Slot value ~$8.8M'},
     ],
     statBoxes:[
-      {label:'2026 Season YTD',   lines:['.398 AVG \xb7 .789 SLG','.519 OBP \xb7 11 HR \xb7 9 SB','16% K rate \xb7 27% barrel rate'], hi:0},
-      {label:'Defensive Metrics', lines:['1.83s pop time (elite)','Max EV: 112.7 mph','Arm: 80 grade (top of scale)'],                 hi:0},
-      {label:'2025 Breakout Ref', lines:['.347/.421/.500','6 HR \xb7 14 2B \xb7 18 SB','32.5% caught stealing rate'],                 hi:0},
+      {label:'2026 Final Season',  lines:['.397/.519/.772','20 HR · More BB than K','Barrel rate: 27% (elite)'],           hi:0},
+      {label:'Defensive Profile',  lines:['Pop time: 1.83s (elite)','Max EV: 112.7 mph','Arm: 80 grade (top of scale)'],      hi:0},
+      {label:'Dynasty Outlook',    lines:['Adley Rutschman comp','Twins: System headliner','MLB ETA: 2028–2029'],        hi:null},
     ],
-    analysis:'Junior year has been a monster. Barrel rate jumped from 17% → 27%; power profile completely changed. Two-way athleticism (plays multiple positions in emergencies). Buster Posey Award Watch List — Posey, Varitek, Wieters pedigree from Georgia Tech catching. Adley Rutschman comp. Premier dynasty asset in any league that drafts amateurs.',
+    analysis:'Went No. 3 to Minnesota after a monster junior year — 20 HR, more walks than strikeouts, 27% barrel rate. Won the Buster Posey Award for best college catcher. Adley Rutschman remains the most apt dynasty comp. Immediate Twins system headliner and dynasty cornerstone.',
   },
   'Jared Grindlinger': {
-    category:'draft', isPitcher:true,  positionDisplay:'P/1B',
-    school:'Huntington Beach HS (CA)', schoolYear:"Class 2026 (reclassified from ’27)", draftClass:'2026 MLB Draft',
-    watchList:false, actionBadge:'pick', actionText:'Top 15–17 Pick', sentiment:'Rising',
+    category:'draft', isPitcher:false, positionDisplay:'OF/LHP',
+    school:'Huntington Beach HS (CA)', schoolYear:'Class 2026 (reclassified from ’27)', draftClass:'2026 MLB Draft',
+    watchList:false, actionBadge:'pick', actionText:'No. 12 Overall — Angels', sentiment:'Rising',
     infoBoxes:[
-      {label:'Projected Draft Slot',  value:'~#13–17 Overall (rising)'},
-      {label:'Mock Team Connection',  value:'Cardinals (BA Staff Draft #13)'},
-      {label:'Commitment',            value:'Tennessee (signability factor)'},
+      {label:'Drafted',     value:'No. 12 Overall — Los Angeles Angels'},
+      {label:'Draft Date',  value:'July 11–12, 2026 — Philadelphia'},
+      {label:'Fun Fact',    value:'Youngest 1st-round pick in Angels franchise history (17y 86d)'},
     ],
     statBoxes:[
-      {label:'2025 HS Hitting',  lines:['.343 AVG \xb7 2 HR \xb7 17 RBI','Plus bat-to-ball, all-fields approach','Above-avg power (trending up)'], hi:0},
-      {label:'2025 HS Pitching', lines:['0.87 ERA \xb7 5-0 \xb7 32.1 IP','34 K \xb7 Fastball up to 96 mph','Slider + CH flash plus'],            hi:0},
-      {label:'Draft Context',    lines:['Age: 17 (youngest top prospect)','Two-way — teams prefer bat','+18 spots in April rankings'],        hi:null},
+      {label:'2026 HS Hitting',  lines:['.343 AVG · Above-avg power','Lefty bat · All-fields approach','Angels taking as hitter'],      hi:0},
+      {label:'2026 HS Pitching', lines:['LHP · FB up to 96 mph','Slider + CH flash plus','Projected to bat in pro ball'],                 hi:null},
+      {label:'Dynasty Outlook',  lines:['Youngest player in Angels system','High ceiling / wide outcomes','MLB ETA: 2029–2030'],         hi:null},
     ],
-    analysis:"Youngest early-round prospect in the class; reclassified from 2027 just this February. Two-way talent with legitimate first-round tools on both sides. Teams lean toward taking him as a hitter. Committed to Tennessee but signability plays a role in where he goes. High ceiling, wide range of outcomes — dynasty: stash and hold.",
+    analysis:'Went No. 12 to the Angels as the youngest first-round pick in franchise history at 17 years and 86 days. A genuine two-way talent — lefty bat with plus raw power and a mid-90s fastball — but the Angels are developing him as a hitter. Reclassified from 2027 just months before the draft. High ceiling dynasty stash.',
   },
   'Chase Burns': {
     category:'mlb', isPitcher:true, positionDisplay:'SP',
@@ -7344,10 +7352,20 @@ const NEWS_DATA = {
   },
   'Cameron Flukey': {
     category:'draft', isPitcher:true, positionDisplay:'SP',
-    school:'TBD', draftClass:'2026 MLB Draft',
-    promotionLabel:'MLB Debut Probability (Post-Draft)', promotionProb:0.25,
-    actionBadge:'monitor', actionText:'Monitor',
-    analysis:"2026 draft-eligible right-hander with intriguing arm strength and a projectable frame. Evaluators note fast-developing secondary pitches and a competitive approach on the mound. A name to watch closely through the spring draft window as teams determine where he fits in the first few rounds.",
+    school:'Coastal Carolina', draftClass:'2026 MLB Draft',
+    actionBadge:'pick', actionText:'No. 22 Overall — Tigers', sentiment:'Rising',
+    infoBoxes:[
+      {label:'Drafted',     value:'No. 22 Overall — Detroit Tigers'},
+      {label:'Draft Date',  value:'July 11–12, 2026 — Philadelphia'},
+      {label:'Milestone',   value:'Highest draft pick in Coastal Carolina history'},
+    ],
+    statBoxes:[
+      {label:'2026 Season',       lines:['Dominant junior campaign','Advanced command profile','3-pitch mix with plus FB'],         hi:0},
+      {label:'Arsenal',           lines:['FB: 92–96 mph · Elite extension','SL: Plus — swing-and-miss','CH: Above average'], hi:0},
+      {label:'Dynasty Outlook',   lines:['Tigers rotation pipeline','Mid-rotation floor','MLB ETA: 2028'],                        hi:null},
+    ],
+    promotionLabel:'MLB Debut Probability (Post-Draft)', promotionProb:0.55,
+    analysis:'Went No. 22 to Detroit, becoming the highest draft pick in Coastal Carolina history. RHP with an advanced three-pitch mix anchored by a plus fastball with elite extension. His command is above-average for a college arm. Mid-rotation floor with upside if the slider continues to develop as a true out pitch.',
   },
   'Cade Townsend': {
     category:'draft', isPitcher:true, positionDisplay:'SP',
@@ -7355,6 +7373,93 @@ const NEWS_DATA = {
     promotionLabel:'MLB Debut Probability (Post-Draft)', promotionProb:0.25,
     actionBadge:'monitor', actionText:'Monitor',
     analysis:"Hard-throwing 2026 draft prospect whose fastball plays above its raw velocity thanks to elite extension and spin. Secondary pitches are still developing but flash enough to project as a mid-rotation starter. High-upside arm with a wide range of outcomes depending on signing bonus and where he develops.",
+  },
+
+  // === NEW 2026 DRAFT PICKS ===
+  'Peyton Bonds': {
+    category:'draft', isPitcher:false, positionDisplay:'OF (CF)',
+    school:'Rutgers (Big Ten)', schoolYear:'Sophomore', draftClass:'2026 MLB Draft',
+    actionBadge:'monitor', actionText:'No. 90 Overall — Giants', sentiment:'Rising',
+    infoBoxes:[
+      {label:'Drafted',     value:'No. 90 Overall — San Francisco Giants'},
+      {label:'Draft Date',  value:'July 11–12, 2026 — Philadelphia'},
+      {label:'Bloodlines',  value:'Nephew of Barry Bonds (Giants legend)'},
+    ],
+    statBoxes:[
+      {label:'Profile',        lines:['OF · CF capable','Good feel to hit','Raw power developing'],                hi:null},
+      {label:'Bloodlines',     lines:["Barry Bonds' nephew",'Giants: Fitting reunion','Power tool: Projectable'],      hi:null},
+      {label:'Dynasty Outlook',lines:['Day 4 pick — deep stash','Giants player dev: Promising','MLB ETA: 2029+'], hi:null},
+    ],
+    promotionLabel:'MLB Debut Probability (2026–2027 Post-Draft)', promotionProb:0.20,
+    analysis:'San Francisco grabbed Peyton Bonds — Barry’s nephew — in the fourth round. He’s a CF-capable outfielder with a good feel to hit and developing power. The Giants’ player development reputation gives this pick extra upside. Deep dynasty stash with a famous last name and a fitting landing spot.',
+  },
+  'Eric Booth Jr.': {
+    category:'draft', isPitcher:false, positionDisplay:'OF',
+    school:'Oak Grove HS, Hattiesburg MS', draftClass:'2026 MLB Draft',
+    actionBadge:'pick', actionText:'No. 6 Overall — Orioles', sentiment:'Elite',
+    infoBoxes:[
+      {label:'Drafted',     value:'No. 6 Overall — Baltimore Orioles'},
+      {label:'Draft Date',  value:'July 11–12, 2026 — Philadelphia'},
+      {label:'School',      value:'Oak Grove HS — Hattiesburg, Mississippi'},
+    ],
+    statBoxes:[
+      {label:'Tools',          lines:['OF · Premium athlete','First-round physical tools','High-upside HS prep bat'], hi:0},
+      {label:'Organization',   lines:['Orioles: Elite player dev','Strong system to join','No. 6 — Top-10 pick'],   hi:null},
+      {label:'Dynasty Outlook',lines:['HS bat — long runway','Orioles accelerate talent','MLB ETA: 2029–2030'], hi:null},
+    ],
+    promotionLabel:'MLB Debut Probability (Post-Draft)', promotionProb:0.30,
+    analysis:'Baltimore grabbed Eric Booth Jr. at No. 6 — a premium HS outfielder from Hattiesburg, Mississippi with first-round physical tools. The Orioles have one of the best player development systems in baseball, which bodes well for his trajectory. High-ceiling dynasty stash with a long developmental runway.',
+  },
+  'Taylor Rabe': {
+    category:'draft', isPitcher:true, positionDisplay:'SP',
+    school:'University of Mississippi (Ole Miss)', draftClass:'2026 MLB Draft',
+    actionBadge:'pick', actionText:'No. 30 Overall — Royals', sentiment:'Rising',
+    infoBoxes:[
+      {label:'Drafted',     value:'No. 30 Overall — Kansas City Royals'},
+      {label:'Draft Date',  value:'July 11–12, 2026 — Philadelphia'},
+      {label:'School',      value:'Ole Miss (SEC) — Junior'},
+    ],
+    statBoxes:[
+      {label:'2026 Season',     lines:['3.55 ERA · 76 IP','105 K · 15 BB (7:1 K:BB)','96 mph fastball — settling in'], hi:0},
+      {label:'Arsenal',         lines:['FB: 94–96 mph','Command: Plus (elite walk rate)','Secondary pitches developing'],      hi:0},
+      {label:'Dynasty Outlook', lines:['Royals rotation pipeline','Mid-rotation upside','MLB ETA: 2027–2028'],                hi:null},
+    ],
+    promotionLabel:'MLB Debut Probability (2027)', promotionProb:0.60,
+    analysis:'Kansas City locked up Taylor Rabe at No. 30 after a strong junior season at Ole Miss — 3.55 ERA, 105 strikeouts, just 15 walks in 76 innings. That 7:1 K:BB ratio is elite command for a college arm. His 96 mph fastball plays up thanks to exceptional control. Near-term MLB contributor with a mid-rotation ceiling.',
+  },
+  'Brody Bumila': {
+    category:'draft', isPitcher:true, positionDisplay:'LHP',
+    school:'Bishop Feehan HS, Attleboro MA', draftClass:'2026 MLB Draft',
+    actionBadge:'monitor', actionText:'No. 89 Overall — Rangers', sentiment:'Rising',
+    infoBoxes:[
+      {label:'Drafted',     value:'No. 89 Overall — Texas Rangers'},
+      {label:'Draft Date',  value:'July 11–12, 2026 — Philadelphia'},
+      {label:'School',      value:'Bishop Feehan HS — Attleboro, Massachusetts'},
+    ],
+    statBoxes:[
+      {label:'Profile',        lines:['LHP · High school arm','Projectable frame','Rangers: Strong pitching dev'],      hi:null},
+      {label:'Tools',          lines:['Fastball command — plus','Breaking ball: Developing','Long-term starter upside'], hi:null},
+      {label:'Dynasty Outlook',lines:['Day 4 HS pick — stash','Rangers accelerate arms','MLB ETA: 2029–2030'],    hi:null},
+    ],
+    promotionLabel:'MLB Debut Probability (Post-Draft)', promotionProb:0.20,
+    analysis:'Texas took lefty Brody Bumila in the third round out of Bishop Feehan HS in Massachusetts. A projectable high school arm landing with a Rangers organization known for developing pitchers. Long development timeline but the ceiling is intriguing. Deep dynasty stash for patient managers.',
+  },
+  'Dexter McLeon Jr.': {
+    category:'draft', isPitcher:false, positionDisplay:'OF (CF)',
+    school:'Georgia (2028 draft class)', draftClass:'2028 MLB Draft',
+    actionBadge:'monitor', actionText:'2028 Draft — Watch', sentiment:'Rising',
+    infoBoxes:[
+      {label:'Draft Status',   value:'Not yet eligible — 2028 MLB Draft class'},
+      {label:'2026 Update',    value:'Top-ranked 2028 prospect — still in HS'},
+      {label:'Scouting',       value:'Early #1 outfield prospect in 2028 class'},
+    ],
+    statBoxes:[
+      {label:'Tools',          lines:['CF · Premium athlete','Speed: Plus-plus grade','Raw power: Elite projection'],  hi:0},
+      {label:'Profile',        lines:['Georgia HS outfielder','2028 class headliner','Striker Pence rival for #1'],       hi:null},
+      {label:'Dynasty Outlook',lines:['Stash now if possible','2028 pick — patience required','Elite upside ceiling'], hi:null},
+    ],
+    promotionLabel:'MLB Debut Probability (Post-2028 Draft)', promotionProb:0.25,
+    analysis:'Dexter McLeon Jr. is not yet draft-eligible — he’s a top-ranked Georgia outfielder in the 2028 class and the consensus top position-player prospect alongside Striker Pence. Premium athlete with plus-plus speed and elite raw power projection in CF. Long runway dynasty stash — if you can grab him now, do it.',
   },
 
   // === ASIAN / INTERNATIONAL ===
