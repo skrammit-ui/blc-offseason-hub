@@ -2520,7 +2520,7 @@ function playerRow(p, status, editable, isHitter) {
     <td class="col-status">${stag}</td>
     <td class="col-rd c"${editAttr}>${rdTile(p.salary, editable)}</td>
     <td class="col-con c"${editAttr}>${conTag(p.contract, editable)}</td>
-    <td class="col-player"><strong>${p.player}</strong><span class="player-meta">${p.mlb_team} · ${fmtPos(p.position)}</span>${mTile}${keepBtn}</td>
+    <td class="col-player"><strong>${p.player}</strong><span class="player-meta">${p.mlb_team} · ${fmtPos(p.position,p.player)}</span>${mTile}${keepBtn}</td>
     ${statCols}
   </tr>`;
 }
@@ -2573,11 +2573,63 @@ function viewTeamOverview(teamName) {
 
 // Parse a position string (comma or slash separated) into a clean uppercase array.
 // "MI" and "CI" are kept as-is (they are valid Fantrax position labels, not expanded).
-function parsePositions(str) {
-  return (str || '').split(/[,\/]/).map(p => p.trim().toUpperCase()).filter(Boolean);
+// posCache: playerName → Set<position> from MLB Stats API 40-man rosters.
+// Populated by enrichPositions() on startup; supplements Fantrax primary position.
+const posCache = {};
+
+function parsePositions(str, playerName) {
+  const base = (str || '').split(/[,\/]/).map(p => p.trim().toUpperCase()).filter(Boolean);
+  if (playerName && posCache[playerName]) {
+    posCache[playerName].forEach(p => { if (!base.includes(p)) base.push(p); });
+  }
+  return base;
 }
-function fmtPos(str) {
-  return parsePositions(str).join('/') || str || '—';
+function fmtPos(str, playerName) {
+  const parts = parsePositions(str, playerName);
+  return parts.length ? parts.join('/') : (str || '—');
+}
+
+// Fetch 40-man roster for each MLB team represented across all LEAGUE rosters,
+// populate posCache with all eligible positions. Runs silently in the background.
+async function enrichPositions() {
+  // Collect all distinct MLB team abbreviations from every roster
+  const abbrevSet = new Set();
+  Object.values(LEAGUE).forEach(roster => {
+    roster.forEach(p => { if (p.mlb_team) abbrevSet.add(p.mlb_team.trim().toUpperCase()); });
+  });
+
+  const MLB_TEAM_IDS = {
+    ARI:109,ATL:144,BAL:110,BOS:111,CHC:112,CWS:145,CIN:113,CLE:114,
+    COL:115,DET:116,HOU:117,KC:118,LAA:108,LAD:119,MIA:146,MIL:158,
+    MIN:142,NYM:121,NYY:147,OAK:133,PHI:143,PIT:134,SD:135,SF:137,
+    SEA:136,STL:138,TB:139,TEX:140,TOR:141,WSH:120,
+    // common alternates
+    CLE:114,WSH:120,KC:118,MIA:146,TB:139,
+  };
+
+  const teamIds = [...abbrevSet].map(a => MLB_TEAM_IDS[a]).filter(Boolean);
+  if (!teamIds.length) return;
+
+  try {
+    const year = new Date().getFullYear();
+    const results = await Promise.all(
+      teamIds.map(id =>
+        fetch(`https://statsapi.mlb.com/api/v1/teams/${id}/roster?rosterType=40Man&season=${year}`)
+          .then(r => r.json()).catch(() => null)
+      )
+    );
+    results.forEach(data => {
+      (data?.roster || []).forEach(entry => {
+        const name = entry.person?.fullName;
+        const pos  = entry.position?.abbreviation?.toUpperCase();
+        if (!name || !pos) return;
+        if (!posCache[name]) posCache[name] = new Set();
+        posCache[name].add(pos);
+      });
+    });
+    // Trigger a re-render of whichever view is active so positions update
+    loadTeam(currentTeam);
+  } catch (_) { /* best-effort */ }
 }
 
 const DIV_NAMES_ORDER = ['Dairy Daddies','Thunder Chickens','Iron Pigs','Flying Mummies'];
@@ -3933,7 +3985,7 @@ function renderOverview(players, keptPlayers = {}, viewingOwn = true, managerNam
       <td class="col-status">${stag}</td>
       <td class="col-rd c"${editAttr}>${rdTile(p.salary, editable)}</td>
       <td class="col-con c"${editAttr}>${conTag(p.contract, editable)}</td>
-      <td class="col-player"><div class="col-player-inner"><strong>${p.player}</strong><span class="player-meta">${p.mlb_team} · ${fmtPos(p.position)}</span>${keepBtn}</div></td>
+      <td class="col-player"><div class="col-player-inner"><strong>${p.player}</strong><span class="player-meta">${p.mlb_team} · ${fmtPos(p.position,p.player)}</span>${keepBtn}</div></td>
       ${statCols}
       ${mobStatCell}
     </tr>`;
@@ -4340,6 +4392,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(() => {
       hideLoadingOverlay();
       initTeamPicker();
+      // Enrich positions from MLB 40-man rosters in the background (no-op on failure)
+      enrichPositions();
     }, 300);
 
   } catch(e) {
@@ -4412,7 +4466,7 @@ function prefillFromKeepers(players) {
   const usedSlots = new Set();
 
   function assignToSlot(p) {
-    const positions = parsePositions(p.position);
+    const positions = parsePositions(p.position, p.player);
     for (const pos of positions) {
       const candidates = POS_SLOT_PRIORITY[pos] || [];
       for (const slotId of candidates) {
@@ -4704,7 +4758,7 @@ function buildBuilderView(players) {
       playerHtml = filled
         ? `<div class="slot-player-content" style="flex:1;min-width:0;display:flex;align-items:center;gap:5px;overflow:hidden">
              <span style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${filled.player}</span>
-             <span class="slot-meta" style="flex-shrink:0">${filled.mlb_team} · ${fmtPos(filled.position)}</span>
+             <span class="slot-meta" style="flex-shrink:0">${filled.mlb_team} · ${fmtPos(filled.position,filled.player)}</span>
              ${rdTile(filled.salary)}
              ${filled.contract ? conTag(filled.contract) : ''}
            </div>
@@ -4734,7 +4788,7 @@ function buildBuilderView(players) {
       playerHtml = filled
         ? `<div class="slot-player-content" style="flex:0 1 auto;min-width:0;display:flex;align-items:center;gap:5px;overflow:hidden">
              <span class="slot-player" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1">${filled.player}</span>
-             <span class="slot-meta" style="flex-shrink:0">${filled.mlb_team} · ${fmtPos(filled.position)}</span>
+             <span class="slot-meta" style="flex-shrink:0">${filled.mlb_team} · ${fmtPos(filled.position,filled.player)}</span>
              ${rdTile(filled.salary)}
              ${filled.contract ? conTag(filled.contract) : ''}
            </div>
@@ -4774,7 +4828,7 @@ function renderPool(players, filter) {
       ondragstart="poolDragStart(event, '${p.player.replace(/'/g,"\'")}')">
       ${badge}
       <span style="flex:1;font-weight:500">${p.player}</span>
-      <span style="font-size:10px;color:var(--text-3)">${p.mlb_team} · ${fmtPos(p.position)}</span>
+      <span style="font-size:10px;color:var(--text-3)">${p.mlb_team} · ${fmtPos(p.position,p.player)}</span>
     </div>`;
   }).join('');
 }
@@ -4991,7 +5045,7 @@ function buildDraftPlanView(players) {
       innerHtml = `
         <div class="draft-player-content" style="flex:0 1 auto;min-width:0;display:flex;align-items:center;gap:5px;overflow:hidden">
           <span class="round-player" style="cursor:grab;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1">${p.player}${isExp ? '&nbsp;<span style="font-size:9px;color:var(--red);font-family:var(--mono);font-weight:700">EXP</span>' : ''}</span>
-          <span class="round-meta" style="flex-shrink:0">${p.mlb_team}&nbsp;·&nbsp;${fmtPos(p.position)}</span>
+          <span class="round-meta" style="flex-shrink:0">${p.mlb_team}&nbsp;·&nbsp;${fmtPos(p.position,p.player)}</span>
           ${bumpBadge}
           ${p.contract ? conTag(p.contract) : ''}
         </div>
@@ -5820,7 +5874,7 @@ function buildAllRostersPage() {
         <td style="padding:3px 8px;max-width:160px">
           <div style="display:flex;align-items:center;gap:4px;overflow:hidden">
             <span style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1">${p.player}</span>
-            <span style="font-size:10px;color:var(--text-3);white-space:nowrap;flex-shrink:0">${p.mlb_team || ''}${p.mlb_team && p.position ? ' · ' : ''}${fmtPos(p.position)}</span>
+            <span style="font-size:10px;color:var(--text-3);white-space:nowrap;flex-shrink:0">${p.mlb_team || ''}${p.mlb_team && p.position ? ' · ' : ''}${fmtPos(p.position,p.player)}</span>
           </div>
         </td>
         <td style="padding:3px 6px;text-align:center;white-space:nowrap">${stagHtml}</td>
@@ -6447,8 +6501,8 @@ function renderPlayerComparison(homeKey, visitorKey) {
     let html = '';
     const usedH = new Set(), usedV = new Set();
     posList.forEach(pos => {
-      const hp = hPlayers.find(p => !usedH.has(p.player) && parsePositions(p.position).includes(pos));
-      const vp = vPlayers.find(p => !usedV.has(p.player) && parsePositions(p.position).includes(pos));
+      const hp = hPlayers.find(p => !usedH.has(p.player) && parsePositions(p.position, p.player).includes(pos));
+      const vp = vPlayers.find(p => !usedV.has(p.player) && parsePositions(p.position, p.player).includes(pos));
       if (!hp && !vp) return;
       if (hp) usedH.add(hp.player);
       if (vp) usedV.add(vp.player);
@@ -6572,7 +6626,7 @@ function renderPickCompare() {
           <td style="padding:3px 8px;max-width:140px">
             <div style="display:flex;align-items:center;gap:4px;overflow:hidden">
               <span style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1">${escHtml(p.player)}</span>
-              <span style="font-size:10px;color:var(--text-3);white-space:nowrap;flex-shrink:0">${escHtml(p.mlb_team||'')}${p.mlb_team&&p.position?' &middot; ':''}${escHtml(fmtPos(p.position))}</span>
+              <span style="font-size:10px;color:var(--text-3);white-space:nowrap;flex-shrink:0">${escHtml(p.mlb_team||'')}${p.mlb_team&&p.position?' &middot; ':''}${escHtml(fmtPos(p.position,p.player))}</span>
             </div>
           </td>
           <td style="padding:3px 4px;text-align:center;white-space:nowrap">${sm ? `<span class="stag ${sm.cls}" style="cursor:default">${sm.label}</span>` : ''}</td>
