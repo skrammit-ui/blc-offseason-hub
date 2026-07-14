@@ -4986,7 +4986,7 @@ function buildDraftPlanView(players) {
     <div style="font-size:11px;color:var(--text-3)"><span style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--green)">${30 - roundsUsed}</span>&nbsp;open picks</div>
     <div style="font-size:11px;color:var(--text-3);margin-left:auto">Drag keepers between rounds to reassign</div>
   </div>`;
-  <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Draft Board — ${plannerRoundCount} Pick${plannerRoundCount !== 1 ? 's' : ''}</div>`;
+boardHtml += `<div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Draft Board — ${plannerRoundCount} Pick${plannerRoundCount !== 1 ? 's' : ''}</div>`;
 
   // Build a flat ordered list of (r, pk) slots — one row per pick
   const pickSlots = [];
@@ -7326,7 +7326,7 @@ const NEWS_DATA = {
   },
   'Jared Grindlinger': {
     category:'draft', isPitcher:false, positionDisplay:'OF/LHP',
-    school:’Huntington Beach HS (CA)’, schoolYear:"Class 2026 (reclassified from ‘27)", draftClass:’2026 MLB Draft’,
+    school:'Huntington Beach HS (CA)', schoolYear:"Class 2026 (reclassified from '27)", draftClass:'2026 MLB Draft',
     watchList:false, actionBadge:'pick', actionText:'No. 12 Overall — Angels', sentiment:'Rising',
     infoBoxes:[
       {label:'Drafted',     value:'No. 12 Overall — Los Angeles Angels'},
@@ -7338,7 +7338,7 @@ const NEWS_DATA = {
       {label:'2026 HS Pitching', lines:['LHP · FB up to 96 mph','Slider + CH flash plus','Projected to bat in pro ball'],                 hi:null},
       {label:'Dynasty Outlook',  lines:['Youngest player in Angels system','High ceiling / wide outcomes','MLB ETA: 2029–2030'],         hi:null},
     ],
-    analysis:'Went No. 12 to the Angels as the youngest first-round pick in franchise history at 17 years and 86 days. A genuine two-way talent — lefty bat with plus raw power and a mid-90s fastball — but the Angels are developing him as a hitter. Reclassified from 2027 just months before the draft. High ceiling dynasty stash.',
+    analysis:'Went No. 12 to the Angels as the youngest first-round pick in franchise history at 17 years and 86 days. A genuine two-way talent — lefty bat with plus raw power and a mid-90s fastball — but the Angels are developing him as a hitter. Reclassified from 2027 just months before the draft. High ceiling dynasty stash.',
   },
   'Chase Burns': {
     category:'mlb', isPitcher:true, positionDisplay:'SP',
