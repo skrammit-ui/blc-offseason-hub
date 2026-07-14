@@ -2105,9 +2105,6 @@ input[type=file] { display: none; }
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
         <label style="font-size:12px;font-weight:600;color:var(--text-2)">Sync targets:</label>
         <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
-          <input type="checkbox" id="fantrax-sync-matchups" checked> Matchup Scores
-        </label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
           <input type="checkbox" id="fantrax-sync-rosters" checked> Team Rosters
         </label>
         <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
@@ -6879,7 +6876,6 @@ function initCommishPage() {
 // ── Fantrax sync helpers ──────────────────────────────────────────────────────
 async function doFantraxRefresh() {
   const targets = [];
-  if (document.getElementById('fantrax-sync-matchups')?.checked) targets.push('matchups');
   if (document.getElementById('fantrax-sync-rosters')?.checked)  targets.push('rosters');
   if (document.getElementById('fantrax-sync-draft')?.checked)    targets.push('draft');
   if (!targets.length) { alert('Select at least one sync target.'); return; }
