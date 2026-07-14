@@ -1796,3 +1796,38 @@ function debugRosterValues(ss) {
   fantraxSample.forEach((item, i) => Logger.log('Item ' + i + ': ' + JSON.stringify(item)));
   return { ok: true, sheetSample, fantraxSample, fantraxTeam: firstTeam.teamName };
 }
+
+// ── Debug: find where eligible positions live in Fantrax API ──────────────────
+// Run this from the Apps Script editor to see all fields returned by getPlayerIds
+// for a few known player IDs. Look for any field that lists multiple positions.
+function debugPlayerPositions() {
+  // Use the same sample IDs we already know from debugRosterValues
+  const sampleIds = ['02hfr', '02jh6', '02c47', '03qju', '0569p'];
+
+  // 1. Check getPlayerIds
+  try {
+    const data = fetchFantrax('getPlayerIds');
+    const hits = sampleIds.map(id => {
+      const p = data[id];
+      if (!p) return id + ': NOT FOUND';
+      // Log every field on the player object
+      const fields = Object.keys(p).map(k => k + '=' + JSON.stringify(p[k])).join(', ');
+      return id + ': ' + fields;
+    });
+    Logger.log('=== getPlayerIds results ===');
+    hits.forEach(h => Logger.log(h));
+  } catch(e) {
+    Logger.log('getPlayerIds ERROR: ' + e.message);
+  }
+
+  // 2. Check getTeamRosters with addPlayerInfo=true
+  try {
+    const data2 = fetchFantrax('getTeamRosters', { addPlayerInfo: true });
+    const firstTeam2 = Object.values(data2.rosters || {})[0] || {};
+    const sample2 = (firstTeam2.rosterItems || []).slice(0, 3);
+    Logger.log('=== getTeamRosters?addPlayerInfo=true ===');
+    sample2.forEach((item, i) => Logger.log('Item ' + i + ': ' + JSON.stringify(item)));
+  } catch(e) {
+    Logger.log('getTeamRosters+addPlayerInfo ERROR: ' + e.message);
+  }
+}
