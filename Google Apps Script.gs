@@ -1797,6 +1797,39 @@ function debugRosterValues(ss) {
   return { ok: true, sheetSample, fantraxSample, fantraxTeam: firstTeam.teamName };
 }
 
+// ── Debug: find eligible positions endpoint ───────────────────────────────────
+// Run this to probe which endpoint exposes multi-position eligibility.
+function debugEligiblePositions() {
+  // JJ Wetherholt's fantrax ID — we expect to see "2B,SS" or similar
+  const wetherholtId = '08jze'; // update if wrong — check your Rosters sheet
+
+  const endpoints = [
+    { name: 'getLeagueRosters',  params: {} },
+    { name: 'getPlayersTable',   params: { statusOrTeam: 'ROSTERED' } },
+    { name: 'getPlayersTable',   params: { statusOrTeam: 'ALL' } },
+    { name: 'getPlayersTable',   params: {} },
+    { name: 'getLeagueRosterItems', params: {} },
+  ];
+
+  endpoints.forEach(ep => {
+    try {
+      const data = fetchFantrax(ep.name, ep.params);
+      Logger.log('=== ' + ep.name + ' ' + JSON.stringify(ep.params) + ' ===');
+      Logger.log('Top keys: ' + Object.keys(data).join(', '));
+      // Try to find a player entry for Wetherholt
+      const raw = JSON.stringify(data);
+      const idx = raw.indexOf(wetherholtId);
+      if (idx >= 0) {
+        Logger.log('Found ' + wetherholtId + ' at char ' + idx + ': ' + raw.substring(Math.max(0, idx - 20), idx + 200));
+      } else {
+        Logger.log('ID ' + wetherholtId + ' not found — first 400 chars: ' + raw.substring(0, 400));
+      }
+    } catch(e) {
+      Logger.log('=== ' + ep.name + ' ERROR: ' + e.message);
+    }
+  });
+}
+
 // ── Debug: find where eligible positions live in Fantrax API ──────────────────
 // Run this from the Apps Script editor to see all fields returned by getPlayerIds
 // for a few known player IDs. Look for any field that lists multiple positions.
