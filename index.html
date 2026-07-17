@@ -7133,12 +7133,12 @@ async function doMLBCareerRefresh() {
   try {
     const res = await remotePost({ action: 'refreshMLBCareerCache' });
     if (res.ok) {
-      statusEl.textContent = `✓ Done — ${res.total} players, ${res.eligible} MiLB-eligible, ${res.noMlbId} not found`;
+      statusEl.textContent = `✓ Done — ${res.eligible} MiLB-eligible across ${res.total} rostered players`;
       statusEl.style.color = '#22a366';
       resultsEl.innerHTML = `<div style="color:var(--text-2)">
-        <strong>${res.eligible}</strong> players auto-labeled MiLB (career AB&lt;130 &amp; IP&lt;50)<br>
-        <strong>${res.noMlbId}</strong> players not matched in MLB Stats API (use manual status picker)<br>
-        Now run <strong>⚡ Refresh from Fantrax → Rosters</strong> to apply the updated labels.
+        <strong>${res.eligible}</strong> players qualify as MiLB (career AB&lt;130 &amp; IP&lt;50)<br>
+        <strong>${res.rosterUpdated ?? 0}</strong> player status${(res.rosterUpdated ?? 0) !== 1 ? 'es' : ''} updated to MiLB in the roster sheet<br>
+        <strong>${res.noMlbId}</strong> players not found in MLB Stats API (auto-labeled MiLB)
       </div>`;
     } else {
       statusEl.textContent = '⚠ ' + (res.error || 'Failed');
