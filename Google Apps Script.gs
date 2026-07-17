@@ -1537,10 +1537,35 @@ function refreshMLBCareerCache() {
   });
 
   upsertMLBCareerCache(ss, entries);
+
+  // 7. Apply MiLB labels directly to the Rosters sheet.
+  //    Only sets status → 'Minors' for eligible players; all other statuses untouched.
+  const eligibleSet = new Set(entries.filter(e => e.eligible).map(e => e.fantraxId));
+  const rSheet = rosterSheetR; // already read above
+  let rosterUpdated = 0;
+  if (rSheet) {
+    const [rHdrs, ...rRows] = rSheet.getDataRange().getValues();
+    const rIdIdx = rHdrs.indexOf('id');
+    const rStIdx = rHdrs.indexOf('status');
+    if (rIdIdx >= 0 && rStIdx >= 0) {
+      // Build full status column, updating only eligible players
+      const newStatuses = rRows.map(r => {
+        const fid = String(r[rIdIdx] || '').trim().replace(/\*/g, '');
+        if (eligibleSet.has(fid)) {
+          if (String(r[rStIdx] || '') !== 'Minors') rosterUpdated++;
+          return ['Minors'];
+        }
+        return [r[rStIdx]]; // unchanged
+      });
+      rSheet.getRange(2, rStIdx + 1, newStatuses.length, 1).setValues(newStatuses);
+    }
+  }
+
   const eligible = entries.filter(e => e.eligible).length;
   const noId     = entries.filter(e => !e.mlbId).length;
-  Logger.log('MLBCareerCache done: ' + entries.length + ' players, ' + eligible + ' MiLB-eligible, ' + noId + ' no MLB ID.');
-  return { ok: true, total: entries.length, eligible, noMlbId: noId };
+  Logger.log('MLBCareerCache done: ' + entries.length + ' players, ' + eligible + ' MiLB-eligible, ' +
+             rosterUpdated + ' newly labeled in Rosters sheet, ' + noId + ' no MLB ID.');
+  return { ok: true, total: entries.length, eligible, rosterUpdated, noMlbId: noId };
 }
 
 // ── Refresh MLB career cache for one team only ────────────────────────────────
