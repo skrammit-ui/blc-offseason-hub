@@ -4,6 +4,13 @@
 //  Then deploy as Web App: Execute as "Me", Access "Anyone"
 // ════════════════════════════════════════════════════════════════════════════
 const SHEET_ID = '1isrFPsDq4n4mTr1uUSUydCUi39mCqmkYLEd6voy8nhI'; // ← Replace with your Google Sheet ID
+
+// ── One-time migration: run once from Script Editor to rename gelof → merrilly ──
+function migrateGelofToMerrilly() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  transferTeam(ss, 'gelof', 'merrilly');
+  Logger.log('Done — all sheets updated from gelof to merrilly');
+}
 // ── CORS helper ──────────────────────────────────────────────────────────────
 function corsResponse(data) {
   return ContentService
