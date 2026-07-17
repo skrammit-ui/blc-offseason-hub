@@ -122,6 +122,8 @@ function doPost(e) {
         return corsResponse(refreshMLBYTDStats());
       case 'refreshStandings':
         return corsResponse(refreshFantraxStandings(ss));
+      case 'debugStandings':
+        return corsResponse(debugStandingsData(ss));
       case 'refreshFantrax':
         return corsResponse(refreshFantrax(ss, payload.targets || ['standings','rosters','draft']));
       case 'testFantraxConnection':
@@ -1840,6 +1842,41 @@ function refreshFantraxMatchups(ss) {
   return { ok: true, updated };
 }
 
+// ── Debug: raw getLeagueInfo matchup structure ────────────────────────────────
+function debugStandingsData(ss) {
+  if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
+  const ownerMap = getOwnerMap(ss);
+  const nameToKey = {};
+  Object.entries(ownerMap).forEach(([key, name]) => { nameToKey[name.toLowerCase()] = key; });
+  Object.entries(FANTRAX_TEAM_ALIASES).forEach(([alias, key]) => { nameToKey[alias] = key; });
+
+  const leagueInfo = fetchFantrax('getLeagueInfo');
+  const topKeys = Object.keys(leagueInfo);
+  const periods = leagueInfo.matchups || leagueInfo.schedule || leagueInfo.periods || [];
+
+  // Grab first completed-looking matchup for structure inspection
+  let sampleMatchup = null;
+  for (let i = 0; i < periods.length && !sampleMatchup; i++) {
+    const list = periods[i].matchupList || periods[i].matchups || periods[i].games || [];
+    for (let j = 0; j < list.length; j++) {
+      const m = list[j];
+      const s1 = m.home || m.team1 || m.away;
+      if (s1 && (s1.score || s1.points || s1.totalPoints) != null) { sampleMatchup = m; break; }
+    }
+  }
+
+  return {
+    ok: true,
+    topLevelKeys: topKeys,
+    periodsKey: periods === leagueInfo.matchups ? 'matchups' : periods === leagueInfo.schedule ? 'schedule' : 'periods',
+    periodsCount: periods.length,
+    nameToKey,
+    ownerMapSize: Object.keys(ownerMap).length,
+    samplePeriod: periods[0] ? { period: periods[0].period, matchupCount: (periods[0].matchupList || periods[0].matchups || periods[0].games || []).length } : null,
+    sampleMatchup,
+  };
+}
+
 // ── Refresh standings from Fantrax ────────────────────────────────────────────
 // Derives W/L from getLeagueInfo matchup data in-memory. Writes results to
 // the Standings sheet (keyed by ownerKey) and returns the standings object.
@@ -1852,17 +1889,40 @@ function refreshFantraxStandings(ss) {
   Object.entries(FANTRAX_TEAM_ALIASES).forEach(([alias, key]) => { nameToKey[alias] = key; });
 
   const leagueInfo = fetchFantrax('getLeagueInfo');
-  const periods = leagueInfo.matchups || [];
+  // Try common property names for the matchup schedule
+  const periods = leagueInfo.matchups || leagueInfo.schedule || leagueInfo.periods || [];
 
   const recs = {};
   const init = k => { if (!recs[k]) recs[k] = { W:0, L:0, T:0, catW:0, catL:0 }; };
+  const unresolvedNames = new Set();
+  let totalMatchups = 0;
+
+  function parseScore(side) {
+    if (!side) return null;
+    const raw = side.score !== undefined ? side.score
+              : side.points !== undefined ? side.points
+              : side.totalPoints !== undefined ? side.totalPoints : null;
+    if (raw === null || raw === undefined || raw === '') return null;
+    const n = parseFloat(raw);
+    return isNaN(n) ? null : n;
+  }
 
   periods.forEach(function(periodData) {
-    (periodData.matchupList || []).forEach(function(m) {
-      var homeKey  = nameToKey[(m.home && m.home.name || '').toLowerCase()];
-      var awayKey  = nameToKey[(m.away && m.away.name || '').toLowerCase()];
-      var homeScore = parseFloat((m.home && (m.home.score  || m.home.points))  || '') || null;
-      var awayScore = parseFloat((m.away && (m.away.score  || m.away.points))  || '') || null;
+    // Handle different property names for the matchup list
+    const list = periodData.matchupList || periodData.matchups || periodData.games || [];
+    list.forEach(function(m) {
+      totalMatchups++;
+      // Handle home/away or team1/team2 structures
+      const homeSide = m.home || m.team1;
+      const awaySide = m.away || m.team2;
+      const homeName = (homeSide && (homeSide.name || homeSide.teamName || homeSide.team)) || '';
+      const awayName = (awaySide && (awaySide.name || awaySide.teamName || awaySide.team)) || '';
+      const homeKey  = nameToKey[homeName.toLowerCase()];
+      const awayKey  = nameToKey[awayName.toLowerCase()];
+      if (!homeKey && homeName) unresolvedNames.add(homeName);
+      if (!awayKey && awayName) unresolvedNames.add(awayName);
+      const homeScore = parseScore(homeSide);
+      const awayScore = parseScore(awaySide);
       if (!homeKey || !awayKey || homeScore === null || awayScore === null) return;
       init(homeKey); init(awayKey);
       recs[homeKey].catW += homeScore; recs[homeKey].catL += awayScore;
@@ -1873,29 +1933,28 @@ function refreshFantraxStandings(ss) {
     });
   });
 
+  const allKeys = Object.keys(recs);
+
   // Compute pct and GB (vs best record in league)
-  var allKeys = Object.keys(recs);
-  var maxW = 0;
-  var minL = 9999;
-  allKeys.forEach(function(k) { if (recs[k].W > maxW) maxW = recs[k].W; });
-  allKeys.filter(function(k) { return recs[k].W === maxW; })
-         .forEach(function(k) { if (recs[k].L < minL) minL = recs[k].L; });
-  allKeys.forEach(function(k) {
-    var r = recs[k];
-    var gp = r.W + r.L + r.T;
+  let maxW = 0, minL = 9999;
+  allKeys.forEach(k => { if (recs[k].W > maxW) maxW = recs[k].W; });
+  allKeys.filter(k => recs[k].W === maxW).forEach(k => { if (recs[k].L < minL) minL = recs[k].L; });
+  allKeys.forEach(k => {
+    const r = recs[k];
+    const gp = r.W + r.L + r.T;
     r.pct = gp > 0 ? (r.W / gp).toFixed(3) : '.000';
-    var gb = ((maxW - r.W) + (r.L - minL)) / 2;
+    const gb = ((maxW - r.W) + (r.L - minL)) / 2;
     r.GB = gb === 0 ? '-' : gb;
   });
 
   // Persist to Standings sheet
-  var sheet = ss.getSheetByName('Standings');
+  const sheet = ss.getSheetByName('Standings');
   if (sheet) {
-    var HEADERS = ['team','W','L','T','pct','GB','catW','catL'];
-    var lastRow = sheet.getLastRow();
+    const HEADERS = ['team','W','L','T','pct','GB','catW','catL'];
+    const lastRow = sheet.getLastRow();
     if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, HEADERS.length).clearContent();
-    var rows = allKeys.map(function(k) {
-      var r = recs[k];
+    const rows = allKeys.map(k => {
+      const r = recs[k];
       return [k, r.W, r.L, r.T, r.pct, r.GB, r.catW, r.catL];
     });
     if (rows.length > 0) {
@@ -1904,8 +1963,15 @@ function refreshFantraxStandings(ss) {
     }
   }
 
-  Logger.log('refreshFantraxStandings: ' + allKeys.length + ' teams');
-  return { ok: true, teams: allKeys.length, standings: recs };
+  Logger.log('refreshFantraxStandings: ' + allKeys.length + ' teams, ' + totalMatchups + ' matchups, unresolved: ' + [...unresolvedNames].join(', '));
+  return {
+    ok: true,
+    teams: allKeys.length,
+    totalMatchups,
+    periods: periods.length,
+    unresolved: [...unresolvedNames],
+    standings: recs,
+  };
 }
 
 // ── Refresh rosters ───────────────────────────────────────────────────────────
