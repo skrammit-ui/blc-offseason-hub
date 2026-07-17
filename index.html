@@ -7073,7 +7073,9 @@ async function doFantraxRefresh() {
 
   const statusEl  = document.getElementById('fantrax-refresh-status');
   const resultsEl = document.getElementById('fantrax-refresh-results');
-  statusEl.textContent = '⏳ Syncing…';
+  statusEl.textContent = targets.includes('rosters')
+    ? '⏳ Syncing… (checking MLB career stats + Fantrax rosters — may take a minute)'
+    : '⏳ Syncing…';
   resultsEl.style.display = 'none';
 
   try {
