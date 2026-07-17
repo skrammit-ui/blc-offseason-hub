@@ -7285,6 +7285,9 @@ function doTransferTeam() {
   if (newKey !== fromKey) {
     OWNER_MAP[newKey] = teamName;
     delete OWNER_MAP[fromKey];
+    // Sync key change to all backend sheets
+    remotePost({ action: 'transferTeam', oldKey: fromKey, newKey })
+      .then(r => { if (!r?.ok) toast('⚠ Sheet sync failed — key updated locally but not to sheet'); });
   }
 
   // Build the new bookmarkable URL

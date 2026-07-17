@@ -86,6 +86,9 @@ function doPost(e) {
       case 'importDraftResults':
         importDraftResults(ss, payload.results);
         break;
+      case 'transferTeam':
+        transferTeam(ss, payload.oldKey, payload.newKey);
+        break;
       case 'saveDraftPlan':
         saveDraftPlan(ss, payload.teamKey, payload.plan);
         break;
@@ -444,6 +447,20 @@ function renameTeam(ss, oldName, newName, ownerKey) {
       }
     }
   }
+}
+function transferTeam(ss, oldKey, newKey) {
+  if (!oldKey || !newKey || oldKey === newKey) return;
+  const sheetsToUpdate = ['Settings', 'Keepers', 'Rosters', 'DraftPlans', 'BuilderSlots'];
+  sheetsToUpdate.forEach(name => {
+    const sheet = ss.getSheetByName(name);
+    if (!sheet || sheet.getLastRow() < 2) return;
+    const data = sheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]).trim() === oldKey) {
+        sheet.getRange(i + 1, 1).setValue(newKey);
+      }
+    }
+  });
 }
 function setPick(ss, round, pick, team, player, salary, contract) {
   const sheet   = ss.getSheetByName('Picks');
