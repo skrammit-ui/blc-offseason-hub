@@ -113,6 +113,8 @@ function doPost(e) {
         break;
       case 'refreshMLBCareerCache':
         return corsResponse(refreshMLBCareerCache());
+      case 'refreshMLBCareerCacheForTeam':
+        return corsResponse(refreshMLBCareerCacheForTeam(payload.teamKey));
       case 'refreshFantrax':
         return corsResponse(refreshFantrax(ss, payload.targets || ['matchups','rosters','draft']));
       case 'testFantraxConnection':
@@ -1517,6 +1519,72 @@ function refreshMLBCareerCache() {
   const noId     = entries.filter(e => !e.mlbId).length;
   Logger.log('MLBCareerCache done: ' + entries.length + ' players, ' + eligible + ' MiLB-eligible, ' + noId + ' no MLB ID.');
   return { ok: true, total: entries.length, eligible, noMlbId: noId };
+}
+
+// ── Refresh MLB career cache for one team only ────────────────────────────────
+// Called from the GM's own roster page. Looks up career stats for the team's
+// non-MiLB players, updates MLBCareerCache, and writes 'Minors' to the Rosters
+// sheet for any player who qualifies (career AB < 130 AND IP < 50).
+function refreshMLBCareerCacheForTeam(teamKey) {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+
+  // 1. Pull the team's non-Minors players from the Rosters sheet
+  const sheet = ss.getSheetByName('Rosters');
+  if (!sheet) return { ok: false, error: 'Rosters sheet not found' };
+  const [headers, ...rows] = sheet.getDataRange().getValues();
+  const idIdx     = headers.indexOf('id');
+  const teamIdx2  = headers.indexOf('teamKey');
+  const statusIdx = headers.indexOf('status');
+  const nameIdx   = headers.indexOf('player');
+  const mlbTIdx   = headers.indexOf('mlb_team');
+
+  const teamPlayers = [];
+  rows.forEach((r, i) => {
+    if (String(r[teamIdx2] || '').trim() !== teamKey) return;
+    const currentStatus = String(r[statusIdx] || '').trim();
+    if (currentStatus === 'Minors') return; // already labeled; skip
+    const pid  = String(r[idIdx] || '').trim().replace(/\*/g, '');
+    const name = String(r[nameIdx] || '').trim();
+    if (pid && name) teamPlayers.push({ pid, name, mlbTeam: String(r[mlbTIdx] || '').trim(), rowIdx: i });
+  });
+  if (!teamPlayers.length) return { ok: true, total: 0, eligible: 0, updated: 0 };
+
+  // 2. Load cache; carry forward known MLB ids
+  const cache = getMLBCareerCache(ss);
+  const fidToMlbId = {};
+  teamPlayers.forEach(({ pid }) => { if (cache[pid] && cache[pid].mlbId) fidToMlbId[pid] = cache[pid].mlbId; });
+
+  // 3. Name-search for players not in cache
+  const needSearch = teamPlayers.filter(({ pid }) => !fidToMlbId[pid]);
+  needSearch.forEach(({ pid, name, mlbTeam }, idx) => {
+    const mlbId = searchMLBPlayerId(name, mlbTeam);
+    if (mlbId) fidToMlbId[pid] = mlbId;
+    if ((idx + 1) % 10 === 0) Utilities.sleep(200);
+  });
+
+  // 4. Batch-fetch career stats
+  const mlbIdList = [...new Set(Object.values(fidToMlbId))].filter(Boolean);
+  const statsMap  = batchFetchMLBCareerStats(mlbIdList);
+
+  // 5. Build entries, write eligible players to Rosters sheet, update cache
+  const entries = [];
+  let updated = 0;
+  teamPlayers.forEach(({ pid, name, rowIdx }) => {
+    const mlbId    = fidToMlbId[pid] || '';
+    const s        = mlbId ? (statsMap[mlbId] || {}) : {};
+    const careerAB = s.careerAB !== undefined ? s.careerAB : (cache[pid] ? cache[pid].careerAB : 0);
+    const careerIP = s.careerIP !== undefined ? s.careerIP : (cache[pid] ? cache[pid].careerIP : 0);
+    const eligible = mlbId ? (careerAB < MILB_AB_MAX && careerIP < MILB_IP_MAX) : false;
+    entries.push({ fantraxId: pid, playerName: name, mlbId, careerAB, careerIP, eligible });
+    if (eligible && statusIdx >= 0) {
+      sheet.getRange(rowIdx + 2, statusIdx + 1).setValue('Minors');
+      updated++;
+    }
+  });
+  upsertMLBCareerCache(ss, entries);
+
+  const eligible = entries.filter(e => e.eligible).length;
+  return { ok: true, total: entries.length, eligible, updated, noMlbId: entries.filter(e => !e.mlbId).length };
 }
 
 // ── Refresh matchup scores ────────────────────────────────────────────────────
