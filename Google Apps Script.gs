@@ -450,17 +450,66 @@ function renameTeam(ss, oldName, newName, ownerKey) {
 }
 function transferTeam(ss, oldKey, newKey) {
   if (!oldKey || !newKey || oldKey === newKey) return;
-  const sheetsToUpdate = ['Settings', 'Keepers', 'Rosters', 'DraftPlans', 'BuilderSlots'];
-  sheetsToUpdate.forEach(name => {
+
+  // Sheets where column A (index 0) is the ownerKey
+  ['Settings', 'Keepers', 'Rosters', 'DraftPlans', 'BuilderSlots'].forEach(name => {
     const sheet = ss.getSheetByName(name);
     if (!sheet || sheet.getLastRow() < 2) return;
     const data = sheet.getDataRange().getValues();
     for (let i = 1; i < data.length; i++) {
-      if (String(data[i][0]).trim() === oldKey) {
-        sheet.getRange(i + 1, 1).setValue(newKey);
-      }
+      if (String(data[i][0]).trim() === oldKey) sheet.getRange(i + 1, 1).setValue(newKey);
     }
   });
+
+  // Matchups: Home and Visitor columns each hold an ownerKey
+  const matchupsSheet = ss.getSheetByName('Matchups');
+  if (matchupsSheet && matchupsSheet.getLastRow() > 1) {
+    const data    = matchupsSheet.getDataRange().getValues();
+    const headers = data[0];
+    const hi = headers.indexOf('Home');
+    const vi = headers.indexOf('Visitor');
+    for (let i = 1; i < data.length; i++) {
+      if (hi >= 0 && String(data[i][hi]).trim() === oldKey) matchupsSheet.getRange(i + 1, hi + 1).setValue(newKey);
+      if (vi >= 0 && String(data[i][vi]).trim() === oldKey) matchupsSheet.getRange(i + 1, vi + 1).setValue(newKey);
+    }
+  }
+
+  // Divisions: teamKey column holds ownerKey
+  const divisionsSheet = ss.getSheetByName('Divisions');
+  if (divisionsSheet && divisionsSheet.getLastRow() > 1) {
+    const data  = divisionsSheet.getDataRange().getValues();
+    const tkIdx = data[0].indexOf('teamKey');
+    if (tkIdx >= 0) {
+      for (let i = 1; i < data.length; i++) {
+        if (String(data[i][tkIdx]).trim() === oldKey) divisionsSheet.getRange(i + 1, tkIdx + 1).setValue(newKey);
+      }
+    }
+  }
+
+  // Playoffs: team1, team2, winner, loser columns all hold ownerKeys
+  const playoffsSheet = ss.getSheetByName('Playoffs');
+  if (playoffsSheet && playoffsSheet.getLastRow() > 1) {
+    const data    = playoffsSheet.getDataRange().getValues();
+    const headers = data[0];
+    const cols    = ['team1', 'team2', 'winner', 'loser'].map(h => headers.indexOf(h)).filter(i => i >= 0);
+    for (let i = 1; i < data.length; i++) {
+      cols.forEach(ci => {
+        if (String(data[i][ci]).trim() === oldKey) playoffsSheet.getRange(i + 1, ci + 1).setValue(newKey);
+      });
+    }
+  }
+
+  // HistoricalStandings: teamKey column holds ownerKey
+  const histSheet = ss.getSheetByName('HistoricalStandings');
+  if (histSheet && histSheet.getLastRow() > 1) {
+    const data  = histSheet.getDataRange().getValues();
+    const tkIdx = data[0].indexOf('teamKey');
+    if (tkIdx >= 0) {
+      for (let i = 1; i < data.length; i++) {
+        if (String(data[i][tkIdx]).trim() === oldKey) histSheet.getRange(i + 1, tkIdx + 1).setValue(newKey);
+      }
+    }
+  }
 }
 function setPick(ss, round, pick, team, player, salary, contract) {
   const sheet   = ss.getSheetByName('Picks');
@@ -733,7 +782,7 @@ function seedOwnerMap() {
     'danr':       'DAN R',
     'deferred':   'Deferred Victory',
     'domingo':    'Domingo Sherman',
-    'gelof':      'Gelof My Lawn',
+    'merrilly':   'Merrilly We Roll Along',
     'holliday':   'Holliday Road',
     'ironfists':  'Iron Fists',
     'kiners':     'Kiners Korners',
@@ -948,7 +997,7 @@ function setupStandingsSheets() {
       ['2026','Iron Pigs','lovable'],
       ['2026','Iron Pigs','gunnar'],
       ['2026','Iron Pigs','parker'],
-      ['2026','Flying Mummies','gelof'],
+      ['2026','Flying Mummies','merrilly'],
       ['2026','Flying Mummies','kiners'],
       ['2026','Flying Mummies','rally'],
       ['2026','Flying Mummies','platoon'],
@@ -1004,7 +1053,7 @@ function setupMatchupsSheet() {
       ['1','parker','brew','Regular Season'],
       ['1','kiners','tortured','Regular Season'],
       ['1','gunnar','lovable','Regular Season'],
-      ['1','holliday','gelof','Regular Season'],
+      ['1','holliday','merrilly','Regular Season'],
       ['1','wetherholt','jardians','Regular Season'],
       ['2','deferred','prayers','Regular Season'],
       ['2','domingo','perdomo','Regular Season'],
@@ -1014,7 +1063,7 @@ function setupMatchupsSheet() {
       ['2','danr','brew','Regular Season'],
       ['2','rally','tortured','Regular Season'],
       ['2','parker','lovable','Regular Season'],
-      ['2','kiners','gelof','Regular Season'],
+      ['2','kiners','merrilly','Regular Season'],
       ['2','gunnar','jardians','Regular Season'],
       ['3','platoon','prayers','Regular Season'],
       ['3','brew','perdomo','Regular Season'],
@@ -1022,7 +1071,7 @@ function setupMatchupsSheet() {
       ['3','domingo','kurtz','Regular Season'],
       ['3','ironfists','tortured','Regular Season'],
       ['3','danr','lovable','Regular Season'],
-      ['3','rally','gelof','Regular Season'],
+      ['3','rally','merrilly','Regular Season'],
       ['3','parker','jardians','Regular Season'],
       ['3','holliday','kiners','Regular Season'],
       ['3','wetherholt','gunnar','Regular Season'],
@@ -1032,11 +1081,11 @@ function setupMatchupsSheet() {
       ['4','brew','kurtz','Regular Season'],
       ['4','holliday','deferred','Regular Season'],
       ['4','wetherholt','domingo','Regular Season'],
-      ['4','ironfists','gelof','Regular Season'],
+      ['4','ironfists','merrilly','Regular Season'],
       ['4','danr','jardians','Regular Season'],
       ['4','rally','kiners','Regular Season'],
       ['4','parker','gunnar','Regular Season'],
-      ['5','gelof','prayers','Regular Season'],
+      ['5','merrilly','prayers','Regular Season'],
       ['5','jardians','perdomo','Regular Season'],
       ['5','tortured','reid','Regular Season'],
       ['5','lovable','kurtz','Regular Season'],
@@ -1048,7 +1097,7 @@ function setupMatchupsSheet() {
       ['5','wetherholt','parker','Regular Season'],
       ['6','kiners','prayers','Regular Season'],
       ['6','gunnar','perdomo','Regular Season'],
-      ['6','gelof','reid','Regular Season'],
+      ['6','merrilly','reid','Regular Season'],
       ['6','jardians','kurtz','Regular Season'],
       ['6','tortured','deferred','Regular Season'],
       ['6','lovable','domingo','Regular Season'],
@@ -1060,7 +1109,7 @@ function setupMatchupsSheet() {
       ['7','parker','perdomo','Regular Season'],
       ['7','kiners','reid','Regular Season'],
       ['7','gunnar','kurtz','Regular Season'],
-      ['7','gelof','deferred','Regular Season'],
+      ['7','merrilly','deferred','Regular Season'],
       ['7','jardians','domingo','Regular Season'],
       ['7','tortured','platoon','Regular Season'],
       ['7','lovable','brew','Regular Season'],
@@ -1072,7 +1121,7 @@ function setupMatchupsSheet() {
       ['8','parker','kurtz','Regular Season'],
       ['8','kiners','deferred','Regular Season'],
       ['8','gunnar','domingo','Regular Season'],
-      ['8','gelof','platoon','Regular Season'],
+      ['8','merrilly','platoon','Regular Season'],
       ['8','jardians','brew','Regular Season'],
       ['8','holliday','tortured','Regular Season'],
       ['8','wetherholt','lovable','Regular Season'],
@@ -1084,7 +1133,7 @@ function setupMatchupsSheet() {
       ['9','parker','domingo','Regular Season'],
       ['9','kiners','platoon','Regular Season'],
       ['9','gunnar','brew','Regular Season'],
-      ['9','gelof','tortured','Regular Season'],
+      ['9','merrilly','tortured','Regular Season'],
       ['9','jardians','lovable','Regular Season'],
       ['10','holliday','jardians','Regular Season'],
       ['10','danr','prayers','Regular Season'],
@@ -1093,10 +1142,10 @@ function setupMatchupsSheet() {
       ['10','ironfists','kurtz','Regular Season'],
       ['10','gunnar','rally','Regular Season'],
       ['10','wetherholt','reid','Regular Season'],
-      ['10','parker','gelof','Regular Season'],
+      ['10','parker','merrilly','Regular Season'],
       ['10','deferred','perdomo','Regular Season'],
       ['10','lovable','kiners','Regular Season'],
-      ['11','gelof','kiners','Regular Season'],
+      ['11','merrilly','kiners','Regular Season'],
       ['11','lovable','deferred','Regular Season'],
       ['11','kurtz','wetherholt','Regular Season'],
       ['11','holliday','brew','Regular Season'],
@@ -1108,7 +1157,7 @@ function setupMatchupsSheet() {
       ['11','parker','danr','Regular Season'],
       ['12','wetherholt','kiners','Regular Season'],
       ['12','brew','deferred','Regular Season'],
-      ['12','platoon','gelof','Regular Season'],
+      ['12','platoon','merrilly','Regular Season'],
       ['12','parker','lovable','Regular Season'],
       ['12','kurtz','rally','Regular Season'],
       ['12','holliday','tortured','Regular Season'],
@@ -1118,7 +1167,7 @@ function setupMatchupsSheet() {
       ['12','ironfists','danr','Regular Season'],
       ['13','rally','kiners','Regular Season'],
       ['13','tortured','deferred','Regular Season'],
-      ['13','wetherholt','gelof','Regular Season'],
+      ['13','wetherholt','merrilly','Regular Season'],
       ['13','brew','lovable','Regular Season'],
       ['13','kurtz','jardians','Regular Season'],
       ['13','holliday','reid','Regular Season'],
@@ -1128,7 +1177,7 @@ function setupMatchupsSheet() {
       ['13','parker','ironfists','Regular Season'],
       ['14','jardians','kiners','Regular Season'],
       ['14','reid','deferred','Regular Season'],
-      ['14','rally','gelof','Regular Season'],
+      ['14','rally','merrilly','Regular Season'],
       ['14','tortured','lovable','Regular Season'],
       ['14','platoon','wetherholt','Regular Season'],
       ['14','parker','brew','Regular Season'],
@@ -1138,7 +1187,7 @@ function setupMatchupsSheet() {
       ['14','gunnar','ironfists','Regular Season'],
       ['15','prayers','kiners','Regular Season'],
       ['15','danr','deferred','Regular Season'],
-      ['15','jardians','gelof','Regular Season'],
+      ['15','jardians','merrilly','Regular Season'],
       ['15','reid','lovable','Regular Season'],
       ['15','rally','wetherholt','Regular Season'],
       ['15','tortured','brew','Regular Season'],
@@ -1148,7 +1197,7 @@ function setupMatchupsSheet() {
       ['15','parker','gunnar','Regular Season'],
       ['16','perdomo','kiners','Regular Season'],
       ['16','ironfists','deferred','Regular Season'],
-      ['16','prayers','gelof','Regular Season'],
+      ['16','prayers','merrilly','Regular Season'],
       ['16','danr','lovable','Regular Season'],
       ['16','jardians','wetherholt','Regular Season'],
       ['16','reid','brew','Regular Season'],
@@ -1158,7 +1207,7 @@ function setupMatchupsSheet() {
       ['16','holliday','gunnar','Regular Season'],
       ['17','domingo','kiners','Regular Season'],
       ['17','gunnar','deferred','Regular Season'],
-      ['17','perdomo','gelof','Regular Season'],
+      ['17','perdomo','merrilly','Regular Season'],
       ['17','ironfists','lovable','Regular Season'],
       ['17','prayers','wetherholt','Regular Season'],
       ['17','danr','brew','Regular Season'],
@@ -1168,7 +1217,7 @@ function setupMatchupsSheet() {
       ['17','parker','holliday','Regular Season'],
       ['18','kurtz','kiners','Regular Season'],
       ['18','holliday','deferred','Regular Season'],
-      ['18','domingo','gelof','Regular Season'],
+      ['18','domingo','merrilly','Regular Season'],
       ['18','gunnar','lovable','Regular Season'],
       ['18','perdomo','wetherholt','Regular Season'],
       ['18','ironfists','brew','Regular Season'],
@@ -1178,7 +1227,7 @@ function setupMatchupsSheet() {
       ['18','parker','reid','Regular Season'],
       ['19','platoon','kiners','Regular Season'],
       ['19','parker','deferred','Regular Season'],
-      ['19','kurtz','gelof','Regular Season'],
+      ['19','kurtz','merrilly','Regular Season'],
       ['19','holliday','lovable','Regular Season'],
       ['19','domingo','wetherholt','Regular Season'],
       ['19','gunnar','brew','Regular Season'],
