@@ -120,8 +120,10 @@ function doPost(e) {
       case 'refreshMLBYTDStats':
       case 'refreshYTDStats':
         return corsResponse(refreshMLBYTDStats());
+      case 'refreshStandings':
+        return corsResponse(refreshFantraxStandings(ss));
       case 'refreshFantrax':
-        return corsResponse(refreshFantrax(ss, payload.targets || ['matchups','rosters','draft']));
+        return corsResponse(refreshFantrax(ss, payload.targets || ['standings','rosters','draft']));
       case 'testFantraxConnection':
         return corsResponse(testFantraxConnection());
       case 'debugFantrax':
@@ -1349,9 +1351,9 @@ function testFantraxConnection() {
 function refreshFantrax(ss, targets) {
   if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
   const results = {};
-  if (targets.includes('matchups')) {
-    try { results.matchups = refreshFantraxMatchups(ss); }
-    catch(e) { results.matchups = { ok: false, error: e.message }; }
+  if (targets.includes('standings')) {
+    try { results.standings = refreshFantraxStandings(ss); }
+    catch(e) { results.standings = { ok: false, error: e.message }; }
   }
   if (targets.includes('rosters')) {
     // Always refresh the MLB career cache first so MiLB eligibility is current
@@ -1836,6 +1838,74 @@ function refreshFantraxMatchups(ss) {
 
   Logger.log('refreshFantraxMatchups: updated ' + updated + ' rows');
   return { ok: true, updated };
+}
+
+// ── Refresh standings from Fantrax ────────────────────────────────────────────
+// Derives W/L from getLeagueInfo matchup data in-memory. Writes results to
+// the Standings sheet (keyed by ownerKey) and returns the standings object.
+function refreshFantraxStandings(ss) {
+  if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
+
+  const ownerMap = getOwnerMap(ss);
+  const nameToKey = {};
+  Object.entries(ownerMap).forEach(([key, name]) => { nameToKey[name.toLowerCase()] = key; });
+  Object.entries(FANTRAX_TEAM_ALIASES).forEach(([alias, key]) => { nameToKey[alias] = key; });
+
+  const leagueInfo = fetchFantrax('getLeagueInfo');
+  const periods = leagueInfo.matchups || [];
+
+  const recs = {};
+  const init = k => { if (!recs[k]) recs[k] = { W:0, L:0, T:0, catW:0, catL:0 }; };
+
+  periods.forEach(function(periodData) {
+    (periodData.matchupList || []).forEach(function(m) {
+      var homeKey  = nameToKey[(m.home && m.home.name || '').toLowerCase()];
+      var awayKey  = nameToKey[(m.away && m.away.name || '').toLowerCase()];
+      var homeScore = parseFloat((m.home && (m.home.score  || m.home.points))  || '') || null;
+      var awayScore = parseFloat((m.away && (m.away.score  || m.away.points))  || '') || null;
+      if (!homeKey || !awayKey || homeScore === null || awayScore === null) return;
+      init(homeKey); init(awayKey);
+      recs[homeKey].catW += homeScore; recs[homeKey].catL += awayScore;
+      recs[awayKey].catW += awayScore; recs[awayKey].catL += homeScore;
+      if      (homeScore > awayScore) { recs[homeKey].W++; recs[awayKey].L++; }
+      else if (awayScore > homeScore) { recs[awayKey].W++; recs[homeKey].L++; }
+      else                            { recs[homeKey].T++; recs[awayKey].T++; }
+    });
+  });
+
+  // Compute pct and GB (vs best record in league)
+  var allKeys = Object.keys(recs);
+  var maxW = 0;
+  var minL = 9999;
+  allKeys.forEach(function(k) { if (recs[k].W > maxW) maxW = recs[k].W; });
+  allKeys.filter(function(k) { return recs[k].W === maxW; })
+         .forEach(function(k) { if (recs[k].L < minL) minL = recs[k].L; });
+  allKeys.forEach(function(k) {
+    var r = recs[k];
+    var gp = r.W + r.L + r.T;
+    r.pct = gp > 0 ? (r.W / gp).toFixed(3) : '.000';
+    var gb = ((maxW - r.W) + (r.L - minL)) / 2;
+    r.GB = gb === 0 ? '-' : gb;
+  });
+
+  // Persist to Standings sheet
+  var sheet = ss.getSheetByName('Standings');
+  if (sheet) {
+    var HEADERS = ['team','W','L','T','pct','GB','catW','catL'];
+    var lastRow = sheet.getLastRow();
+    if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, HEADERS.length).clearContent();
+    var rows = allKeys.map(function(k) {
+      var r = recs[k];
+      return [k, r.W, r.L, r.T, r.pct, r.GB, r.catW, r.catL];
+    });
+    if (rows.length > 0) {
+      sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+      sheet.getRange(2, 1, rows.length, HEADERS.length).setValues(rows);
+    }
+  }
+
+  Logger.log('refreshFantraxStandings: ' + allKeys.length + ' teams');
+  return { ok: true, teams: allKeys.length, standings: recs };
 }
 
 // ── Refresh rosters ───────────────────────────────────────────────────────────
