@@ -2196,7 +2196,9 @@ input[type=file] { display: none; }
       </select>
     </div>
     <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-      <div id="commish-draft-controls" style="display:flex;gap:8px;align-items:center">
+      <div id="commish-draft-controls" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-secondary" style="font-size:11px;padding:5px 10px;background:#22a366;border-color:#22a366;color:#fff" onclick="doRefreshDraftPicks()">⚡ Sync Pick Order</button>
+        <span id="draft-picks-status" style="font-size:11px;color:var(--text-3)"></span>
         <span class="draft-upload-hint" style="font-size:11px;color:var(--text-3)">Post-draft: upload results CSV</span>
         <button class="btn btn-secondary" style="font-size:11px;padding:5px 10px" onclick="document.getElementById('draft-results-file').click()">&#x1F4C2; Upload Draft CSV</button>
         <input type="file" id="draft-results-file" accept=".csv" style="display:none" onchange="handleDraftResultsUpload(event)">
@@ -7139,6 +7141,21 @@ async function doRefreshStandings(statusElId) {
   }
 }
 
+async function doRefreshDraftPicks() {
+  const el = document.getElementById('draft-picks-status');
+  if (el) { el.textContent = '⏳ Syncing pick order from Fantrax…'; el.style.color = 'var(--text-3)'; }
+  try {
+    const res = await remotePost({ action: 'refreshDraftPicks' });
+    if (!res.ok) throw new Error(res.error || 'Unknown error');
+    const msg = res.note || `✓ ${res.total ?? '?'} picks — ${res.updated ?? 0} updated, ${res.added ?? 0} added`;
+    if (el) { el.textContent = msg; el.style.color = res.total > 0 ? '#22a366' : '#e06c00'; }
+    if (res.unresolved && res.unresolved.length) console.warn('Unresolved team names:', res.unresolved);
+    if ((res.updated || 0) + (res.added || 0) > 0) setTimeout(() => location.reload(), 1500);
+  } catch(e) {
+    if (el) { el.textContent = '⚠ ' + e.message; el.style.color = '#c0392b'; }
+  }
+}
+
 async function doDebugStandings() {
   const el = document.getElementById('fantrax-refresh-status');
   const resultsEl = document.getElementById('fantrax-refresh-results');
@@ -7165,7 +7182,7 @@ async function doFantraxRefresh() {
   resultsEl.style.display = 'none';
 
   try {
-    const res = await remotePost({ action: 'refreshFantrax', targets: ['standings', 'rosters', 'draft'] });
+    const res = await remotePost({ action: 'refreshFantrax', targets: ['standings', 'rosters', 'draft', 'draftPicks'] });
     if (!res.ok) throw new Error(res.error || 'Unknown error');
     statusEl.textContent = '✓ Done';
     statusEl.style.color = '#22a366';
