@@ -1462,10 +1462,13 @@ function refreshFantraxRosters(ss) {
       // Use eligiblePos from getLeagueInfo (e.g. "2B,UT,SS,MI"); fall back to roster-slot position
       const pos = (leaguePInfo[pid] && leaguePInfo[pid].eligiblePos) || item.position || '';
       const salary   = item.salary != null ? Number(item.salary) : null;
-      // Base status from Fantrax slot; then override: ACTIVE players with leaguePInfo.status='T'
-      // are MiLB-eligible (green M in Fantrax — career <130 AB and <50 IP) → treat as Minors
+      // Base status from Fantrax slot placement
       let status = STATUS_FANTRAX[item.status] || '';
-      if (item.status === 'ACTIVE' && leaguePInfo[pid] && leaguePInfo[pid].status === 'T') {
+      // MiLB keepers have contract.smallId='Q' (the league's MiLB/indefinite contract).
+      // When the owner moves such a player into an ACTIVE or RESERVE slot they keep their
+      // MiLB-eligible status — override to 'Minors' so the app labels them correctly.
+      const contractSmallId = item.contract ? String(item.contract.smallId || '') : '';
+      if (contractSmallId === 'Q' && (item.status === 'ACTIVE' || item.status === 'RESERVE')) {
         status = 'Minors';
       }
       const contract = item.contract ? String(item.contract.name || '') : '';
@@ -1894,9 +1897,9 @@ function debugRosterValues(ss) {
 // Run this from the Script Editor to see exactly what fields Fantrax returns
 // for players with the green "M" (MiLB eligible). Check the Execution Log.
 // Run from Script Editor to verify MiLB-eligible detection.
-// Flags: (1) MINORS-slot players, (2) ACTIVE players with leaguePInfo.status='T'
-// (hypothesis: 'T' = MiLB eligible regardless of slot), (3) anyone named Bericoto.
-// Check log: ACTIVE_T players should include Bericoto if hypothesis is correct.
+// contract.smallId='Q' = MiLB/indefinite keeper contract.
+// Flags: (1) MINORS-slot players, (2) ACTIVE/RESERVE players with Q contract
+// (MiLB-eligible in MLB slots — the green-M case), (3) anyone named Bericoto.
 function debugMiLBEligibility() {
   const ss = SpreadsheetApp.openById(SHEET_ID);
   const data = fetchFantrax('getTeamRosters');
@@ -1907,40 +1910,41 @@ function debugMiLBEligibility() {
   const rostersObj = data.rosters || {};
   Object.entries(rostersObj).forEach(([, teamData]) => {
     (teamData.rosterItems || []).forEach(item => {
-      const pid          = String(item.id || '').trim();
-      const pinfo        = leaguePInfo[pid] || {};
-      const name         = pinfo.name || item.name || pid;
-      const eligiblePos  = pinfo.eligiblePos || '';
-      const leagueStatus = pinfo.status || '';
-      const fantraxStatus = String(item.status || '').toUpperCase();
-      const isBericoto   = name.toLowerCase().includes('bericoto');
-      const isMinors     = fantraxStatus === 'MINORS';
-      const isActiveT    = fantraxStatus === 'ACTIVE' && leagueStatus === 'T';
+      const pid             = String(item.id || '').trim();
+      const pinfo           = leaguePInfo[pid] || {};
+      const name            = pinfo.name || item.name || pid;
+      const contractSmallId = item.contract ? String(item.contract.smallId || '') : '';
+      const fantraxStatus   = String(item.status || '').toUpperCase();
+      const isBericoto      = name.toLowerCase().includes('bericoto');
+      const isMinors        = fantraxStatus === 'MINORS';
+      // Q contract + ACTIVE/RESERVE = MiLB-eligible player placed in MLB slot
+      const isQinMLBSlot    = contractSmallId === 'Q' &&
+                              (fantraxStatus === 'ACTIVE' || fantraxStatus === 'RESERVE');
 
-      if (isBericoto || isMinors || isActiveT) {
+      if (isBericoto || isMinors || isQinMLBSlot) {
         results.push({
-          flag:          isBericoto ? 'BERICOTO' : isActiveT ? 'ACTIVE_T' : 'MINORS',
+          flag:          isBericoto ? 'BERICOTO' : isQinMLBSlot ? 'Q_IN_MLB_SLOT' : 'MINORS',
           name,
           pid,
           team:          teamData.teamName,
           fantraxStatus: item.status,
-          leagueStatus,
-          eligiblePos,
+          contractSmallId,
+          contractName:  item.contract ? item.contract.name : '',
+          eligiblePos:   pinfo.eligiblePos || '',
           rawItem:       JSON.stringify(item),
-          rawLeague:     JSON.stringify(pinfo),
         });
       }
     });
   });
 
-  const activeT = results.filter(r => r.flag === 'ACTIVE_T');
+  const qInMLB = results.filter(r => r.flag === 'Q_IN_MLB_SLOT');
   const minors  = results.filter(r => r.flag === 'MINORS');
-  Logger.log('=== SUMMARY: ACTIVE_T=' + activeT.length + '  MINORS=' + minors.length + '  total=' + results.length);
-  Logger.log('=== ACTIVE_T players (MiLB-eligible in MLB slots):');
-  activeT.forEach(r => Logger.log(JSON.stringify(r)));
-  Logger.log('=== MINORS players (first 10):');
+  Logger.log('=== SUMMARY: Q_IN_MLB_SLOT=' + qInMLB.length + '  MINORS=' + minors.length + '  total=' + results.length);
+  Logger.log('=== Q-contract players in MLB slots (will be labeled MiLB):');
+  qInMLB.forEach(r => Logger.log(JSON.stringify(r)));
+  Logger.log('=== MINORS slot players (first 10):');
   minors.slice(0, 10).forEach(r => Logger.log(JSON.stringify(r)));
-  return { ok: true, activeT: activeT.length, minors: minors.length };
+  return { ok: true, qInMLBSlot: qInMLB.length, minors: minors.length };
 }
 
 // ── Debug: full raw dump of every player on the Wetherholt 45s roster ────────
