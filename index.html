@@ -1875,7 +1875,7 @@ input[type=file] { display: none; }
 
       <!-- Rename Team -->
       <div style="border:1px solid var(--border);border-radius:var(--r);padding:18px">
-        <div style="font-weight:700;font-size:13px;margin-bottom:4px">✏️ Rename Team</div>
+        <div style="font-weight:700;font-size:13px;margin-bottom:4px">✏️ Rename Team <span style="font-size:10px;font-weight:400;color:var(--gold)">— Do this SECOND, then refresh</span></div>
         <div style="font-size:12px;color:var(--text-3);margin-bottom:14px">Update a team's display name. The owner's bookmark URL stays the same.</div>
         <div style="display:flex;flex-direction:column;gap:8px">
           <select id="rename-owner-select" style="font-family:var(--body);font-size:12px;padding:6px 10px;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--text)" onchange="prefillRenameField()">
@@ -1892,7 +1892,7 @@ input[type=file] { display: none; }
 
       <!-- Transfer Team -->
       <div style="border:1px solid var(--border);border-radius:var(--r);padding:18px">
-        <div style="font-weight:700;font-size:13px;margin-bottom:4px">🔁 Transfer Team</div>
+        <div style="font-weight:700;font-size:13px;margin-bottom:4px">🔁 Transfer Team <span style="font-size:10px;font-weight:400;color:var(--gold)">— Do this FIRST, then refresh</span></div>
         <div style="font-size:12px;color:var(--text-3);margin-bottom:14px">Reassign a team to a new owner key. Generates a fresh bookmarkable URL for the incoming manager.</div>
         <div style="display:flex;flex-direction:column;gap:8px">
           <select id="transfer-team-select" style="font-family:var(--body);font-size:12px;padding:6px 10px;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
@@ -2367,19 +2367,19 @@ function nav(page, el) {
 const STATUS_MAP = {
   'Active':   'MLB',
   'Reserve':  'MLB',
-  // Injured / IL statuses (Fantrax labels)
-  'Inj Res':  'IL',
-  'IL':       'IL',
-  'IL10':     'IL',
-  'IL60':     'IL',
-  'IL7':      'IL',
-  'DL10':     'IL',
-  'DL15':     'IL',
-  'DL60':     'IL',
-  'NA':       'IL',
-  'SUSP':     'IL',
-  'BRV':      'IL',
-  'PAT':      'IL',
+  // Injured / IL statuses — treated as MLB for keeper purposes
+  'Inj Res':  'MLB',
+  'IL':       'MLB',
+  'IL10':     'MLB',
+  'IL60':     'MLB',
+  'IL7':      'MLB',
+  'DL10':     'MLB',
+  'DL15':     'MLB',
+  'DL60':     'MLB',
+  'NA':       'MLB',
+  'SUSP':     'MLB',
+  'BRV':      'MLB',
+  'PAT':      'MLB',
   // Other
   'Minors':  'MiLB',
   'Minor':   'MiLB',  // alternate Fantrax label
