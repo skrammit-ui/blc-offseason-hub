@@ -115,6 +115,8 @@ function doPost(e) {
         return corsResponse(refreshMLBCareerCache());
       case 'refreshMLBCareerCacheForTeam':
         return corsResponse(refreshMLBCareerCacheForTeam(payload.teamKey));
+      case 'refreshTeamFull':
+        return corsResponse(refreshTeamFull(payload.teamKey));
       case 'refreshFantrax':
         return corsResponse(refreshFantrax(ss, payload.targets || ['matchups','rosters','draft']));
       case 'testFantraxConnection':
@@ -1587,6 +1589,24 @@ function refreshMLBCareerCache() {
   return { ok: true, total: entries.length, eligible, rosterUpdated, noMlbId: noId };
 }
 
+// ── Full refresh for one team: roster sync + MiLB eligibility ────────────────
+// Called from the GM's roster page. Runs roster sync first (so the sheet has
+// the latest Fantrax data) then MiLB refresh (so eligibility reflects that).
+function refreshTeamFull(teamKey) {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  let rosterResult, milbResult;
+  try { rosterResult = refreshFantraxRosters(ss, teamKey); }
+  catch(e) { rosterResult = { ok: false, error: e.message }; }
+  try { milbResult = refreshMLBCareerCacheForTeam(teamKey); }
+  catch(e) { milbResult = { ok: false, error: e.message }; }
+  return {
+    ok: rosterResult.ok !== false,
+    roster:  rosterResult,
+    milb:    milbResult,
+    updated: (milbResult.updated || 0),
+  };
+}
+
 // ── Refresh MLB career cache for one team only ────────────────────────────────
 // Called from the GM's own roster page. Looks up career stats for the team's
 // non-MiLB players, updates MLBCareerCache, and writes 'Minors' to the Rosters
@@ -1717,7 +1737,7 @@ function refreshFantraxMatchups(ss) {
 // Pulls current team rosters from Fantrax and updates the Rosters sheet.
 // Matches players by Fantrax player id. Updates teamKey, position, salary,
 // status, and contract year for every matched player.
-function refreshFantraxRosters(ss) {
+function refreshFantraxRosters(ss, filterKey) {
   if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
   const data = fetchFantrax('getTeamRosters');
   // Response shape: { period, rosters: { [fantraxTeamId]: { teamName, rosterItems: [{id, position, salary, status, contract:{name}}] } } }
@@ -1769,7 +1789,8 @@ function refreshFantraxRosters(ss) {
 
   Object.entries(rostersObj).forEach(([, teamData]) => {
     const ownerKey = nameToKey[String(teamData.teamName || '').toLowerCase()];
-    if (!ownerKey) return; // couldn't match team name to an ownerKey
+    if (!ownerKey) return;
+    if (filterKey && ownerKey !== filterKey) return; // per-team mode: skip other teams
 
     (teamData.rosterItems || []).forEach(item => {
       const pid      = String(item.id || '').trim();
