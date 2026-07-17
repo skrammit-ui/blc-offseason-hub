@@ -2145,6 +2145,16 @@ input[type=file] { display: none; }
         <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px;border-color:#e06c00;color:#e06c00" onclick="doFantraxGenericPost('buildRostersFromFantrax')">Build Rosters Sheet</button>
         <span id="fantrax-refresh-status" style="font-size:11px;color:var(--text-3)"></span>
       </div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--text-3);margin-bottom:8px">
+          <strong style="color:var(--text-2)">MLB Career Stats Cache</strong> — looks up career AB &amp; IP via <code>statsapi.mlb.com</code> and auto-labels players with &lt;130 AB and &lt;50 IP as MiLB. Run once per week or when a player's eligibility changes. First run is slow (~2–3 min); subsequent runs are fast.
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-secondary" style="font-size:11px;padding:5px 14px;border-color:#7b5ea7;color:#7b5ea7" onclick="doMLBCareerRefresh()">🔬 Refresh MLB Career Stats</button>
+          <span id="mlb-career-status" style="font-size:11px;color:var(--text-3)"></span>
+        </div>
+        <div id="mlb-career-results" style="display:none;margin-top:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px"></div>
+      </div>
       <div id="fantrax-refresh-results" style="display:none;margin-top:14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:12px"></div>
     </div>
   </div>
@@ -7094,6 +7104,34 @@ async function doFantraxTest() {
       statusEl.textContent = '⚠ ' + (res.error || 'Failed');
       statusEl.style.color = '#c0392b';
       resultsEl.innerHTML = `<div style="color:#c0392b">${escHtml(res.error || 'Unknown error')}</div>`;
+    }
+    resultsEl.style.display = 'block';
+  } catch(e) {
+    statusEl.textContent = '⚠ ' + e.message;
+    statusEl.style.color = '#c0392b';
+  }
+}
+
+async function doMLBCareerRefresh() {
+  const statusEl  = document.getElementById('mlb-career-status');
+  const resultsEl = document.getElementById('mlb-career-results');
+  statusEl.textContent = '⏳ Running… first run may take 2–3 minutes';
+  statusEl.style.color = 'var(--text-3)';
+  resultsEl.style.display = 'none';
+  try {
+    const res = await remotePost({ action: 'refreshMLBCareerCache' });
+    if (res.ok) {
+      statusEl.textContent = `✓ Done — ${res.total} players, ${res.eligible} MiLB-eligible, ${res.noMlbId} not found`;
+      statusEl.style.color = '#22a366';
+      resultsEl.innerHTML = `<div style="color:var(--text-2)">
+        <strong>${res.eligible}</strong> players auto-labeled MiLB (career AB&lt;130 &amp; IP&lt;50)<br>
+        <strong>${res.noMlbId}</strong> players not matched in MLB Stats API (use manual status picker)<br>
+        Now run <strong>⚡ Refresh from Fantrax → Rosters</strong> to apply the updated labels.
+      </div>`;
+    } else {
+      statusEl.textContent = '⚠ ' + (res.error || 'Failed');
+      statusEl.style.color = '#c0392b';
+      resultsEl.innerHTML = `<pre style="font-size:10px;font-family:var(--mono);white-space:pre-wrap;color:var(--text)">${escHtml(JSON.stringify(res, null, 2))}</pre>`;
     }
     resultsEl.style.display = 'block';
   } catch(e) {
