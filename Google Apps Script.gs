@@ -118,6 +118,7 @@ function doPost(e) {
       case 'refreshTeamFull':
         return corsResponse(refreshTeamFull(payload.teamKey));
       case 'refreshMLBYTDStats':
+      case 'refreshYTDStats':
         return corsResponse(refreshMLBYTDStats());
       case 'refreshFantrax':
         return corsResponse(refreshFantrax(ss, payload.targets || ['matchups','rosters','draft']));
@@ -1488,6 +1489,31 @@ function batchFetchMLBCareerStats(mlbIds) {
     }
   }
   return result;
+}
+
+// ── Daily 3am stats trigger ───────────────────────────────────────────────────
+// Called automatically by the time-based trigger set up via setupDailyStatsTrigger().
+function dailyStatsRefresh() {
+  try {
+    const result = refreshMLBYTDStats();
+    Logger.log('dailyStatsRefresh: ' + JSON.stringify(result));
+  } catch(e) {
+    Logger.log('dailyStatsRefresh error: ' + e.message);
+  }
+}
+
+// Run this ONCE from the Script Editor to install the 3am daily trigger.
+// It removes any existing dailyStatsRefresh triggers first to prevent duplicates.
+function setupDailyStatsTrigger() {
+  ScriptApp.getProjectTriggers()
+    .filter(t => t.getHandlerFunction() === 'dailyStatsRefresh')
+    .forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('dailyStatsRefresh')
+    .timeBased()
+    .atHour(3)
+    .everyDays(1)
+    .create();
+  Logger.log('✓ Daily stats trigger installed — runs at 3am every day');
 }
 
 // ── Refresh YTD stats from MLB Stats API ─────────────────────────────────────
