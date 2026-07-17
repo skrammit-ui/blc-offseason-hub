@@ -2138,6 +2138,7 @@ input[type=file] { display: none; }
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-primary" style="font-size:12px;padding:7px 18px;background:#22a366;border-color:#22a366" onclick="doFantraxRefresh()">⚡ Refresh from Fantrax</button>
         <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="doRefreshStandings('fantrax-refresh-status')">📊 Refresh Standings</button>
+        <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="doDebugStandings()">🔍 Debug Standings</button>
         <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="doFantraxTest()">Test Connection</button>
         <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px;border-color:#e06c00;color:#e06c00" onclick="doFantraxGenericPost('buildRostersFromFantrax')">Build Rosters Sheet</button>
         <span id="fantrax-refresh-status" style="font-size:11px;color:var(--text-3)"></span>
@@ -7117,14 +7118,39 @@ function initCommishPage() {
 // ── Fantrax sync helpers ──────────────────────────────────────────────────────
 async function doRefreshStandings(statusElId) {
   const el = document.getElementById(statusElId || 'standings-refresh-status');
+  const resultsEl = document.getElementById('fantrax-refresh-results');
   el.textContent = '⏳ Fetching standings from Fantrax…';
   el.style.color = 'var(--text-3)';
   try {
     const res = await remotePost({ action: 'refreshStandings' });
     if (!res.ok) throw new Error(res.error || 'Unknown error');
-    el.textContent = `✓ ${res.teams ?? ''} teams updated — reloading…`;
-    el.style.color = '#22a366';
-    setTimeout(() => location.reload(), 1200);
+    const warn = res.unresolved && res.unresolved.length
+      ? ` ⚠ unresolved: ${res.unresolved.join(', ')}` : '';
+    el.textContent = `✓ ${res.teams ?? 0} teams, ${res.totalMatchups ?? '?'} matchups, ${res.periods ?? '?'} periods${warn} — reloading…`;
+    el.style.color = res.teams > 0 ? '#22a366' : '#e06c00';
+    if (resultsEl) {
+      resultsEl.innerHTML = `<div style="font-family:var(--mono);font-size:11px;white-space:pre-wrap">${escHtml(JSON.stringify(res.standings, null, 2))}</div>`;
+      resultsEl.style.display = 'block';
+    }
+    if (res.teams > 0) setTimeout(() => location.reload(), 2500);
+  } catch(e) {
+    el.textContent = '⚠ ' + e.message;
+    el.style.color = '#c0392b';
+  }
+}
+
+async function doDebugStandings() {
+  const el = document.getElementById('fantrax-refresh-status');
+  const resultsEl = document.getElementById('fantrax-refresh-results');
+  el.textContent = '⏳ Fetching raw matchup structure…';
+  el.style.color = 'var(--text-3)';
+  resultsEl.style.display = 'none';
+  try {
+    const res = await remotePost({ action: 'debugStandings' });
+    el.textContent = res.ok ? `✓ ${res.periodsCount} periods via "${res.periodsKey}"` : '⚠ ' + res.error;
+    el.style.color = res.ok ? '#22a366' : '#c0392b';
+    resultsEl.innerHTML = `<pre style="font-size:10px;font-family:var(--mono);white-space:pre-wrap;color:var(--text)">${escHtml(JSON.stringify(res, null, 2))}</pre>`;
+    resultsEl.style.display = 'block';
   } catch(e) {
     el.textContent = '⚠ ' + e.message;
     el.style.color = '#c0392b';
