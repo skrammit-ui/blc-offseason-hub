@@ -1468,17 +1468,18 @@ function refreshMLBCareerCache() {
     if (fid && name && name.length > 2) fantraxInfo[fid] = { name, team };
   });
 
-  // 2. Collect all non-MINORS rostered players
+  // 2. Collect ALL rostered players (including MINORS slot) — eligibility is
+  //    determined by career AB/IP, not by which Fantrax slot they currently occupy
   const rosters = fetchFantrax('getTeamRosters');
   const activePids = [];
   Object.values(rosters.rosters || {}).forEach(td => {
     (td.rosterItems || []).forEach(item => {
       const pid = String(item.id || '').trim();
-      if (pid && item.status !== 'MINORS') activePids.push(pid);
+      if (pid) activePids.push(pid);
     });
   });
   const uniquePids = [...new Set(activePids)];
-  Logger.log('Non-MiLB rostered players: ' + uniquePids.length);
+  Logger.log('Rostered players (all slots): ' + uniquePids.length);
 
   // 3. Load existing cache to reuse already-found MLB ids (avoids re-searching)
   const cache = getMLBCareerCache(ss);
@@ -1528,7 +1529,8 @@ function refreshMLBCareerCache() {
 function refreshMLBCareerCacheForTeam(teamKey) {
   const ss = SpreadsheetApp.openById(SHEET_ID);
 
-  // 1. Pull the team's non-Minors players from the Rosters sheet
+  // 1. Pull ALL of the team's players from the Rosters sheet — eligibility is
+  //    determined by career AB/IP regardless of current slot or status label
   const sheet = ss.getSheetByName('Rosters');
   if (!sheet) return { ok: false, error: 'Rosters sheet not found' };
   const [headers, ...rows] = sheet.getDataRange().getValues();
@@ -1541,8 +1543,6 @@ function refreshMLBCareerCacheForTeam(teamKey) {
   const teamPlayers = [];
   rows.forEach((r, i) => {
     if (String(r[teamIdx2] || '').trim() !== teamKey) return;
-    const currentStatus = String(r[statusIdx] || '').trim();
-    if (currentStatus === 'Minors') return; // already labeled; skip
     const pid  = String(r[idIdx] || '').trim().replace(/\*/g, '');
     const name = String(r[nameIdx] || '').trim();
     if (pid && name) teamPlayers.push({ pid, name, mlbTeam: String(r[mlbTIdx] || '').trim(), rowIdx: i });
