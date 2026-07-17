@@ -1885,6 +1885,45 @@ function debugRosterValues(ss) {
   return { ok: true, sheetSample, fantraxSample, fantraxTeam: firstTeam.teamName };
 }
 
+// ── Debug: inspect raw Fantrax data for MiLB-eligible MLB players ─────────────
+// Run this from the Script Editor to see exactly what fields Fantrax returns
+// for players with the green "M" (MiLB eligible). Check the Execution Log.
+function debugMiLBEligibility() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const data = fetchFantrax('getTeamRosters');
+  const leagueInfo = fetchFantrax('getLeagueInfo');
+  const leaguePInfo = (leagueInfo && leagueInfo.playerInfo) || {};
+
+  const results = [];
+  const rostersObj = data.rosters || {};
+  Object.entries(rostersObj).forEach(([, teamData]) => {
+    (teamData.rosterItems || []).forEach(item => {
+      const pid = String(item.id || '').trim();
+      const name = (leaguePInfo[pid] && leaguePInfo[pid].name) || item.name || pid;
+      // Flag anyone whose name contains "Bericoto" OR whose status is MINORS but
+      // whose eligiblePos suggests they're actually MLB-side
+      const eligiblePos = (leaguePInfo[pid] && leaguePInfo[pid].eligiblePos) || '';
+      const isBericoto = name.toLowerCase().includes('bericoto');
+      const isMinors   = String(item.status || '').toUpperCase() === 'MINORS';
+      if (isBericoto || isMinors) {
+        results.push({
+          name,
+          pid,
+          team:        teamData.teamName,
+          status:      item.status,
+          eligiblePos,
+          allItemKeys: JSON.stringify(item),
+          leagueInfo:  JSON.stringify(leaguePInfo[pid] || {}),
+        });
+      }
+    });
+  });
+
+  results.forEach(r => Logger.log(JSON.stringify(r)));
+  Logger.log('Total flagged: ' + results.length);
+  return { ok: true, results };
+}
+
 // ── Debug: find eligible positions endpoint ───────────────────────────────────
 // Run this to probe which endpoint exposes multi-position eligibility.
 function debugEligiblePositions() {
