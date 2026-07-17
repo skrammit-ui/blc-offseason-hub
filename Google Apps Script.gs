@@ -1375,26 +1375,41 @@ function upsertMLBCareerCache(ss, entries) {
   let sheet = ss.getSheetByName('MLBCareerCache');
   if (!sheet) {
     sheet = ss.insertSheet('MLBCareerCache');
-    sheet.appendRow(HDR);
-    sheet.getRange(1, 1, 1, HDR.length).setFontWeight('bold').setBackground('#0d1b2a').setFontColor('#c9a84c');
+    sheet.getRange(1, 1, 1, HDR.length).setValues([HDR])
+         .setFontWeight('bold').setBackground('#0d1b2a').setFontColor('#c9a84c');
   }
-  const [headers, ...rows] = sheet.getDataRange().getValues();
-  const ci = h => headers.indexOf(h);
-  const rowLookup = {};
-  rows.forEach((r, i) => {
-    const fid = String(r[ci('fantraxId')] || '').trim();
-    if (fid) rowLookup[fid] = i + 2;
-  });
   const today = Utilities.formatDate(new Date(), 'America/New_York', 'yyyy-MM-dd');
+
+  // Read existing data rows (skip header) — one API read
+  const lastRow = sheet.getLastRow();
+  let existingRows = lastRow >= 2
+    ? sheet.getRange(2, 1, lastRow - 1, HDR.length).getValues()
+    : [];
+  const rowLookup = {}; // fantraxId → index in existingRows
+  existingRows.forEach((r, i) => {
+    const fid = String(r[0] || '').trim();
+    if (fid) rowLookup[fid] = i;
+  });
+
+  // Merge: update existingRows in-place OR collect as new rows
+  const newRows = [];
   entries.forEach(e => {
     const vals = [e.fantraxId, e.playerName, e.mlbId, e.careerAB, e.careerIP, e.eligible, today];
-    if (rowLookup[e.fantraxId]) {
-      sheet.getRange(rowLookup[e.fantraxId], 1, 1, vals.length).setValues([vals]);
+    if (rowLookup[e.fantraxId] !== undefined) {
+      existingRows[rowLookup[e.fantraxId]] = vals;
     } else {
-      sheet.appendRow(vals);
-      rowLookup[e.fantraxId] = sheet.getLastRow();
+      newRows.push(vals);
     }
   });
+
+  // Batch-write all updates in one API call
+  if (existingRows.length > 0) {
+    sheet.getRange(2, 1, existingRows.length, HDR.length).setValues(existingRows);
+  }
+  // Batch-append all new rows in one API call
+  if (newRows.length > 0) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, HDR.length).setValues(newRows);
+  }
 }
 
 // Search MLB Stats API for a player's numeric id by full name.
@@ -1457,16 +1472,22 @@ function batchFetchMLBCareerStats(mlbIds) {
 function refreshMLBCareerCache() {
   const ss = SpreadsheetApp.openById(SHEET_ID);
 
-  // 1. Build fantraxId → { name, team } from Fantrax player database
-  const pidData = fetchFantrax('getPlayerIds');
+  // 1. Build fantraxId → { name, team } from the local Rosters sheet
+  //    (avoids an expensive Fantrax getPlayerIds API call — we already have this data)
   const fantraxInfo = {};
-  Object.entries(pidData).forEach(([key, val]) => {
-    if (!val || typeof val !== 'object') return;
-    const fid  = String(val.fantraxId || val.id || key).trim();
-    const name = String(val.name || '').trim();
-    const team = String(val.team || '').trim();
-    if (fid && name && name.length > 2) fantraxInfo[fid] = { name, team };
-  });
+  const rosterSheetR = ss.getSheetByName('Rosters');
+  if (rosterSheetR) {
+    const [rHdrs, ...rRows] = rosterSheetR.getDataRange().getValues();
+    const rIdIdx   = rHdrs.indexOf('id');
+    const rNameIdx = rHdrs.indexOf('player');
+    const rTeamIdx = rHdrs.indexOf('mlb_team');
+    rRows.forEach(r => {
+      const fid  = String(r[rIdIdx] || '').trim().replace(/\*/g, '');
+      const name = String(r[rNameIdx] || '').trim();
+      const team = String(r[rTeamIdx] || '').trim();
+      if (fid && name) fantraxInfo[fid] = { name, team };
+    });
+  }
 
   // 2. Collect ALL rostered players (including MINORS slot) — eligibility is
   //    determined by career AB/IP, not by which Fantrax slot they currently occupy
