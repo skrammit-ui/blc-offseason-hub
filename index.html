@@ -2137,6 +2137,7 @@ input[type=file] { display: none; }
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-primary" style="font-size:12px;padding:7px 18px;background:#22a366;border-color:#22a366" onclick="doFantraxRefresh()">⚡ Refresh from Fantrax</button>
+        <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="doRefreshStandings('fantrax-refresh-status')">📊 Refresh Standings</button>
         <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="doFantraxTest()">Test Connection</button>
         <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px;border-color:#e06c00;color:#e06c00" onclick="doFantraxGenericPost('buildRostersFromFantrax')">Build Rosters Sheet</button>
         <span id="fantrax-refresh-status" style="font-size:11px;color:var(--text-3)"></span>
@@ -2315,7 +2316,8 @@ let STATS = {};
 let PROJECTIONS = {};
 let DIVISIONS = {};
 let PLAYOFFS_DATA = {};
-let MATCHUPS = [];
+let MATCHUPS = []; // kept for compatibility; standings now driven by STANDINGS
+let STANDINGS = {}; // { ownerKey: { W, L, T, pct, GB, catW, catL } }
 
 // Editable flag — commissioner can always edit
 let IS_COMMISH = true;
@@ -2733,22 +2735,19 @@ function renderDivisionGrid(year) {
   }
 }
 
-// Compute W/L/T and category totals from MATCHUPS for regular season games.
-// Returns { ownerKey: { W, L, T, catW, catL } }
+// Returns standings records from the Fantrax-synced STANDINGS global.
+// Shape: { ownerKey: { W, L, T, catW, catL } } — same interface as before.
 function computeStandings() {
   const recs = {};
-  const init = k => { if (!recs[k]) recs[k] = { W:0, L:0, T:0, catW:0, catL:0 }; };
-  MATCHUPS
-    .filter(m => m.type === 'Regular Season' && m.homeScore != null && m.visitorScore != null)
-    .forEach(m => {
-      const hs = Number(m.homeScore), vs = Number(m.visitorScore);
-      init(m.home); init(m.visitor);
-      recs[m.home].catW    += hs; recs[m.home].catL    += vs;
-      recs[m.visitor].catW += vs; recs[m.visitor].catL += hs;
-      if      (hs > vs) { recs[m.home].W++;    recs[m.visitor].L++; }
-      else if (vs > hs) { recs[m.visitor].W++; recs[m.home].L++;    }
-      else              { recs[m.home].T++;     recs[m.visitor].T++; }
-    });
+  Object.entries(STANDINGS).forEach(([k, s]) => {
+    recs[k] = {
+      W:    Number(s.W    || 0),
+      L:    Number(s.L    || 0),
+      T:    Number(s.T    || 0),
+      catW: Number(s.catW || 0),
+      catL: Number(s.catL || 0),
+    };
+  });
   return recs;
 }
 
@@ -4415,8 +4414,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
-    // Hydrate matchups
+    // Hydrate matchups (legacy — no longer drives standings display)
     if (Array.isArray(data.matchups) && data.matchups.length) MATCHUPS = data.matchups;
+
+    // Hydrate standings from Fantrax-synced sheet data
+    if (data.standings && typeof data.standings === 'object') STANDINGS = data.standings;
 
     // Fantrax connection status
     FANTRAX_CONNECTED = !!data.fantraxConnected;
@@ -7113,14 +7115,14 @@ function initCommishPage() {
 }
 
 // ── Fantrax sync helpers ──────────────────────────────────────────────────────
-async function doRefreshStandings() {
-  const el = document.getElementById('standings-refresh-status');
-  el.textContent = '⏳ Fetching matchups from Fantrax…';
+async function doRefreshStandings(statusElId) {
+  const el = document.getElementById(statusElId || 'standings-refresh-status');
+  el.textContent = '⏳ Fetching standings from Fantrax…';
   el.style.color = 'var(--text-3)';
   try {
-    const res = await remotePost({ action: 'refreshFantrax', targets: ['matchups'] });
+    const res = await remotePost({ action: 'refreshStandings' });
     if (!res.ok) throw new Error(res.error || 'Unknown error');
-    el.textContent = '✓ Updated — reloading…';
+    el.textContent = `✓ ${res.teams ?? ''} teams updated — reloading…`;
     el.style.color = '#22a366';
     setTimeout(() => location.reload(), 1200);
   } catch(e) {
@@ -7132,12 +7134,12 @@ async function doRefreshStandings() {
 async function doFantraxRefresh() {
   const statusEl  = document.getElementById('fantrax-refresh-status');
   const resultsEl = document.getElementById('fantrax-refresh-results');
-  statusEl.textContent = '⏳ Syncing matchups, rosters, MiLB status, YTD stats + draft results — may take a minute…';
+  statusEl.textContent = '⏳ Syncing standings, rosters, MiLB status, YTD stats + draft results — may take a minute…';
   statusEl.style.color = 'var(--text-3)';
   resultsEl.style.display = 'none';
 
   try {
-    const res = await remotePost({ action: 'refreshFantrax', targets: ['matchups', 'rosters', 'draft'] });
+    const res = await remotePost({ action: 'refreshFantrax', targets: ['standings', 'rosters', 'draft'] });
     if (!res.ok) throw new Error(res.error || 'Unknown error');
     statusEl.textContent = '✓ Done';
     statusEl.style.color = '#22a366';
