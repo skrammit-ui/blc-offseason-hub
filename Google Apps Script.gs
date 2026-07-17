@@ -117,6 +117,8 @@ function doPost(e) {
         return corsResponse(refreshMLBCareerCacheForTeam(payload.teamKey));
       case 'refreshTeamFull':
         return corsResponse(refreshTeamFull(payload.teamKey));
+      case 'refreshMLBYTDStats':
+        return corsResponse(refreshMLBYTDStats());
       case 'refreshFantrax':
         return corsResponse(refreshFantrax(ss, payload.targets || ['matchups','rosters','draft']));
       case 'testFantraxConnection':
@@ -1361,6 +1363,10 @@ function refreshFantrax(ss, targets) {
     }
     try { results.rosters = refreshFantraxRosters(ss); }
     catch(e) { results.rosters = { ok: false, error: e.message }; }
+    try {
+      const ytd = refreshMLBYTDStats(ss);
+      results.ytdStats = { ok: true, message: ytd.total + ' player stats updated (' + ytd.season + ' YTD)' };
+    } catch(e) { results.ytdStats = { ok: false, error: e.message }; }
   }
   if (targets.includes('draft')) {
     try { results.draft = refreshFantraxDraft(ss); }
@@ -1484,6 +1490,76 @@ function batchFetchMLBCareerStats(mlbIds) {
   return result;
 }
 
+// ── Refresh YTD stats from MLB Stats API ─────────────────────────────────────
+// Fetches current-season hitting + pitching stats for all players with a known
+// MLB ID (from MLBCareerCache) and writes them to the Stats sheet.
+// Column names match what index.html expects: H, AB, R, HR, RBI, SB, OBP for
+// hitters; IP, K, K9, QA, SVH, ERA, WHIP for pitchers.
+function refreshMLBYTDStats(ss) {
+  if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
+  const cache = getMLBCareerCache(ss);
+
+  // Build mlbId → fantraxId reverse map
+  const mlbToFid = {}, fidToName = {};
+  Object.entries(cache).forEach(([fid, d]) => {
+    if (d.mlbId) { mlbToFid[d.mlbId] = fid; fidToName[fid] = d.playerName; }
+  });
+  const mlbIds = Object.keys(mlbToFid);
+  if (!mlbIds.length) return { ok: true, total: 0, message: 'Run career stats refresh first to populate MLB IDs' };
+
+  const season = new Date().getFullYear();
+  const statsMap = {};
+
+  for (let i = 0; i < mlbIds.length; i += 150) {
+    const chunk = mlbIds.slice(i, i + 150);
+    try {
+      const url = MLB_STATS_API + '/people?personIds=' + chunk.join(',') +
+                  '&hydrate=stats(group=[hitting,pitching],type=season,season=' + season + ')';
+      const resp = JSON.parse(UrlFetchApp.fetch(url, { muteHttpExceptions: true }).getContentText());
+      (resp.people || []).forEach(person => {
+        const fid = mlbToFid[String(person.id)];
+        if (!fid) return;
+        const row = { 'Player ID': fid, 'Player': fidToName[fid] || fid };
+        (person.stats || []).forEach(s => {
+          const split = s.splits && s.splits[0];
+          if (!split) return;
+          const st  = split.stat;
+          const grp = s.group && s.group.displayName;
+          if (grp === 'hitting') {
+            row['H']   = st.hits        ?? 0;
+            row['AB']  = st.atBats      ?? 0;
+            row['R']   = st.runs        ?? 0;
+            row['HR']  = st.homeRuns    ?? 0;
+            row['RBI'] = st.rbi         ?? 0;
+            row['SB']  = st.stolenBases ?? 0;
+            row['OBP'] = st.obp         || '.000';
+          }
+          if (grp === 'pitching') {
+            const ip = parseFloat(st.inningsPitched || '0');
+            const k  = st.strikeOuts ?? 0;
+            row['IP']   = st.inningsPitched || '0.0';
+            row['W']    = st.wins           ?? 0;
+            row['L']    = st.losses         ?? 0;
+            row['ERA']  = st.era            || '0.00';
+            row['WHIP'] = st.whip           || '0.00';
+            row['K']    = k;
+            row['K9']   = ip > 0 ? (k / ip * 9).toFixed(1) : '0.0';
+            row['QA']   = st.qualityStarts  ?? 0;
+            row['SVH']  = (st.saves ?? 0) + (st.holds ?? 0);
+          }
+        });
+        if (Object.keys(row).length > 2) statsMap[fid] = row;
+      });
+    } catch(e) {
+      Logger.log('refreshMLBYTDStats chunk[' + i + ']: ' + e.message);
+    }
+  }
+
+  saveStats(ss, statsMap);
+  Logger.log('refreshMLBYTDStats: ' + Object.keys(statsMap).length + ' players, season ' + season);
+  return { ok: true, total: Object.keys(statsMap).length, season: season };
+}
+
 // ── Refresh MLB career stats cache ────────────────────────────────────────────
 // Run from Commissioner panel or Script Editor. Two phases:
 //   Phase 1 (slow, first run only): name-searches statsapi.mlb.com for each player's MLB id.
@@ -1594,15 +1670,18 @@ function refreshMLBCareerCache() {
 // the latest Fantrax data) then MiLB refresh (so eligibility reflects that).
 function refreshTeamFull(teamKey) {
   const ss = SpreadsheetApp.openById(SHEET_ID);
-  let rosterResult, milbResult;
+  let rosterResult, milbResult, ytdResult;
   try { rosterResult = refreshFantraxRosters(ss, teamKey); }
   catch(e) { rosterResult = { ok: false, error: e.message }; }
   try { milbResult = refreshMLBCareerCacheForTeam(teamKey); }
   catch(e) { milbResult = { ok: false, error: e.message }; }
+  try { ytdResult = refreshMLBYTDStats(ss); }
+  catch(e) { ytdResult = { ok: false, error: e.message }; }
   return {
-    ok: rosterResult.ok !== false,
+    ok:      rosterResult.ok !== false,
     roster:  rosterResult,
     milb:    milbResult,
+    ytd:     ytdResult,
     updated: (milbResult.updated || 0),
   };
 }
