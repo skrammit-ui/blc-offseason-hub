@@ -124,6 +124,10 @@ function doPost(e) {
         return corsResponse(refreshFantraxStandings(ss));
       case 'debugStandings':
         return corsResponse(debugStandingsData(ss));
+      case 'refreshDraftPicks':
+        return corsResponse(refreshFantraxDraftPicks(ss));
+      case 'debugDraftPicks':
+        return corsResponse(debugDraftPicksData());
       case 'refreshFantrax':
         return corsResponse(refreshFantrax(ss, payload.targets || ['standings','rosters','draft']));
       case 'testFantraxConnection':
@@ -1377,6 +1381,10 @@ function refreshFantrax(ss, targets) {
     try { results.draft = refreshFantraxDraft(ss); }
     catch(e) { results.draft = { ok: false, error: e.message }; }
   }
+  if (targets.includes('draftPicks')) {
+    try { results.draftPicks = refreshFantraxDraftPicks(ss); }
+    catch(e) { results.draftPicks = { ok: false, error: e.message }; }
+  }
   return { ok: true, results };
 }
 
@@ -2084,6 +2092,96 @@ function refreshFantraxDraft(ss) {
 
   Logger.log('refreshFantraxDraft: updated=' + updated + ' added=' + added);
   return { ok: true, updated, added };
+}
+
+// ── Refresh future/current draft pick ownership from Fantrax ──────────────────
+// Uses getDraftPicks to sync which team owns each pick (including traded picks).
+// Writes round/pick/team to the Picks sheet without overwriting player data.
+function refreshFantraxDraftPicks(ss) {
+  if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
+
+  const ownerMap = getOwnerMap(ss);
+  const nameToKey = {};
+  Object.entries(ownerMap).forEach(([key, name]) => { nameToKey[name.toLowerCase()] = key; });
+  Object.entries(FANTRAX_TEAM_ALIASES).forEach(([alias, key]) => { nameToKey[alias] = key; });
+
+  const data = fetchFantrax('getDraftPicks');
+
+  // Try common property names for the picks array
+  const picks = data.picks || data.draftPicks || data.futurePickList || data.draftPickList ||
+                (Array.isArray(data) ? data : []);
+
+  if (!Array.isArray(picks) || picks.length === 0) {
+    return { ok: true, updated: 0, added: 0, note: 'No picks found. Keys: ' + Object.keys(data).join(', ') };
+  }
+
+  const sheet = ss.getSheetByName('Picks');
+  if (!sheet) throw new Error('Picks sheet not found');
+
+  const HEADERS = ['round','pick','team','player','mlb_team','position','salary','contract','key'];
+  if (sheet.getLastRow() < 1) {
+    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+  }
+
+  const allData = sheet.getDataRange().getValues();
+  const headers = allData[0];
+  const rows    = allData.slice(1);
+  const rdIdx = headers.indexOf('round');
+  const pkIdx = headers.indexOf('pick');
+  const tmIdx = headers.indexOf('team');
+  const plIdx = headers.indexOf('player');
+
+  // Build lookup: "rd|pk" → row index in rows[]
+  const rowByKey = {};
+  rows.forEach((row, i) => {
+    const rd = String(row[rdIdx] || '').trim();
+    const pk = String(row[pkIdx] || '').trim();
+    if (rd && pk) rowByKey[rd + '|' + pk] = i;
+  });
+
+  let updated = 0;
+  const newRows = [];
+  const unresolved = [];
+
+  picks.forEach(p => {
+    const round = String(p.round || p.roundNum || p.rd || p.roundNumber || '').trim();
+    const pick  = String(p.pick  || p.pickNum  || p.pickNumber || p.overallPick || '').trim();
+    const rawName = (p.teamName || p.name || p.ownerName || p.team || '').toLowerCase();
+    const teamKey = nameToKey[rawName] || '';
+    if (!teamKey && rawName) unresolved.push(rawName);
+    if (!round || !pick) return;
+
+    const lookupKey = round + '|' + pick;
+    if (rowByKey[lookupKey] !== undefined) {
+      const idx = rowByKey[lookupKey];
+      // Only update ownership if this pick hasn't been used (no player drafted yet)
+      if (teamKey && !rows[idx][plIdx] && rows[idx][tmIdx] !== teamKey) {
+        rows[idx][tmIdx] = teamKey;
+        updated++;
+      }
+    } else {
+      const newRow = new Array(headers.length).fill('');
+      if (rdIdx >= 0) newRow[rdIdx] = round;
+      if (pkIdx >= 0) newRow[pkIdx] = pick;
+      if (tmIdx >= 0) newRow[tmIdx] = teamKey;
+      newRows.push(newRow);
+    }
+  });
+
+  // Batch write
+  if (updated > 0) sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+  if (newRows.length > 0) sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, headers.length).setValues(newRows);
+
+  Logger.log('refreshFantraxDraftPicks: updated=' + updated + ' added=' + newRows.length);
+  return { ok: true, updated, added: newRows.length, total: picks.length, unresolved };
+}
+
+function debugDraftPicksData() {
+  const data = fetchFantrax('getDraftPicks');
+  const picks = data.picks || data.draftPicks || data.futurePickList || data.draftPickList ||
+                (Array.isArray(data) ? data : []);
+  const sample = Array.isArray(picks) ? picks.slice(0, 3) : [];
+  return { ok: true, topLevelKeys: Object.keys(data), total: picks.length, sample };
 }
 
 // ── Debug: return raw Fantrax API response ────────────────────────────────────
