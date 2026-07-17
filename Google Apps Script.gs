@@ -1979,104 +1979,108 @@ function debugWetherholtRoster() {
   });
 }
 
-// ── Debug: find Bericoto (or any MiLB-eligible MLB player) across all endpoints ──
-// Run from Script Editor. Goal: find the field that marks MiLB eligibility (green M)
-// for players in MLB/ACTIVE roster slots.
-// Strategy: find Bericoto's pid via getPlayerIds name search, then dump everything
-// for him from every available endpoint; also try career stats endpoints.
-function debugFindMiLBFlag() {
-  // ── Step 1: scan getPlayerIds for "bericoto" ────────────────────────────────
-  Logger.log('=== Step 1: search getPlayerIds for Bericoto ===');
-  let bericotoPid = null;
-  let bericotoRaw = null;
+// ── Debug: compare 3 players in RESERVE to find the MiLB-eligibility flag ────
+// Bericoto + Rodriguez = MiLB eligible (green M). Kim = NOT eligible (career AB > 130).
+// All 3 are in RESERVE slots. What's different between them in Fantrax API?
+// Run from Script Editor, share the full log output.
+function debugCompareReservePlayers() {
+  const TARGETS = ['bericoto', 'rodriguez', 'kim'];
+
+  // ── A: fetch getPlayerIds to build name → pid map ─────────────────────────
+  Logger.log('=== A: getPlayerIds — build name→pid map ===');
+  const nameToPid  = {};  // lowercase fragment → pid
+  const pidToName  = {};
+  const pidToRaw   = {};  // pid → full player object from getPlayerIds
   try {
-    const pd = fetchFantrax('getPlayerIds');
+    const pd  = fetchFantrax('getPlayerIds');
     const raw = JSON.stringify(pd);
-    const idx = raw.toLowerCase().indexOf('bericoto');
-    if (idx >= 0) {
-      const snippet = raw.substring(Math.max(0, idx - 50), idx + 400);
-      Logger.log('getPlayerIds — found "bericoto" at ' + idx + ': ' + snippet);
-      // Try to extract pid from snippet
-      const m = snippet.match(/"([a-z0-9]{5})"[^}]*?bericoto/i)
-             || snippet.match(/bericoto[^}]*?"([a-z0-9]{5})"/i);
-      if (m) { bericotoPid = m[1]; Logger.log('Extracted pid: ' + bericotoPid); }
-    } else {
-      Logger.log('getPlayerIds top-level keys: ' + Object.keys(pd).join(', '));
-      Logger.log('getPlayerIds: "bericoto" not found. Total raw length: ' + raw.length);
-      // Dump first player entry to see structure
-      const firstKey = Object.keys(pd.players || pd || {})[0];
-      if (firstKey) Logger.log('Sample player entry: ' + JSON.stringify((pd.players || pd)[firstKey]).substring(0, 300));
+    Logger.log('getPlayerIds top-level keys: ' + Object.keys(pd).join(', '));
+    // Try common shapes
+    const playerMap = pd.players || pd.playerInfo || pd;
+    Object.entries(playerMap).forEach(([key, val]) => {
+      if (!val || typeof val !== 'object') return;
+      const name = String(val.name || val.playerName || val.fullName || '').trim();
+      const pid  = String(val.id || val.fantraxId || val.playerId || key).trim();
+      if (!name || !pid) return;
+      pidToName[pid]           = name;
+      pidToRaw[pid]            = val;
+      nameToPid[name.toLowerCase()] = pid;
+    });
+    TARGETS.forEach(t => {
+      const found = Object.keys(nameToPid).filter(n => n.includes(t));
+      Logger.log('Name search "' + t + '": ' + JSON.stringify(found.slice(0, 5)));
+      found.slice(0, 3).forEach(n => Logger.log('  → pid ' + nameToPid[n] + ': ' + JSON.stringify(pidToRaw[nameToPid[n]])));
+    });
+    if (!Object.keys(pidToName).length) {
+      Logger.log('WARNING: could not parse player names from getPlayerIds. Raw sample: ' + raw.substring(0, 600));
     }
   } catch(e) { Logger.log('getPlayerIds ERROR: ' + e.message); }
 
-  // ── Step 2: scan getTeamRosters for bericoto in raw JSON ────────────────────
-  Logger.log('=== Step 2: scan getTeamRosters raw JSON for bericoto ===');
-  let bericotoItem = null;
-  let bericotoTeam = null;
+  // ── B: locate all 3 in getTeamRosters ─────────────────────────────────────
+  Logger.log('=== B: getTeamRosters — find all 3 targets ===');
+  const foundInRoster = {}; // pid → { team, item }
   try {
     const rosters = fetchFantrax('getTeamRosters');
     const raw = JSON.stringify(rosters);
-    const idx = raw.toLowerCase().indexOf('bericoto');
-    if (idx >= 0) {
-      Logger.log('getTeamRosters — found at ' + idx + ': ' + raw.substring(Math.max(0, idx - 50), idx + 400));
-    } else {
-      Logger.log('getTeamRosters: "bericoto" not found by name in raw response');
-    }
-    // If we found a pid in step 1, locate the roster item directly
-    if (bericotoPid) {
+    // Search raw for names directly (in case names appear in roster response)
+    TARGETS.forEach(t => {
+      const idx = raw.toLowerCase().indexOf(t);
+      if (idx >= 0) Logger.log('Raw roster search "' + t + '": ' + raw.substring(Math.max(0, idx - 30), idx + 200));
+    });
+    // Search by pid if we found them in step A
+    Object.values(rosters.rosters || {}).forEach(td => {
+      (td.rosterItems || []).forEach(item => {
+        const pid  = String(item.id || '').trim();
+        const name = pidToName[pid] || '';
+        const isTarget = TARGETS.some(t => name.toLowerCase().includes(t));
+        if (isTarget) {
+          foundInRoster[pid] = { team: td.teamName, name, item };
+          Logger.log('Found target "' + name + '" (pid=' + pid + ') on "' + td.teamName +
+            '" — fantraxStatus=' + item.status + ' raw=' + JSON.stringify(item));
+        }
+      });
+    });
+    if (!Object.keys(foundInRoster).length) {
+      Logger.log('Targets not found by pid — dumping ALL RESERVE items with their raw data:');
       Object.values(rosters.rosters || {}).forEach(td => {
         (td.rosterItems || []).forEach(item => {
-          if (String(item.id || '').trim() === bericotoPid) {
-            bericotoItem = item;
-            bericotoTeam = td.teamName;
+          if (item.status === 'RESERVE') {
+            Logger.log('RESERVE pid=' + item.id + ' team=' + td.teamName + ' raw=' + JSON.stringify(item));
           }
         });
       });
-      if (bericotoItem) {
-        Logger.log('Found Bericoto roster item on "' + bericotoTeam + '": ' + JSON.stringify(bericotoItem));
-      }
-    }
-    // Also dump ALL fields of a known ACTIVE player for comparison
-    const sampleActive = Object.values(rosters.rosters || {})[0];
-    if (sampleActive) {
-      const activeItem = (sampleActive.rosterItems || []).find(i => i.status === 'ACTIVE');
-      Logger.log('Sample ACTIVE player (all fields): ' + JSON.stringify(activeItem));
     }
   } catch(e) { Logger.log('getTeamRosters ERROR: ' + e.message); }
 
-  // ── Step 3: check getLeagueInfo playerInfo for bericotoPid ─────────────────
-  if (bericotoPid) {
-    Logger.log('=== Step 3: getLeagueInfo.playerInfo for pid=' + bericotoPid + ' ===');
-    try {
-      const info = fetchFantrax('getLeagueInfo');
-      const pinfo = (info.playerInfo || {})[bericotoPid] || null;
-      Logger.log('playerInfo[' + bericotoPid + ']: ' + JSON.stringify(pinfo));
-      // Compare to a known established MLB player — pick any pid from step 2 ACTIVE item
-      if (bericotoItem) {
-        // Also compare leagueInfo top-level keys
-        Logger.log('getLeagueInfo top-level keys: ' + Object.keys(info).join(', '));
-      }
-    } catch(e) { Logger.log('getLeagueInfo ERROR: ' + e.message); }
-  }
+  // ── C: compare getLeagueInfo.playerInfo for each found pid ─────────────────
+  Logger.log('=== C: getLeagueInfo.playerInfo for each target ===');
+  try {
+    const info    = fetchFantrax('getLeagueInfo');
+    const pInfo   = info.playerInfo || {};
+    Logger.log('getLeagueInfo top-level keys: ' + Object.keys(info).join(', '));
+    Object.entries(foundInRoster).forEach(([pid, data]) => {
+      Logger.log('playerInfo[' + pid + '] (' + data.name + '): ' + JSON.stringify(pInfo[pid]));
+    });
+    // Also show a full-detail pid entry to see ALL possible keys
+    const samplePid = Object.keys(pInfo)[0];
+    Logger.log('Sample playerInfo entry (first pid=' + samplePid + '): ' + JSON.stringify(pInfo[samplePid]));
+  } catch(e) { Logger.log('getLeagueInfo ERROR: ' + e.message); }
 
-  // ── Step 4: try career/season stats endpoints ────────────────────────────────
-  Logger.log('=== Step 4: probe stats endpoints for career AB/IP ===');
-  const pid = bericotoPid || '06aw3'; // fall back to Wetherholt
-  const statCandidates = [
-    { ep: 'getPlayerStats',        params: { playerIds: pid } },
-    { ep: 'getPlayerStats',        params: { playerIds: pid, scoringPeriod: 0 } },
-    { ep: 'getPlayerCareerStats',  params: { playerIds: pid } },
-    { ep: 'getPlayerInfo',         params: { playerIds: pid } },
-    { ep: 'getPlayerStats',        params: { playerId: pid, type: 'career' } },
-    { ep: 'getStatsForPlayers',    params: { playerIds: pid } },
-  ];
-  statCandidates.forEach(c => {
+  // ── D: try stats endpoints for each found pid ──────────────────────────────
+  Logger.log('=== D: probe stats endpoints for career AB/IP ===');
+  const pids = Object.keys(foundInRoster).join(',') || '06aw3';
+  [
+    { ep: 'getPlayerStats',       params: { playerIds: pids } },
+    { ep: 'getPlayerStats',       params: { playerIds: pids, scoringPeriod: 0 } },
+    { ep: 'getPlayerCareerStats', params: { playerIds: pids } },
+    { ep: 'getPlayerInfo',        params: { playerIds: pids } },
+    { ep: 'getStatsForPlayers',   params: { playerIds: pids } },
+  ].forEach(c => {
     try {
       const r = fetchFantrax(c.ep, c.params);
-      const raw = JSON.stringify(r);
-      Logger.log(c.ep + JSON.stringify(c.params) + ' → ' + raw.substring(0, 400));
+      Logger.log(c.ep + ' ' + JSON.stringify(c.params) + ' → ' + JSON.stringify(r).substring(0, 600));
     } catch(e) {
-      Logger.log(c.ep + JSON.stringify(c.params) + ' ERROR: ' + e.message);
+      Logger.log(c.ep + ' ERROR: ' + e.message);
     }
   });
 }
