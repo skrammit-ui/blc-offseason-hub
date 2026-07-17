@@ -1830,7 +1830,6 @@ input[type=file] { display: none; }
 
   <!-- Year tabs -->
   <div class="year-tabs">
-    <button class="year-tab" id="ytab-2025" onclick="switchStandingsYear('2025',this)">2025</button>
     <button class="year-tab active" id="ytab-2026" onclick="switchStandingsYear('2026',this)">2026</button>
   </div>
 
@@ -2640,6 +2639,55 @@ const BRACKET_LAYOUT = {
     { colLabel:'Week 22\nRule 5 Finals',      ids:['r5_22_w','r5_22_l'] },
     { colLabel:'Wks 23–24\n ',                ids:[] },
   ],
+};
+
+// Routing map for each matchup slot: winnerTo/loserTo = [nextMatchupId, 'team1'|'team2']
+const BRACKET_TEMPLATE = {
+  // Week 20 — Wild Card (div 2nd vs 3rd)
+  wc20_0: { divIdx:0, winnerTo:['ch21_0','team2'], loserTo:['co21_0','team1'] },
+  wc20_1: { divIdx:1, winnerTo:['ch21_1','team2'], loserTo:['co21_1','team1'] },
+  wc20_2: { divIdx:2, winnerTo:['ch21_2','team2'], loserTo:['co21_2','team1'] },
+  wc20_3: { divIdx:3, winnerTo:['ch21_3','team2'], loserTo:['co21_3','team1'] },
+  // Week 20 — Consolation Opener (div 4th vs 5th)
+  co20_0: { divIdx:0, winnerTo:['co21_0','team2'], loserTo:['r5_21_0','team1'] },
+  co20_1: { divIdx:1, winnerTo:['co21_1','team2'], loserTo:['r5_21_0','team2'] },
+  co20_2: { divIdx:2, winnerTo:['co21_2','team2'], loserTo:['r5_21_1','team1'] },
+  co20_3: { divIdx:3, winnerTo:['co21_3','team2'], loserTo:['r5_21_1','team2'] },
+  // Week 21 — Divisional (div leader vs WC winner)
+  ch21_0: { divIdx:0, winnerTo:['ch22_0','team1'], loserTo:['ch22_2','team1'] },
+  ch21_1: { divIdx:1, winnerTo:['ch22_0','team2'], loserTo:['ch22_2','team2'] },
+  ch21_2: { divIdx:2, winnerTo:['ch22_1','team1'], loserTo:['ch22_3','team1'] },
+  ch21_3: { divIdx:3, winnerTo:['ch22_1','team2'], loserTo:['ch22_3','team2'] },
+  // Week 21 — Consolation (WC loser vs Consol Opener winner)
+  co21_0: { divIdx:0, winnerTo:['co22_0','team1'], loserTo:['co22_2','team1'] },
+  co21_1: { divIdx:1, winnerTo:['co22_0','team2'], loserTo:['co22_2','team2'] },
+  co21_2: { divIdx:2, winnerTo:['co22_1','team1'], loserTo:['co22_3','team1'] },
+  co21_3: { divIdx:3, winnerTo:['co22_1','team2'], loserTo:['co22_3','team2'] },
+  // Week 21 — Rule 5
+  r5_21_0: { label:'R5 Game 1', winnerTo:['r5_22_w','team1'], loserTo:['r5_22_l','team1'] },
+  r5_21_1: { label:'R5 Game 2', winnerTo:['r5_22_w','team2'], loserTo:['r5_22_l','team2'] },
+  // Week 22 — Championship Semis
+  ch22_0: { label:'Semi A', winnerTo:['ws','team1'],     loserTo:['ch_3rd','team1'] },
+  ch22_1: { label:'Semi B', winnerTo:['ws','team2'],     loserTo:['ch_3rd','team2'] },
+  ch22_2: { label:'Semi C', winnerTo:['ch_5th','team1'], loserTo:['ch_7th','team1'] },
+  ch22_3: { label:'Semi D', winnerTo:['ch_5th','team2'], loserTo:['ch_7th','team2'] },
+  // Week 22 — Consolation Semis
+  co22_0: { label:'Consol Semi A', winnerTo:['co_9th','team1'],  loserTo:['co_11th','team1'] },
+  co22_1: { label:'Consol Semi B', winnerTo:['co_9th','team2'],  loserTo:['co_11th','team2'] },
+  co22_2: { label:'Consol Semi C', winnerTo:['co_13th','team1'], loserTo:['co_15th','team1'] },
+  co22_3: { label:'Consol Semi D', winnerTo:['co_13th','team2'], loserTo:['co_15th','team2'] },
+  // Week 22 — Rule 5 Finals
+  r5_22_w: { label:'R5 Final',     winnerTo:null, loserTo:null },
+  r5_22_l: { label:'R5 3rd Place', winnerTo:null, loserTo:null },
+  // Wks 23-24 Finals (terminal — no further routing)
+  ws:      { label:'Championship', winnerTo:null, loserTo:null },
+  ch_3rd:  { label:'3rd Place',    winnerTo:null, loserTo:null },
+  ch_5th:  { label:'5th Place',    winnerTo:null, loserTo:null },
+  ch_7th:  { label:'7th Place',    winnerTo:null, loserTo:null },
+  co_9th:  { label:'9th Place',    winnerTo:null, loserTo:null },
+  co_11th: { label:'11th Place',   winnerTo:null, loserTo:null },
+  co_13th: { label:'13th Place',   winnerTo:null, loserTo:null },
+  co_15th: { label:'15th Place',   winnerTo:null, loserTo:null },
 };
 
 let currentStandingsYear = '2026';
@@ -7062,12 +7110,12 @@ function initCommishPage() {
 async function doFantraxRefresh() {
   const statusEl  = document.getElementById('fantrax-refresh-status');
   const resultsEl = document.getElementById('fantrax-refresh-results');
-  statusEl.textContent = '⏳ Syncing rosters, MiLB status, YTD stats + draft results — may take a minute…';
+  statusEl.textContent = '⏳ Syncing matchups, rosters, MiLB status, YTD stats + draft results — may take a minute…';
   statusEl.style.color = 'var(--text-3)';
   resultsEl.style.display = 'none';
 
   try {
-    const res = await remotePost({ action: 'refreshFantrax', targets: ['rosters', 'draft'] });
+    const res = await remotePost({ action: 'refreshFantrax', targets: ['matchups', 'rosters', 'draft'] });
     if (!res.ok) throw new Error(res.error || 'Unknown error');
     statusEl.textContent = '✓ Done';
     statusEl.style.color = '#22a366';
