@@ -1511,7 +1511,7 @@ function refreshMLBCareerCache() {
     const info     = fantraxInfo[fid] || {};
     const careerAB = s.careerAB !== undefined ? s.careerAB : (cache[fid] ? cache[fid].careerAB : 0);
     const careerIP = s.careerIP !== undefined ? s.careerIP : (cache[fid] ? cache[fid].careerIP : 0);
-    const eligible = mlbId ? (careerAB < MILB_AB_MAX && careerIP < MILB_IP_MAX) : false;
+    const eligible = !mlbId || (careerAB < MILB_AB_MAX && careerIP < MILB_IP_MAX);
     return { fantraxId: fid, playerName: info.name || fid, mlbId, careerAB, careerIP, eligible };
   });
 
@@ -1574,7 +1574,7 @@ function refreshMLBCareerCacheForTeam(teamKey) {
     const s        = mlbId ? (statsMap[mlbId] || {}) : {};
     const careerAB = s.careerAB !== undefined ? s.careerAB : (cache[pid] ? cache[pid].careerAB : 0);
     const careerIP = s.careerIP !== undefined ? s.careerIP : (cache[pid] ? cache[pid].careerIP : 0);
-    const eligible = mlbId ? (careerAB < MILB_AB_MAX && careerIP < MILB_IP_MAX) : false;
+    const eligible = !mlbId || (careerAB < MILB_AB_MAX && careerIP < MILB_IP_MAX);
     entries.push({ fantraxId: pid, playerName: name, mlbId, careerAB, careerIP, eligible });
     if (eligible && statusIdx >= 0) {
       sheet.getRange(rowIdx + 2, statusIdx + 1).setValue('Minors');
