@@ -4011,9 +4011,9 @@ function renderOverview(players, keptPlayers = {}, viewingOwn = true, managerNam
     <div style="display:flex;align-items:center;gap:10px;padding:8px 4px 10px;flex-wrap:wrap">
       <button class="btn btn-secondary" id="milb-refresh-btn"
         style="font-size:11px;padding:4px 12px;border-color:#7b5ea7;color:#7b5ea7"
-        onclick="doUpdateMiLBStatus('${ownerKey}')">🔬 Update MiLB Status</button>
+        onclick="doUpdateMiLBStatus('${ownerKey}')">🔄 Sync Roster + MiLB</button>
       <span id="milb-refresh-status" style="font-size:11px;color:var(--text-3)">
-        Checks career AB &amp; IP via MLB Stats API — auto-labels eligible players as MiLB
+        Syncs your roster from Fantrax and auto-labels MiLB-eligible players
       </span>
     </div>` : '';
 
@@ -7159,32 +7159,32 @@ async function doUpdateMiLBStatus(teamKey) {
   const statusEl = document.getElementById('milb-refresh-status');
   if (!btn || !statusEl) return;
   btn.disabled = true;
-  btn.textContent = '⏳ Checking…';
-  statusEl.textContent = 'Looking up career AB & IP for your roster…';
+  btn.textContent = '⏳ Syncing…';
+  statusEl.textContent = 'Syncing roster from Fantrax + checking MiLB eligibility…';
   statusEl.style.color = 'var(--text-3)';
   try {
-    const res = await remotePost({ action: 'refreshMLBCareerCacheForTeam', teamKey });
+    const res = await remotePost({ action: 'refreshTeamFull', teamKey });
     if (res.ok) {
-      if (res.updated > 0) {
-        statusEl.textContent = `✓ ${res.updated} player${res.updated !== 1 ? 's' : ''} updated to MiLB — refreshing roster…`;
-        statusEl.style.color = '#22a366';
-        // Re-fetch league data and re-render the current team's roster
-        try {
-          const fresh = await fetchLeagueData();
-          if (fresh.league) { Object.keys(LEAGUE).forEach(k => delete LEAGUE[k]); Object.assign(LEAGUE, fresh.league); normalizeLeague(); }
-          if (fresh.keepers) { Object.keys(keeperStore).forEach(k => delete keeperStore[k]); Object.assign(keeperStore, fresh.keepers); }
-          const displayedTeam = document.getElementById('roster-card-title').textContent.trim();
-          viewTeamOverview(displayedTeam);
-          statusEl.textContent = `✓ ${res.updated} player${res.updated !== 1 ? 's' : ''} updated to MiLB`;
-        } catch(e2) {
-          statusEl.textContent += ' (reload page to see changes)';
-        }
-      } else {
-        statusEl.textContent = `✓ Done — no new MiLB-eligible players found on your roster`;
-        statusEl.style.color = '#22a366';
+      const rosterUp = res.roster?.updated ?? 0;
+      const milbUp   = res.milb?.updated   ?? 0;
+      const parts    = [];
+      if (rosterUp > 0) parts.push(`${rosterUp} roster slot${rosterUp !== 1 ? 's' : ''} synced`);
+      if (milbUp   > 0) parts.push(`${milbUp} player${milbUp !== 1 ? 's' : ''} labeled MiLB`);
+      statusEl.textContent = parts.length ? `✓ ${parts.join(', ')} — refreshing…` : '✓ Roster up to date';
+      statusEl.style.color = '#22a366';
+      // Re-fetch league data and re-render the current team's roster
+      try {
+        const fresh = await fetchLeagueData();
+        if (fresh.league) { Object.keys(LEAGUE).forEach(k => delete LEAGUE[k]); Object.assign(LEAGUE, fresh.league); normalizeLeague(); }
+        if (fresh.keepers) { Object.keys(keeperStore).forEach(k => delete keeperStore[k]); Object.assign(keeperStore, fresh.keepers); }
+        const displayedTeam = document.getElementById('roster-card-title').textContent.trim();
+        viewTeamOverview(displayedTeam);
+        statusEl.textContent = parts.length ? `✓ ${parts.join(', ')}` : '✓ Roster up to date';
+      } catch(e2) {
+        statusEl.textContent += ' (reload page to see changes)';
       }
     } else {
-      statusEl.textContent = '⚠ ' + (res.error || 'Failed');
+      statusEl.textContent = '⚠ ' + (res.error || res.roster?.error || res.milb?.error || 'Failed');
       statusEl.style.color = '#c0392b';
     }
   } catch(e) {
@@ -7192,7 +7192,7 @@ async function doUpdateMiLBStatus(teamKey) {
     statusEl.style.color = '#c0392b';
   } finally {
     btn.disabled = false;
-    btn.textContent = '🔬 Update MiLB Status';
+    btn.textContent = '🔄 Sync Roster + MiLB';
   }
 }
 
