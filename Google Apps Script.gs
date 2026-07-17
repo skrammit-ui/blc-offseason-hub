@@ -1842,46 +1842,19 @@ function refreshFantraxMatchups(ss) {
   return { ok: true, updated };
 }
 
-// ── Debug: raw getLeagueInfo matchup structure ────────────────────────────────
+// ── Debug: raw getStandings response ─────────────────────────────────────────
 function debugStandingsData(ss) {
   if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
-  const ownerMap = getOwnerMap(ss);
-  const nameToKey = {};
-  Object.entries(ownerMap).forEach(([key, name]) => { nameToKey[name.toLowerCase()] = key; });
-  Object.entries(FANTRAX_TEAM_ALIASES).forEach(([alias, key]) => { nameToKey[alias] = key; });
-
-  const leagueInfo = fetchFantrax('getLeagueInfo');
-  const topKeys = Object.keys(leagueInfo);
-  const periods = leagueInfo.matchups || leagueInfo.schedule || leagueInfo.periods || [];
-
-  // Return first 2 matchups from first period (raw, no filtering)
-  const firstPeriod = periods[0] || {};
-  const firstList = firstPeriod.matchupList || firstPeriod.matchups || firstPeriod.games || [];
-  const sampleMatchups = firstList.slice(0, 2);
-  // Also grab a period that's clearly in the past (period 5) to see if scores exist there
-  const midPeriod = periods[4] || periods[1] || {};
-  const midList = midPeriod.matchupList || midPeriod.matchups || midPeriod.games || [];
-  const midSample = midList.slice(0, 1);
-
+  const raw = fetchFantrax('getStandings');
   return {
     ok: true,
-    topLevelKeys: topKeys,
-    periodsKey: periods === leagueInfo.matchups ? 'matchups' : periods === leagueInfo.schedule ? 'schedule' : 'periods',
-    periodsCount: periods.length,
-    ownerMapSize: Object.keys(ownerMap).length,
-    firstPeriodNumber: firstPeriod.period,
-    firstPeriodMatchupCount: firstList.length,
-    firstPeriodSampleKeys: firstList[0] ? Object.keys(firstList[0]) : [],
-    firstPeriodHomeSideKeys: (firstList[0] && (firstList[0].home || firstList[0].team1)) ? Object.keys(firstList[0].home || firstList[0].team1) : [],
-    sampleMatchups,
-    midPeriodNumber: midPeriod.period,
-    midPeriodSample: midSample,
+    topLevelKeys: Object.keys(raw),
+    raw,
   };
 }
 
 // ── Refresh standings from Fantrax ────────────────────────────────────────────
-// Derives W/L from getLeagueInfo matchup data in-memory. Writes results to
-// the Standings sheet (keyed by ownerKey) and returns the standings object.
+// Calls getStandings endpoint, maps to ownerKeys, writes Standings sheet.
 function refreshFantraxStandings(ss) {
   if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
 
@@ -1890,64 +1863,31 @@ function refreshFantraxStandings(ss) {
   Object.entries(ownerMap).forEach(([key, name]) => { nameToKey[name.toLowerCase()] = key; });
   Object.entries(FANTRAX_TEAM_ALIASES).forEach(([alias, key]) => { nameToKey[alias] = key; });
 
-  const leagueInfo = fetchFantrax('getLeagueInfo');
-  // Try common property names for the matchup schedule
-  const periods = leagueInfo.matchups || leagueInfo.schedule || leagueInfo.periods || [];
+  const data = fetchFantrax('getStandings');
 
+  // getStandings returns standings under one of several possible keys.
+  // We'll try common shapes and parse whatever we find.
+  const rows = data.standings || data.teams || data.leagueStandings || [];
   const recs = {};
-  const init = k => { if (!recs[k]) recs[k] = { W:0, L:0, T:0, catW:0, catL:0 }; };
-  const unresolvedNames = new Set();
-  let totalMatchups = 0;
+  const unresolved = [];
 
-  function parseScore(side) {
-    if (!side) return null;
-    const raw = side.score !== undefined ? side.score
-              : side.points !== undefined ? side.points
-              : side.totalPoints !== undefined ? side.totalPoints : null;
-    if (raw === null || raw === undefined || raw === '') return null;
-    const n = parseFloat(raw);
-    return isNaN(n) ? null : n;
-  }
-
-  periods.forEach(function(periodData) {
-    // Handle different property names for the matchup list
-    const list = periodData.matchupList || periodData.matchups || periodData.games || [];
-    list.forEach(function(m) {
-      totalMatchups++;
-      // Handle home/away or team1/team2 structures
-      const homeSide = m.home || m.team1;
-      const awaySide = m.away || m.team2;
-      const homeName = (homeSide && (homeSide.name || homeSide.teamName || homeSide.team)) || '';
-      const awayName = (awaySide && (awaySide.name || awaySide.teamName || awaySide.team)) || '';
-      const homeKey  = nameToKey[homeName.toLowerCase()];
-      const awayKey  = nameToKey[awayName.toLowerCase()];
-      if (!homeKey && homeName) unresolvedNames.add(homeName);
-      if (!awayKey && awayName) unresolvedNames.add(awayName);
-      const homeScore = parseScore(homeSide);
-      const awayScore = parseScore(awaySide);
-      if (!homeKey || !awayKey || homeScore === null || awayScore === null) return;
-      init(homeKey); init(awayKey);
-      recs[homeKey].catW += homeScore; recs[homeKey].catL += awayScore;
-      recs[awayKey].catW += awayScore; recs[awayKey].catL += homeScore;
-      if      (homeScore > awayScore) { recs[homeKey].W++; recs[awayKey].L++; }
-      else if (awayScore > homeScore) { recs[awayKey].W++; recs[homeKey].L++; }
-      else                            { recs[homeKey].T++; recs[awayKey].T++; }
-    });
+  (Array.isArray(rows) ? rows : Object.values(rows)).forEach(function(row) {
+    const name = (row.teamName || row.name || row.team || '').toLowerCase();
+    const key  = nameToKey[name];
+    if (!key) { if (name) unresolved.push(row.teamName || name); return; }
+    recs[key] = {
+      W:    Number(row.wins   || row.W   || row.w   || 0),
+      L:    Number(row.losses || row.L   || row.l   || 0),
+      T:    Number(row.ties   || row.T   || row.t   || 0),
+      pct:  row.winPct  || row.pct  || row.percentage || row.winPct || '.000',
+      GB:   row.gamesBack != null ? row.gamesBack : (row.GB != null ? row.GB : '-'),
+      catW: Number(row.points || row.categoryWins   || row.catW || 0),
+      catL: Number(row.categoryLosses || row.catL || 0),
+      rank: Number(row.rank || row.standing || 0),
+    };
   });
 
   const allKeys = Object.keys(recs);
-
-  // Compute pct and GB (vs best record in league)
-  let maxW = 0, minL = 9999;
-  allKeys.forEach(k => { if (recs[k].W > maxW) maxW = recs[k].W; });
-  allKeys.filter(k => recs[k].W === maxW).forEach(k => { if (recs[k].L < minL) minL = recs[k].L; });
-  allKeys.forEach(k => {
-    const r = recs[k];
-    const gp = r.W + r.L + r.T;
-    r.pct = gp > 0 ? (r.W / gp).toFixed(3) : '.000';
-    const gb = ((maxW - r.W) + (r.L - minL)) / 2;
-    r.GB = gb === 0 ? '-' : gb;
-  });
 
   // Persist to Standings sheet
   const sheet = ss.getSheetByName('Standings');
@@ -1955,25 +1895,18 @@ function refreshFantraxStandings(ss) {
     const HEADERS = ['team','W','L','T','pct','GB','catW','catL'];
     const lastRow = sheet.getLastRow();
     if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, HEADERS.length).clearContent();
-    const rows = allKeys.map(k => {
+    const sheetRows = allKeys.map(k => {
       const r = recs[k];
       return [k, r.W, r.L, r.T, r.pct, r.GB, r.catW, r.catL];
     });
-    if (rows.length > 0) {
+    if (sheetRows.length > 0) {
       sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
-      sheet.getRange(2, 1, rows.length, HEADERS.length).setValues(rows);
+      sheet.getRange(2, 1, sheetRows.length, HEADERS.length).setValues(sheetRows);
     }
   }
 
-  Logger.log('refreshFantraxStandings: ' + allKeys.length + ' teams, ' + totalMatchups + ' matchups, unresolved: ' + [...unresolvedNames].join(', '));
-  return {
-    ok: true,
-    teams: allKeys.length,
-    totalMatchups,
-    periods: periods.length,
-    unresolved: [...unresolvedNames],
-    standings: recs,
-  };
+  Logger.log('refreshFantraxStandings: ' + allKeys.length + ' teams, unresolved: ' + unresolved.join(', '));
+  return { ok: true, teams: allKeys.length, unresolved, standings: recs };
 }
 
 // ── Refresh rosters ───────────────────────────────────────────────────────────
