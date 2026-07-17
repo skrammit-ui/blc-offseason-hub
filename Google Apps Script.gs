@@ -343,7 +343,14 @@ function _readStatsSheet(sheet) {
     const key = String(row[idCol] ?? '').trim();
     if (!key) return;
     const obj = {};
-    headers.forEach((h, i) => { obj[h] = String(row[i] ?? ''); });
+    headers.forEach((h, i) => {
+      const v = row[i];
+      // Sheets auto-converts fraction-like values (e.g. "5/12" H/AB) to Date objects.
+      // Convert them back to "M/D" format so they display correctly.
+      obj[h] = v instanceof Date
+        ? (v.getMonth() + 1) + '/' + v.getDate()
+        : String(v ?? '');
+    });
     result[key] = obj;
   });
   return result;
@@ -748,7 +755,11 @@ function writeStatsSheet(sheet, statsObj) {
     .setBackground('#0d1b2a')
     .setFontColor('#c9a84c');
   if (rows.length > 0) {
-    sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+    const dataRange = sheet.getRange(2, 1, rows.length, headers.length);
+    // Force all cells to plain-text format before writing so Sheets doesn't
+    // auto-convert fraction-like values (e.g. "5/12" H/AB) into dates.
+    dataRange.setNumberFormat('@');
+    dataRange.setValues(rows);
   }
 }
 // ════════════════════════════════════════════════════════════════════════════
