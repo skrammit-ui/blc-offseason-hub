@@ -1462,15 +1462,23 @@ function refreshFantraxRosters(ss) {
       // Use eligiblePos from getLeagueInfo (e.g. "2B,UT,SS,MI"); fall back to roster-slot position
       const pos = (leaguePInfo[pid] && leaguePInfo[pid].eligiblePos) || item.position || '';
       const salary   = item.salary != null ? Number(item.salary) : null;
-      // Base status from Fantrax slot placement
-      const status = STATUS_FANTRAX[item.status] || '';
-      // TODO: override ACTIVE status to 'Minors' for MiLB-eligible (green M) players
-      // once we identify which Fantrax API field carries the eligibility flag.
       const contract = item.contract ? String(item.contract.name || '') : '';
+      let   status   = STATUS_FANTRAX[item.status] || '';
       if (!pid) return;
 
       const rowIdx = idLookup[pid];
       if (rowIdx === undefined) { notFound++; return; }
+
+      // Fantrax API exposes no MiLB-eligibility flag for MLB-slot players (confirmed by
+      // debug: Bericoto and Kim are byte-for-byte identical in every API field).
+      // Preserve a manually-set 'Minors' status for ACTIVE/RESERVE players so that
+      // GMs who mark a MiLB-eligible player via the status picker don't get overwritten
+      // on the next Fantrax refresh.  Only MINORS-slot players auto-set to 'Minors'.
+      const currentStatus = statusIdx >= 0 ? String(rows[rowIdx][statusIdx] || '') : '';
+      if (currentStatus === 'Minors' &&
+          (item.status === 'ACTIVE' || item.status === 'RESERVE')) {
+        status = 'Minors';
+      }
 
       const rowNum = rowIdx + 2; // +1 for header row, +1 for 1-based index
       if (teamIdx     >= 0)               sheet.getRange(rowNum, teamIdx     + 1).setValue(ownerKey);
@@ -1979,11 +1987,17 @@ function debugWetherholtRoster() {
   });
 }
 
-// ── Debug: compare 3 players in RESERVE to find the MiLB-eligibility flag ────
-// Bericoto + Rodriguez = MiLB eligible (green M). Kim = NOT eligible (career AB > 130).
-// All 3 are in RESERVE slots. What's different between them in Fantrax API?
-// Run from Script Editor, share the full log output.
+// ── Debug: compare 3 specific players to find the MiLB-eligibility flag ──────
+// Bericoto (051wu) + Jesus Rodriguez (052h8) = MiLB eligible (green M).
+// Hyeseong Kim (06in4) = NOT eligible (career AB > 130).
+// All 3 are in RESERVE slots on Wetherholt 45s.
+// Run from Script Editor to see if any API field differs between the eligible vs non-eligible pair.
 function debugCompareReservePlayers() {
+  const KNOWN_PIDS = {
+    '051wu': 'Bericoto, Victor (MiLB ELIGIBLE)',
+    '052h8': 'Rodriguez, Jesus (MiLB ELIGIBLE)',
+    '06in4': 'Kim, Hyeseong (NOT eligible)',
+  };
   const TARGETS = ['bericoto', 'rodriguez', 'kim'];
 
   // ── A: fetch getPlayerIds to build name → pid map ─────────────────────────
