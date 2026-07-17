@@ -1862,7 +1862,9 @@ function debugStandingsData(ss) {
 }
 
 // ── Refresh standings from Fantrax ────────────────────────────────────────────
-// Calls getStandings endpoint, maps to ownerKeys, writes Standings sheet.
+// getStandings returns a plain array (numeric-keyed object) of:
+//   { teamName, teamId, rank, gamesBack, winPercentage, points:"W-L-T" }
+// "points" is category W-L-T for the season; winPercentage = (W+0.5T)/(W+L+T).
 function refreshFantraxStandings(ss) {
   if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
 
@@ -1871,31 +1873,36 @@ function refreshFantraxStandings(ss) {
   Object.entries(ownerMap).forEach(([key, name]) => { nameToKey[name.toLowerCase()] = key; });
   Object.entries(FANTRAX_TEAM_ALIASES).forEach(([alias, key]) => { nameToKey[alias] = key; });
 
-  const data = fetchFantrax('getStandings');
-
-  // getStandings returns standings under one of several possible keys.
-  // We'll try common shapes and parse whatever we find.
-  const rows = data.standings || data.teams || data.leagueStandings || [];
-  const recs = {};
+  const data   = fetchFantrax('getStandings');
+  const rows   = Object.values(data); // response is numeric-keyed array-like object
+  const recs   = {};
   const unresolved = [];
 
-  (Array.isArray(rows) ? rows : Object.values(rows)).forEach(function(row) {
-    const name = (row.teamName || row.name || row.team || '').toLowerCase();
+  rows.forEach(function(row) {
+    if (!row || typeof row !== 'object') return;
+    const name = String(row.teamName || '').toLowerCase();
     const key  = nameToKey[name];
     if (!key) { if (name) unresolved.push(row.teamName || name); return; }
+
+    // "points" = "W-L-T" string e.g. "100-38-12"
+    const parts = String(row.points || '0-0-0').split('-');
+    const W = parseInt(parts[0]) || 0;
+    const L = parseInt(parts[1]) || 0;
+    const T = parseInt(parts[2]) || 0;
+
     recs[key] = {
-      W:    Number(row.wins   || row.W   || row.w   || 0),
-      L:    Number(row.losses || row.L   || row.l   || 0),
-      T:    Number(row.ties   || row.T   || row.t   || 0),
-      pct:  row.winPct  || row.pct  || row.percentage || row.winPct || '.000',
-      GB:   row.gamesBack != null ? row.gamesBack : (row.GB != null ? row.GB : '-'),
-      catW: Number(row.points || row.categoryWins   || row.catW || 0),
-      catL: Number(row.categoryLosses || row.catL || 0),
-      rank: Number(row.rank || row.standing || 0),
+      W,
+      L,
+      T,
+      pct:  row.winPercentage != null ? Number(row.winPercentage).toFixed(3) : '.000',
+      GB:   row.gamesBack > 0 ? row.gamesBack : '-',
+      catW: W,  // category wins = W in H2H categories
+      catL: L,
+      rank: Number(row.rank || 0),
     };
   });
 
-  const allKeys = Object.keys(recs);
+  const allKeys = Object.keys(recs).sort((a, b) => recs[a].rank - recs[b].rank);
 
   // Persist to Standings sheet
   const sheet = ss.getSheetByName('Standings');
