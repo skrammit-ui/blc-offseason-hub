@@ -3,7 +3,10 @@
 //  Paste this entire file into your Apps Script project (Extensions → Apps Script)
 //  Then deploy as Web App: Execute as "Me", Access "Anyone"
 // ════════════════════════════════════════════════════════════════════════════
-const SHEET_ID = '1isrFPsDq4n4mTr1uUSUydCUi39mCqmkYLEd6voy8nhI'; // ← Replace with your Google Sheet ID
+const SHEET_ID      = '1isrFPsDq4n4mTr1uUSUydCUi39mCqmkYLEd6voy8nhI'; // ← Replace with your Google Sheet ID
+const MLB_STATS_API = 'https://statsapi.mlb.com/api/v1';
+const MILB_AB_MAX   = 130;   // career MLB at-bats threshold for MiLB eligibility
+const MILB_IP_MAX   = 50;    // career MLB innings-pitched threshold
 
 // ── One-time migration: run once from Script Editor to rename gelof → merrilly ──
 function migrateGelofToMerrilly() {
@@ -108,6 +111,8 @@ function doPost(e) {
       case 'savePlayoffs':
         savePlayoffs(ss, payload.year, payload.playoffs);
         break;
+      case 'refreshMLBCareerCache':
+        return corsResponse(refreshMLBCareerCache());
       case 'refreshFantrax':
         return corsResponse(refreshFantrax(ss, payload.targets || ['matchups','rosters','draft']));
       case 'testFantraxConnection':
@@ -1341,6 +1346,179 @@ function refreshFantrax(ss, targets) {
   return { ok: true, results };
 }
 
+// ── MLB Career Stats Cache ────────────────────────────────────────────────────
+// Sheet "MLBCareerCache": fantraxId | playerName | mlbId | careerAB | careerIP | eligible | lastUpdated
+function getMLBCareerCache(ss) {
+  const sheet = ss.getSheetByName('MLBCareerCache');
+  if (!sheet || sheet.getLastRow() < 2) return {};
+  const [headers, ...rows] = sheet.getDataRange().getValues();
+  const ci = h => headers.indexOf(h);
+  const cache = {};
+  rows.forEach(r => {
+    const fid = String(r[ci('fantraxId')] || '').trim();
+    if (!fid) return;
+    cache[fid] = {
+      playerName: String(r[ci('playerName')] || ''),
+      mlbId:      String(r[ci('mlbId')]      || '').trim(),
+      careerAB:   Number(r[ci('careerAB')]   || 0),
+      careerIP:   parseFloat(r[ci('careerIP')] || '0'),
+      eligible:   r[ci('eligible')] === true || String(r[ci('eligible')]).toUpperCase() === 'TRUE',
+    };
+  });
+  return cache;
+}
+
+function upsertMLBCareerCache(ss, entries) {
+  const HDR = ['fantraxId','playerName','mlbId','careerAB','careerIP','eligible','lastUpdated'];
+  let sheet = ss.getSheetByName('MLBCareerCache');
+  if (!sheet) {
+    sheet = ss.insertSheet('MLBCareerCache');
+    sheet.appendRow(HDR);
+    sheet.getRange(1, 1, 1, HDR.length).setFontWeight('bold').setBackground('#0d1b2a').setFontColor('#c9a84c');
+  }
+  const [headers, ...rows] = sheet.getDataRange().getValues();
+  const ci = h => headers.indexOf(h);
+  const rowLookup = {};
+  rows.forEach((r, i) => {
+    const fid = String(r[ci('fantraxId')] || '').trim();
+    if (fid) rowLookup[fid] = i + 2;
+  });
+  const today = Utilities.formatDate(new Date(), 'America/New_York', 'yyyy-MM-dd');
+  entries.forEach(e => {
+    const vals = [e.fantraxId, e.playerName, e.mlbId, e.careerAB, e.careerIP, e.eligible, today];
+    if (rowLookup[e.fantraxId]) {
+      sheet.getRange(rowLookup[e.fantraxId], 1, 1, vals.length).setValues([vals]);
+    } else {
+      sheet.appendRow(vals);
+      rowLookup[e.fantraxId] = sheet.getLastRow();
+    }
+  });
+}
+
+// Search MLB Stats API for a player's numeric id by full name.
+// Uses mlbTeamAbbr (e.g. "SF") to disambiguate when multiple results return.
+function searchMLBPlayerId(name, mlbTeamAbbr) {
+  try {
+    const url = MLB_STATS_API + '/people/search?names=' + encodeURIComponent(name) +
+                '&sportIds=1,11,12,13,14,15,16';
+    const resp = JSON.parse(UrlFetchApp.fetch(url, { muteHttpExceptions: true }).getContentText());
+    const people = resp.people || [];
+    if (!people.length) return null;
+    if (people.length === 1) return String(people[0].id);
+    if (mlbTeamAbbr) {
+      const match = people.find(p =>
+        p.currentTeam && String(p.currentTeam.abbreviation || '').toUpperCase() === mlbTeamAbbr.toUpperCase()
+      );
+      if (match) return String(match.id);
+    }
+    return String(people[0].id);
+  } catch(e) {
+    Logger.log('searchMLBPlayerId("' + name + '"): ' + e.message);
+    return null;
+  }
+}
+
+// Batch-fetch career MLB stats for up to 150 MLB person IDs per call.
+// Returns: { mlbId: { careerAB, careerIP } }
+function batchFetchMLBCareerStats(mlbIds) {
+  const result = {};
+  if (!mlbIds || !mlbIds.length) return result;
+  for (let i = 0; i < mlbIds.length; i += 150) {
+    const chunk = mlbIds.slice(i, i + 150);
+    try {
+      const url = MLB_STATS_API + '/people?personIds=' + chunk.join(',') +
+                  '&hydrate=stats(group=[hitting,pitching],type=career,sportId=1)';
+      const resp = JSON.parse(UrlFetchApp.fetch(url, { muteHttpExceptions: true }).getContentText());
+      (resp.people || []).forEach(person => {
+        let careerAB = 0, careerIP = 0;
+        (person.stats || []).forEach(s => {
+          const split = s.splits && s.splits[0];
+          if (!split) return;
+          if (s.group && s.group.displayName === 'hitting')  careerAB = split.stat.atBats || 0;
+          if (s.group && s.group.displayName === 'pitching') careerIP = parseFloat(split.stat.inningsPitched || '0');
+        });
+        result[String(person.id)] = { careerAB, careerIP };
+      });
+    } catch(e) {
+      Logger.log('batchFetchMLBCareerStats chunk[' + i + ']: ' + e.message);
+    }
+  }
+  return result;
+}
+
+// ── Refresh MLB career stats cache ────────────────────────────────────────────
+// Run from Commissioner panel or Script Editor. Two phases:
+//   Phase 1 (slow, first run only): name-searches statsapi.mlb.com for each player's MLB id.
+//   Phase 2 (fast on every run): batch-fetches career AB/IP for all known MLB ids.
+// Writes results to the "MLBCareerCache" sheet. Used by refreshFantraxRosters to
+// auto-set status=Minors for any ACTIVE/RESERVE player with career AB<130 and IP<50.
+function refreshMLBCareerCache() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+
+  // 1. Build fantraxId → { name, team } from Fantrax player database
+  const pidData = fetchFantrax('getPlayerIds');
+  const fantraxInfo = {};
+  Object.entries(pidData).forEach(([key, val]) => {
+    if (!val || typeof val !== 'object') return;
+    const fid  = String(val.fantraxId || val.id || key).trim();
+    const name = String(val.name || '').trim();
+    const team = String(val.team || '').trim();
+    if (fid && name && name.length > 2) fantraxInfo[fid] = { name, team };
+  });
+
+  // 2. Collect all non-MINORS rostered players
+  const rosters = fetchFantrax('getTeamRosters');
+  const activePids = [];
+  Object.values(rosters.rosters || {}).forEach(td => {
+    (td.rosterItems || []).forEach(item => {
+      const pid = String(item.id || '').trim();
+      if (pid && item.status !== 'MINORS') activePids.push(pid);
+    });
+  });
+  const uniquePids = [...new Set(activePids)];
+  Logger.log('Non-MiLB rostered players: ' + uniquePids.length);
+
+  // 3. Load existing cache to reuse already-found MLB ids (avoids re-searching)
+  const cache = getMLBCareerCache(ss);
+  const fidToMlbId = {};
+  uniquePids.forEach(fid => { if (cache[fid] && cache[fid].mlbId) fidToMlbId[fid] = cache[fid].mlbId; });
+
+  // 4. Name-search for players not yet in cache
+  const needSearch = uniquePids.filter(fid => !fidToMlbId[fid]);
+  Logger.log('Phase 1: searching MLB IDs for ' + needSearch.length + ' new players (' +
+             (uniquePids.length - needSearch.length) + ' cached)...');
+  needSearch.forEach((fid, idx) => {
+    const info = fantraxInfo[fid];
+    if (!info) return;
+    const mlbId = searchMLBPlayerId(info.name, info.team);
+    if (mlbId) fidToMlbId[fid] = mlbId;
+    else Logger.log('  No MLB ID: ' + info.name + ' (' + fid + ')');
+    if ((idx + 1) % 50 === 0) Utilities.sleep(500); // gentle rate-limit every 50 searches
+  });
+
+  // 5. Batch-fetch career stats for all known MLB ids
+  const mlbIdList = [...new Set(Object.values(fidToMlbId))].filter(Boolean);
+  Logger.log('Phase 2: fetching career stats for ' + mlbIdList.length + ' players...');
+  const statsMap = batchFetchMLBCareerStats(mlbIdList);
+
+  // 6. Build and write cache entries
+  const entries = uniquePids.map(fid => {
+    const mlbId    = fidToMlbId[fid] || '';
+    const s        = mlbId ? (statsMap[mlbId] || {}) : {};
+    const info     = fantraxInfo[fid] || {};
+    const careerAB = s.careerAB !== undefined ? s.careerAB : (cache[fid] ? cache[fid].careerAB : 0);
+    const careerIP = s.careerIP !== undefined ? s.careerIP : (cache[fid] ? cache[fid].careerIP : 0);
+    const eligible = mlbId ? (careerAB < MILB_AB_MAX && careerIP < MILB_IP_MAX) : false;
+    return { fantraxId: fid, playerName: info.name || fid, mlbId, careerAB, careerIP, eligible };
+  });
+
+  upsertMLBCareerCache(ss, entries);
+  const eligible = entries.filter(e => e.eligible).length;
+  const noId     = entries.filter(e => !e.mlbId).length;
+  Logger.log('MLBCareerCache done: ' + entries.length + ' players, ' + eligible + ' MiLB-eligible, ' + noId + ' no MLB ID.');
+  return { ok: true, total: entries.length, eligible, noMlbId: noId };
+}
+
 // ── Refresh matchup scores ────────────────────────────────────────────────────
 // Uses getLeagueInfo which returns all periods' matchups with team names.
 // Matches teams by name (with aliases) and updates HomeScore/VisitorScore.
@@ -1416,6 +1594,9 @@ function refreshFantraxRosters(ss) {
   const leagueInfo  = fetchFantrax('getLeagueInfo');
   const leaguePInfo = (leagueInfo && leagueInfo.playerInfo) || {};
 
+  // MLB career stats cache — used to auto-detect MiLB-eligible players in MLB slots
+  const mlbCache = getMLBCareerCache(ss);
+
   const sheet = ss.getSheetByName('Rosters');
   if (!sheet) throw new Error('Rosters sheet not found');
 
@@ -1469,15 +1650,16 @@ function refreshFantraxRosters(ss) {
       const rowIdx = idLookup[pid];
       if (rowIdx === undefined) { notFound++; return; }
 
-      // Fantrax API exposes no MiLB-eligibility flag for MLB-slot players (confirmed by
-      // debug: Bericoto and Kim are byte-for-byte identical in every API field).
-      // Preserve a manually-set 'Minors' status for ACTIVE/RESERVE players so that
-      // GMs who mark a MiLB-eligible player via the status picker don't get overwritten
-      // on the next Fantrax refresh.  Only MINORS-slot players auto-set to 'Minors'.
-      const currentStatus = statusIdx >= 0 ? String(rows[rowIdx][statusIdx] || '') : '';
-      if (currentStatus === 'Minors' &&
-          (item.status === 'ACTIVE' || item.status === 'RESERVE')) {
-        status = 'Minors';
+      // MiLB eligibility: career MLB AB < 130 AND IP < 50 (Fantrax API exposes no flag for this).
+      // Priority 1: MLB career stats cache says eligible → always label Minors.
+      // Priority 2: player not yet in cache but was manually set to Minors → preserve it.
+      if (item.status !== 'MINORS') {
+        if (mlbCache[pid] && mlbCache[pid].eligible) {
+          status = 'Minors';
+        } else if ((item.status === 'ACTIVE' || item.status === 'RESERVE') &&
+                   statusIdx >= 0 && String(rows[rowIdx][statusIdx] || '') === 'Minors') {
+          status = 'Minors'; // preserve manual override until cache is populated
+        }
       }
 
       const rowNum = rowIdx + 2; // +1 for header row, +1 for 1-based index
