@@ -1338,6 +1338,14 @@ function refreshFantrax(ss, targets) {
     catch(e) { results.matchups = { ok: false, error: e.message }; }
   }
   if (targets.includes('rosters')) {
+    // Always refresh the MLB career cache first so MiLB eligibility is current
+    // when refreshFantraxRosters applies status overrides from the cache.
+    try {
+      const mlb = refreshMLBCareerCache();
+      results.milbCache = { ok: true, message: mlb.eligible + ' MiLB-eligible, ' + mlb.rosterUpdated + ' labeled' };
+    } catch(e) {
+      results.milbCache = { ok: false, error: e.message };
+    }
     try { results.rosters = refreshFantraxRosters(ss); }
     catch(e) { results.rosters = { ok: false, error: e.message }; }
   }
