@@ -1854,26 +1854,28 @@ function debugStandingsData(ss) {
   const topKeys = Object.keys(leagueInfo);
   const periods = leagueInfo.matchups || leagueInfo.schedule || leagueInfo.periods || [];
 
-  // Grab first completed-looking matchup for structure inspection
-  let sampleMatchup = null;
-  for (let i = 0; i < periods.length && !sampleMatchup; i++) {
-    const list = periods[i].matchupList || periods[i].matchups || periods[i].games || [];
-    for (let j = 0; j < list.length; j++) {
-      const m = list[j];
-      const s1 = m.home || m.team1 || m.away;
-      if (s1 && (s1.score || s1.points || s1.totalPoints) != null) { sampleMatchup = m; break; }
-    }
-  }
+  // Return first 2 matchups from first period (raw, no filtering)
+  const firstPeriod = periods[0] || {};
+  const firstList = firstPeriod.matchupList || firstPeriod.matchups || firstPeriod.games || [];
+  const sampleMatchups = firstList.slice(0, 2);
+  // Also grab a period that's clearly in the past (period 5) to see if scores exist there
+  const midPeriod = periods[4] || periods[1] || {};
+  const midList = midPeriod.matchupList || midPeriod.matchups || midPeriod.games || [];
+  const midSample = midList.slice(0, 1);
 
   return {
     ok: true,
     topLevelKeys: topKeys,
     periodsKey: periods === leagueInfo.matchups ? 'matchups' : periods === leagueInfo.schedule ? 'schedule' : 'periods',
     periodsCount: periods.length,
-    nameToKey,
     ownerMapSize: Object.keys(ownerMap).length,
-    samplePeriod: periods[0] ? { period: periods[0].period, matchupCount: (periods[0].matchupList || periods[0].matchups || periods[0].games || []).length } : null,
-    sampleMatchup,
+    firstPeriodNumber: firstPeriod.period,
+    firstPeriodMatchupCount: firstList.length,
+    firstPeriodSampleKeys: firstList[0] ? Object.keys(firstList[0]) : [],
+    firstPeriodHomeSideKeys: (firstList[0] && (firstList[0].home || firstList[0].team1)) ? Object.keys(firstList[0].home || firstList[0].team1) : [],
+    sampleMatchups,
+    midPeriodNumber: midPeriod.period,
+    midPeriodSample: midSample,
   };
 }
 
