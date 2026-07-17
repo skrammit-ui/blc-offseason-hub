@@ -1828,6 +1828,12 @@ input[type=file] { display: none; }
   <div class="page-title"><img class="page-title-icon" src="icons/standings.png" alt="">League Standings</div>
   <div class="page-sub">Final regular season standings by division &amp; playoff results</div>
 
+  <!-- Standings sync row -->
+  <div style="display:flex;align-items:center;gap:10px;margin:8px 0 4px">
+    <button class="btn btn-secondary" style="font-size:11px;padding:5px 14px" onclick="doRefreshStandings()">⚡ Refresh Standings from Fantrax</button>
+    <span id="standings-refresh-status" style="font-size:11px;color:var(--text-3)"></span>
+  </div>
+
   <!-- Year tabs -->
   <div class="year-tabs">
     <button class="year-tab active" id="ytab-2026" onclick="switchStandingsYear('2026',this)">2026</button>
@@ -7107,6 +7113,22 @@ function initCommishPage() {
 }
 
 // ── Fantrax sync helpers ──────────────────────────────────────────────────────
+async function doRefreshStandings() {
+  const el = document.getElementById('standings-refresh-status');
+  el.textContent = '⏳ Fetching matchups from Fantrax…';
+  el.style.color = 'var(--text-3)';
+  try {
+    const res = await remotePost({ action: 'refreshFantrax', targets: ['matchups'] });
+    if (!res.ok) throw new Error(res.error || 'Unknown error');
+    el.textContent = '✓ Updated — reloading…';
+    el.style.color = '#22a366';
+    setTimeout(() => location.reload(), 1200);
+  } catch(e) {
+    el.textContent = '⚠ ' + e.message;
+    el.style.color = '#c0392b';
+  }
+}
+
 async function doFantraxRefresh() {
   const statusEl  = document.getElementById('fantrax-refresh-status');
   const resultsEl = document.getElementById('fantrax-refresh-results');
