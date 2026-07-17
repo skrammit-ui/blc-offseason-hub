@@ -247,7 +247,7 @@ function getOwnerMap(ss) {
   const map = {};
   rows.forEach(row => {
     const [key, value] = row;
-    if (key && value) map[key] = value;
+    if (key && value && !String(key).startsWith('__')) map[key] = value;
   });
   return map;
 }
