@@ -1950,6 +1950,56 @@ function debugMiLBEligibility() {
   return { ok: true, qInMLBSlot: qInMLB.length, minors: minors.length };
 }
 
+// ── Debug: verify MiLB eligibility via MLB Stats API career stats ─────────────
+// Looks up Bericoto, Rodriguez (MiLB eligible), and Kim (not eligible) by name,
+// fetches career MLB AB and IP, and checks against league thresholds (<130 AB, <50 IP).
+function debugMLBApiMiLBCheck() {
+  const PLAYERS = [
+    { name: 'Victor Bericoto',  expect: true  },
+    { name: 'Jesus Rodriguez',  expect: true  },
+    { name: 'Hyeseong Kim',     expect: false },
+  ];
+  const AB_THRESHOLD = 130;
+  const IP_THRESHOLD = 50;
+
+  PLAYERS.forEach(p => {
+    Logger.log('--- ' + p.name + ' (expect MiLB eligible: ' + p.expect + ') ---');
+    try {
+      // Step 1: find MLB player id by name
+      const searchUrl = 'https://statsapi.mlb.com/api/v1/people/search?names=' +
+                        encodeURIComponent(p.name) + '&sportIds=1,11,12,13,14,15,16';
+      const searchResp = JSON.parse(UrlFetchApp.fetch(searchUrl, {muteHttpExceptions: true}).getContentText());
+      Logger.log('  search raw: ' + JSON.stringify(searchResp).substring(0, 300));
+      const person = searchResp.people && searchResp.people[0];
+      if (!person) { Logger.log('  NOT FOUND in MLB API'); return; }
+      const mlbId = person.id;
+      Logger.log('  mlbId=' + mlbId + ' fullName=' + person.fullName);
+
+      // Step 2: career hitting stats (AB)
+      const hitUrl = 'https://statsapi.mlb.com/api/v1/people/' + mlbId +
+                     '/stats?stats=career&group=hitting&sportId=1';
+      const hitResp = JSON.parse(UrlFetchApp.fetch(hitUrl, {muteHttpExceptions: true}).getContentText());
+      const hitSplit = hitResp.stats && hitResp.stats[0] && hitResp.stats[0].splits && hitResp.stats[0].splits[0];
+      const careerAB = hitSplit ? (hitSplit.stat.atBats || 0) : 0;
+      Logger.log('  career MLB AB: ' + careerAB + ' (threshold <' + AB_THRESHOLD + ')');
+
+      // Step 3: career pitching stats (IP)
+      const pitchUrl = 'https://statsapi.mlb.com/api/v1/people/' + mlbId +
+                       '/stats?stats=career&group=pitching&sportId=1';
+      const pitchResp = JSON.parse(UrlFetchApp.fetch(pitchUrl, {muteHttpExceptions: true}).getContentText());
+      const pitchSplit = pitchResp.stats && pitchResp.stats[0] && pitchResp.stats[0].splits && pitchResp.stats[0].splits[0];
+      const careerIP = pitchSplit ? parseFloat(pitchSplit.stat.inningsPitched || '0') : 0;
+      Logger.log('  career MLB IP: ' + careerIP + ' (threshold <' + IP_THRESHOLD + ')');
+
+      const eligible = careerAB < AB_THRESHOLD && careerIP < IP_THRESHOLD;
+      Logger.log('  MiLB ELIGIBLE: ' + eligible + ' | expected: ' + p.expect +
+                 (eligible === p.expect ? ' ✓ MATCH' : ' ✗ MISMATCH'));
+    } catch(e) {
+      Logger.log('  ERROR: ' + e.message);
+    }
+  });
+}
+
 // ── Debug: full raw dump of every player on the Wetherholt 45s roster ────────
 // Run from Script Editor. Shows fantraxStatus + leaguePInfo for every player
 // so you can compare ACTIVE vs MINORS vs MiLB-eligible side by side.
