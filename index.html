@@ -2130,15 +2130,6 @@ input[type=file] { display: none; }
         Pull live data directly from Fantrax. Requires <strong>FANTRAX_LEAGUE_ID</strong> and <strong>FANTRAX_COOKIE</strong> set in Apps Script Script Properties.
         <a href="https://script.google.com" target="_blank" rel="noopener" style="color:var(--blue);text-decoration:none;margin-left:4px">Open Apps Script ↗</a>
       </div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-        <label style="font-size:12px;font-weight:600;color:var(--text-2)">Sync targets:</label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
-          <input type="checkbox" id="fantrax-sync-rosters" checked> Team Rosters
-        </label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
-          <input type="checkbox" id="fantrax-sync-draft" checked> Draft Results
-        </label>
-      </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-primary" style="font-size:12px;padding:7px 18px;background:#22a366;border-color:#22a366" onclick="doFantraxRefresh()">⚡ Refresh from Fantrax</button>
         <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="doFantraxTest()">Test Connection</button>
@@ -2476,6 +2467,9 @@ function normalizeLeague() {
   Object.values(LEAGUE).forEach(roster => {
     roster.forEach(p => {
       if (p.contract === '2026' && p.status !== 'Expired') p.status = 'Expired';
+      // Strip asterisks from player IDs (Rosters sheet stores them as *051wu*)
+      // so stats lookups via STATS[p.id] match keys written by the MLB Stats API fetch
+      if (p.id) p.id = String(p.id).replace(/\*/g, '');
     });
   });
 }
@@ -7066,20 +7060,14 @@ function initCommishPage() {
 
 // ── Fantrax sync helpers ──────────────────────────────────────────────────────
 async function doFantraxRefresh() {
-  const targets = [];
-  if (document.getElementById('fantrax-sync-rosters')?.checked)  targets.push('rosters');
-  if (document.getElementById('fantrax-sync-draft')?.checked)    targets.push('draft');
-  if (!targets.length) { alert('Select at least one sync target.'); return; }
-
   const statusEl  = document.getElementById('fantrax-refresh-status');
   const resultsEl = document.getElementById('fantrax-refresh-results');
-  statusEl.textContent = targets.includes('rosters')
-    ? '⏳ Syncing… (checking MLB career stats + Fantrax rosters — may take a minute)'
-    : '⏳ Syncing…';
+  statusEl.textContent = '⏳ Syncing rosters, MiLB status, YTD stats + draft results — may take a minute…';
+  statusEl.style.color = 'var(--text-3)';
   resultsEl.style.display = 'none';
 
   try {
-    const res = await remotePost({ action: 'refreshFantrax', targets });
+    const res = await remotePost({ action: 'refreshFantrax', targets: ['rosters', 'draft'] });
     if (!res.ok) throw new Error(res.error || 'Unknown error');
     statusEl.textContent = '✓ Done';
     statusEl.style.color = '#22a366';
