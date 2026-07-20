@@ -8119,38 +8119,26 @@ function tryHeadshotUrls(shotEl, urls, playerName) {
   }
   const [first, ...rest] = urls;
   console.log(`[headshot] ${playerName}: trying ${first}`);
-  const needsPreCheck = first.includes('fantraximg.com') || first.includes('midfield.mlbstatic.com');
-  if (needsPreCheck) {
-    // Pre-check: both Fantrax and midfield can return HTTP 200 blank/placeholder images.
-    // Load in a hidden tester first; only commit to the card if naturalWidth looks real.
-    const tester = new Image();
-    tester.onload = function() {
-      if (this.naturalWidth >= FANTRAX_MIN_WIDTH) {
-        console.log(`[headshot] ${playerName}: ✓ ${first.includes('fantrax') ? 'Fantrax' : 'midfield'} (${this.naturalWidth}px)`);
-        shotEl.onerror = () => tryHeadshotUrls(shotEl, rest, playerName);
-        shotEl.onload  = null;
-        shotEl.src = first;
-      } else {
-        console.log(`[headshot] ${playerName}: ✗ placeholder (${this.naturalWidth}px < ${FANTRAX_MIN_WIDTH}) → skip`);
-        tryHeadshotUrls(shotEl, rest, playerName);
-      }
-    };
-    tester.onerror = () => {
-      console.log(`[headshot] ${playerName}: ✗ 404/error → skip`);
+  // Always pre-check in a hidden tester — catches both 404 (onerror) and
+  // silent 200 blank/placeholder images (onload but naturalWidth too small).
+  // Browser caches the result so committing to shotEl is near-instant.
+  const tester = new Image();
+  tester.onload = function() {
+    if (this.naturalWidth >= FANTRAX_MIN_WIDTH) {
+      console.log(`[headshot] ${playerName}: ✓ ${this.naturalWidth}px`);
+      shotEl.onerror = null;
+      shotEl.onload  = null;
+      shotEl.src = first;
+    } else {
+      console.log(`[headshot] ${playerName}: ✗ blank/placeholder (${this.naturalWidth}px) → skip`);
       tryHeadshotUrls(shotEl, rest, playerName);
-    };
-    tester.src = first;
-  } else {
-    shotEl.onerror = () => {
-      console.log(`[headshot] ${playerName}: ✗ ${first}`);
-      tryHeadshotUrls(shotEl, rest, playerName);
-    };
-    shotEl.onload = () => {
-      console.log(`[headshot] ${playerName}: ✓ ${first}`);
-      shotEl.onload = null;
-    };
-    shotEl.src = first;
-  }
+    }
+  };
+  tester.onerror = () => {
+    console.log(`[headshot] ${playerName}: ✗ 404/error → skip`);
+    tryHeadshotUrls(shotEl, rest, playerName);
+  };
+  tester.src = first;
 }
 
 async function fetchWikipediaHeadshot(shotEl, playerName) {
