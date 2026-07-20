@@ -6549,6 +6549,7 @@ function r5RenderPool() {
     <div class="r5hc-sub"  id="r5hcSub"></div>
     <div class="r5hc-pills" id="r5hcPills"></div>
     <div id="r5hcStats"></div>
+    <div id="r5hcProj"></div>
     <div class="r5hc-analysis" id="r5hcAnalysis" style="display:none"></div>`;
   document.body.appendChild(el);
 })();
@@ -6678,12 +6679,15 @@ async function _r5hcFetch(playerName, position) {
 function _r5hcRenderStats(el, result, p) {
   if (!result.found || result.noStats) {
     el.innerHTML = `<div class="r5hc-section-lbl">2026 Stats</div><div class="r5hc-empty">${result.found ? 'No 2026 stats yet' : 'Not found in MLB database'}</div>`;
-    return;
+  } else {
+    const cells = Object.entries(result.stats).map(([lbl, val]) =>
+      `<div class="r5hc-stat"><div class="r5hc-stat-val">${val}</div><div class="r5hc-stat-lbl">${lbl}</div></div>`
+    ).join('');
+    el.innerHTML = `<div class="r5hc-section-lbl">2026 Actuals</div><div class="r5hc-stat-grid">${cells}</div>`;
   }
-  const cells = Object.entries(result.stats).map(([lbl, val]) =>
-    `<div class="r5hc-stat"><div class="r5hc-stat-val">${val}</div><div class="r5hc-stat-lbl">${lbl}</div></div>`
-  ).join('');
-  el.innerHTML = `<div class="r5hc-section-lbl">2026 Actuals</div><div class="r5hc-stat-grid">${cells}</div>`;
+  // 2027 projections placeholder — wire up FantasyPros API when key is available
+  const projEl = document.getElementById('r5hcProj');
+  if (projEl) projEl.innerHTML = `<div class="r5hc-section-lbl" style="margin-top:8px">2027 Projections</div><div class="r5hc-empty" style="color:var(--text-3);opacity:.6">Pending FantasyPros API</div>`;
 }
 
 function r5UpdateOrderBar() {
