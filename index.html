@@ -8141,15 +8141,9 @@ async function fetchHeadshotOnly(shotEl) {
     }
     if (!person) { fetchExternalHeadshot(shotEl, playerName); return; }
     const id = person.id;
-    const mlbUrl  = `https://img.mlbstatic.com/mlb-photos/image/upload/w_120,q_auto:best,f_auto/v1/people/${id}/headshot/67/current`;
-    const milbUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_120/v1/people/${id}/headshot/milb/current`;
-    shotEl.dataset.milbfb = milbUrl;
-    shotEl.onerror = function() {
-      const fb = this.dataset.milbfb;
-      if (fb && this.src !== fb) { this.src = fb; delete this.dataset.milbfb; }
-      else { this.src = HEADSHOT_PLACEHOLDER; fetchExternalHeadshot(this, playerName); }
-    };
-    shotEl.src = mlbUrl;
+    const spotUrl = `https://midfield.mlbstatic.com/v1/people/${id}/spots/240?zoom=1.2`;
+    shotEl.onerror = function() { this.src = HEADSHOT_PLACEHOLDER; fetchExternalHeadshot(this, playerName); };
+    shotEl.src = spotUrl;
   } catch(e) { fetchExternalHeadshot(shotEl, playerName); }
 }
 
@@ -8182,16 +8176,9 @@ async function loadNewsCardStats(statsEl) {
     const card   = statsEl.closest('.ncv2-card');
     const shotEl = card && card.querySelector('.ncv2-shot');
     if (shotEl) {
-      const isMiLB = shotEl.dataset.ismilb === '1';
-      const mlbUrl  = `https://img.mlbstatic.com/mlb-photos/image/upload/w_120,q_auto:best,f_auto/v1/people/${id}/headshot/67/current`;
-      const milbUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_120/v1/people/${id}/headshot/milb/current`;
-      shotEl.dataset.milbfb = milbUrl;
-      shotEl.onerror = function() {
-        const fb = this.dataset.milbfb;
-        if (fb && this.src !== fb) { this.src = fb; delete this.dataset.milbfb; }
-        else { this.src = HEADSHOT_PLACEHOLDER; fetchExternalHeadshot(this, this.dataset.player); }
-      };
-      shotEl.src = isMiLB ? milbUrl : mlbUrl;
+      const spotUrl = `https://midfield.mlbstatic.com/v1/people/${id}/spots/240?zoom=1.2`;
+      shotEl.onerror = function() { this.src = HEADSHOT_PLACEHOLDER; fetchExternalHeadshot(this, this.dataset.player); };
+      shotEl.src = spotUrl;
     }
 
     // Parallel fetch across all sport levels — take the richest result
