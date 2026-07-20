@@ -4792,6 +4792,11 @@ function buildBuilderView(players) {
       <span>/ 25 MiLB spots</span>
       ${milbOver ? `<span style="font-size:10px;font-weight:700;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:3px;padding:1px 5px">⚠ ${milbSlotted - 25} over roster limit</span>` : ''}
     </div>
+    <div style="width:1px;height:28px;background:var(--border)"></div>
+    <div style="font-size:11px;color:var(--text-3)">
+      <span style="font-family:var(--mono);font-size:16px;font-weight:700;color:${overLimit ? 'var(--red)' : 'var(--text-2)'}">${Math.max(0, 40 - totalKeepers)}</span>
+      <span style="margin-left:4px">Open</span>
+    </div>
     <div style="margin-left:auto">
       <div style="height:6px;width:160px;background:var(--border);border-radius:3px;overflow:hidden">
         <div style="height:100%;width:${Math.min(100, (totalKeepers/40)*100)}%;background:${overLimit ? 'var(--red)' : totalKeepers >= 36 ? 'var(--amber)' : 'var(--green)'};border-radius:3px;transition:width .2s"></div>
