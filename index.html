@@ -6547,14 +6547,14 @@ const _fpCache = {}; // 'hitter'|'pitcher' → players array (null = failed)
 async function _fpLoad(isPit) {
   const key = isPit ? 'pitcher' : 'hitter';
   if (key in _fpCache) return _fpCache[key];
-  const pos = isPit ? 'P' : 'BATTING';
+  const pos = isPit ? 'P' : 'H';
   try {
     const r = await fetch(
-      `https://api.fantasypros.com/public/v2/json/mlb/projections?position=${pos}&type=ros`,
+      `https://api.fantasypros.com/public/v2/json/mlb/2027/projections?position=${pos}`,
       { headers: { 'x-api-key': FP_API_KEY } }
     ).then(x => x.json());
     console.log('[FP] response keys:', Object.keys(r || {}));
-    const list = r?.players || r?.projections || (Array.isArray(r) ? r : null);
+    const list = r?.player || (Array.isArray(r) ? r : null);
     _fpCache[key] = list;
     return list;
   } catch(e) {
@@ -6568,33 +6568,33 @@ function _fpMatch(players, name) {
   if (!players?.length) return null;
   const norm = s => (s || '').toLowerCase().replace(/[^a-z]/g, '');
   const t = norm(name);
-  return players.find(p => norm(p.player_name || p.name || '') === t)
-      || players.find(p => { const n = norm(p.player_name || p.name || ''); return n && (t.includes(n) || n.includes(t)); })
+  return players.find(p => norm(p.name || '') === t)
+      || players.find(p => { const n = norm(p.name || ''); return n && (t.includes(n) || n.includes(t)); })
       || null;
 }
 
 function _fpStats(player, isPit) {
   if (!player) return null;
-  // Stats live under player.stats or flat on the player object
-  const s = player.stats || player;
+  // FantasyPros MLB projections response: fields are flat on the player object
+  const s = player;
   if (!isPit) {
-    const r   = s.R   ?? s.r   ?? null;
-    const hr  = s.HR  ?? s.hr  ?? null;
-    const rbi = s.RBI ?? s.rbi ?? null;
-    const sb  = s.SB  ?? s.sb  ?? null;
-    const avg = s.AVG ?? s.avg ?? null;
-    const obp = s.OBP ?? s.obp ?? null;
+    const r   = s.runs ?? null;
+    const hr  = s.hrs  ?? null;
+    const rbi = s.rbi  ?? null;
+    const sb  = s.sb   ?? null;
+    const avg = s.ave  ?? null;
+    const obp = s.obp  ?? null;
     if ([r, hr, rbi, sb, avg].every(v => v == null)) return null;
     const fmt3 = v => v != null ? Number(v).toFixed(3).replace(/^0/, '') : '—';
     return { R: r ?? '—', HR: hr ?? '—', RBI: rbi ?? '—', SB: sb ?? '—',
              AVG: avg != null ? fmt3(avg) : '—', OBP: obp != null ? fmt3(obp) : '—' };
   } else {
-    const w    = s.W    ?? s.w    ?? null;
-    const era  = s.ERA  ?? s.era  ?? null;
-    const k    = s.SO   ?? s.K    ?? s.k    ?? s.so   ?? null;
-    const whip = s.WHIP ?? s.whip ?? null;
-    const sv   = s.SV   ?? s.sv   ?? null;
-    const ip   = s.IP   ?? s.ip   ?? null;
+    const w    = s.w    ?? null;
+    const era  = s.era  ?? null;
+    const k    = s.k    ?? null;
+    const whip = s.whip ?? null;
+    const sv   = s.sv   ?? null;
+    const ip   = s.ip   ?? null;
     if ([w, era, k, whip].every(v => v == null)) return null;
     const f2 = v => v != null ? Number(v).toFixed(2) : '—';
     return { W: w ?? '—', ERA: era != null ? f2(era) : '—', K: k ?? '—',
