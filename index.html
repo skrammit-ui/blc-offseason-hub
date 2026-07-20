@@ -1323,16 +1323,9 @@ input[type=file] { display: none; }
 .ncv2-name { font-size:14px; font-weight:700; color:var(--navy); line-height:1.2; }
 .ncv2-sub  { font-size:11px; color:var(--text-2); margin-top:2px; }
 .ncv2-badge-group { display:flex; gap:4px; flex-wrap:wrap; align-items:flex-start; flex-shrink:0; }
-.ncv2-badge { font-size:10px; font-weight:600; padding:3px 8px; border-radius:12px; white-space:nowrap; }
-.ncv2-badge-monitor { background:rgba(255,255,255,.18); color:#fff; border:1px solid rgba(255,255,255,.4); }
-.ncv2-badge-buy     { background:linear-gradient(135deg,#f97316,#f59e0b); color:#fff; }
-.ncv2-badge-pick    { background:linear-gradient(135deg,#4f46e5,#7c3aed); color:#fff; }
-.ncv2-badge-elite   { background:linear-gradient(135deg,#b45309,#d97706); color:#fff; }
-.ncv2-badge-watch   { background:linear-gradient(135deg,#f97316,#f59e0b); color:#fff; font-size:9px; }
-.ncv2-badge-hold    { background:linear-gradient(135deg,#16a34a,#15803d); color:#fff; }
-.ncv2-badge-wait    { background:linear-gradient(135deg,#0ea5e9,#0284c7); color:#fff; }
-.ncv2-badge-stash   { background:linear-gradient(135deg,#7c3aed,#4f46e5); color:#fff; }
-.ncv2-badge-sell    { background:linear-gradient(135deg,#dc2626,#b91c1c); color:#fff; }
+.ncv2-badge { font-size:10px; font-weight:600; padding:3px 8px; border-radius:12px; white-space:nowrap; background:rgba(255,255,255,.18); color:#fff; border:1px solid rgba(255,255,255,.4); }
+.ncv2-badge-watch { font-size:9px; }
+.bc-team-logo { position:absolute; left:8px; bottom:8px; width:40px; height:40px; object-fit:contain; filter:brightness(0) invert(1) drop-shadow(0 1px 3px rgba(0,0,0,.4)); opacity:.85; z-index:2; }
 .ncv2-box-row {
   display:grid; grid-template-columns:repeat(3,1fr); gap:1px;
   background:var(--border); margin:0 10px;
@@ -8000,6 +7993,18 @@ function buildActionBadge(style, text) {
   return `<span class="ncv2-badge ${cls}">${prefix}${escHtml(text)}</span>`;
 }
 
+const MLB_TEAM_IDS = {
+  'ARI':109,'ATL':144,'BAL':110,'BOS':111,'CHC':112,'CHW':145,'CWS':145,
+  'CIN':113,'CLE':114,'COL':115,'DET':116,'HOU':117,'KC':118,'KCR':118,
+  'LAA':108,'LAD':119,'MIA':146,'MIL':158,'MIN':142,'NYM':121,'NYY':147,
+  'OAK':133,'PHI':143,'PIT':134,'SD':135,'SDP':135,'SF':137,'SFG':137,
+  'SEA':136,'STL':138,'TB':139,'TBR':139,'TEX':140,'TOR':141,'WSH':120,'WSN':120,
+};
+function mlbTeamLogoUrl(abbr) {
+  const id = MLB_TEAM_IDS[String(abbr || '').toUpperCase()];
+  return id ? `https://img.mlbstatic.com/mlb-photos/image/upload/w_60,q_auto:best,f_auto/v1/teams/${id}/logo/spot/current` : '';
+}
+
 const HEADSHOT_PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 40">' +
   '<rect width="30" height="40" fill="#f1f5f9" rx="3"/>' +
@@ -8033,22 +8038,18 @@ function buildNewsCard(player, nd, section) {
     if (slotBox) draftSlot = `<div class="bc-draft-slot">${escHtml(slotBox.value)}${teamBox ? ' · ' + escHtml(teamBox.value) : ''}</div>`;
   }
 
-  // Badges — always show at least Monitor; watch badge in corner if set
-  const watchBadge  = nd && nd.watchList && nd.watchBadgeText
+  // Team logo (bottom-left of band)
+  const teamAbbr  = (player && player.mlb_team) || (nd && nd.teamAbbr) || '';
+  const logoUrl   = mlbTeamLogoUrl(teamAbbr);
+  const logoHtml  = logoUrl ? `<img class="bc-team-logo" src="${logoUrl}" onerror="this.style.display='none'" alt="">` : '';
+
+  // Badges (top-right of band) — all white tiles
+  const watchBadge = nd && nd.watchList && nd.watchBadgeText
     ? `<span class="ncv2-badge ncv2-badge-watch">🔥 ${escHtml(nd.watchBadgeText)}</span>` : '';
-  let actionBadge;
-  if (isDraft && nd && nd.actionText && nd.actionText.includes(' — ')) {
-    const sep   = nd.actionText.indexOf(' — ');
-    const pick  = nd.actionText.slice(0, sep).trim();
-    const team  = nd.actionText.slice(sep + 3).trim();
-    actionBadge = buildActionBadge(nd.actionBadge || 'pick', pick) +
-                  buildActionBadge('monitor', team);
-  } else {
-    actionBadge = buildActionBadge(
-      (nd && nd.actionBadge) || 'monitor',
-      (nd && nd.actionText)  || 'Monitor'
-    );
-  }
+  // For draft: show pick part only (team is identified by logo)
+  let badgeText = (nd && nd.actionText) || 'Monitor';
+  if (isDraft && badgeText.includes(' — ')) badgeText = badgeText.slice(0, badgeText.indexOf(' — ')).trim();
+  const actionBadge = buildActionBadge((nd && nd.actionBadge) || 'monitor', badgeText);
 
   // Promo bar — MiLB only; not shown for Draft Prospects or Global Pipeline
   let promoHtml = '';
@@ -8079,10 +8080,10 @@ function buildNewsCard(player, nd, section) {
     ? `<div class="ncv2-api-stats news-stats-area" data-player="${safe}" data-ispitcher="${pit?'1':'0'}"><div class="news-empty">Loading 2026 stats…</div></div>`
     : '';
 
-  const safeJs = safe.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   // ── Baseball card layout ──────────────────────────────────────────────────
   return `<div class="ncv2-card ncv2-card-${section}">
     <div class="bc-band bc-band-${section}">
+      ${logoHtml}
       <img class="bc-shot ncv2-shot" data-player="${safe}" data-ismilb="${isMiLBp?'1':'0'}" src="${HEADSHOT_PLACEHOLDER}" loading="lazy">
       <div class="bc-badge-corner">${watchBadge}${actionBadge}</div>
     </div>
