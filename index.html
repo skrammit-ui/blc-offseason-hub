@@ -8066,10 +8066,11 @@ function buildNewsCard(player, nd, section) {
   const analysis    = (nd && nd.analysis) ? nd.analysis : defaultAnalysis;
   const analysisHtml = `<div class="ncv2-analysis">${escHtml(analysis)}</div>`;
 
-  // Headshot
-  const isMiLBp = player
+  // Headshot — Fantrax ID stored for CDN lookup (id field = "*fantraxId*")
+  const isMiLBp   = player
     ? (STATUS_MAP[player.status] === 'MiLB')
     : (nd && nd.level && nd.level !== 'MLB');
+  const fantraxId = player && player.id ? String(player.id).replace(/\*/g, '').trim() : '';
 
   // Live stats (MiLB + Asian only)
   const apiHtml = section !== 'draft'
@@ -8080,7 +8081,7 @@ function buildNewsCard(player, nd, section) {
   return `<div class="ncv2-card ncv2-card-${section}">
     <div class="bc-band bc-band-${section}">
       ${logoHtml}
-      <img class="bc-shot ncv2-shot" data-player="${safe}" data-ismilb="${isMiLBp?'1':'0'}" src="${HEADSHOT_PLACEHOLDER}" loading="lazy">
+      <img class="bc-shot ncv2-shot" data-player="${safe}" data-ismilb="${isMiLBp?'1':'0'}" data-fantraxid="${escHtml(fantraxId)}" src="${HEADSHOT_PLACEHOLDER}" loading="lazy">
       <div class="bc-badge-corner">${watchBadge}${actionBadge}</div>
     </div>
     <div class="bc-nameplate">
@@ -8123,17 +8124,21 @@ async function fetchWikipediaHeadshot(shotEl, playerName) {
   } catch(e) {}
 }
 
-function mlbHeadshotUrls(id) {
-  return [
+function mlbHeadshotUrls(id, fantraxId) {
+  const urls = [];
+  if (fantraxId) urls.push(`https://fantraximg.com/si/headshots/MLB/${fantraxId}_400_4.png`);
+  urls.push(
     `https://midfield.mlbstatic.com/v1/people/${id}/spots/240?zoom=1.2`,
     `https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_360/v1/people/${id}/headshot/milb/current`,
     `https://img.mlbstatic.com/mlb-photos/image/upload/w_426,q_auto:best/v1/people/${id}/headshot/67/current`,
-  ];
+  );
+  return urls;
 }
 
 // ── Headshot-only fetch for draft/global cards ────────────────────────────────
 async function fetchHeadshotOnly(shotEl) {
   const playerName = shotEl.dataset.player;
+  const fantraxId  = shotEl.dataset.fantraxid || '';
   if (!playerName) return;
   try {
     const searchPerson = async query => {
@@ -8153,8 +8158,14 @@ async function fetchHeadshotOnly(shotEl) {
         p.fullName && p.fullName.toLowerCase().startsWith(first)
       );
     }
-    if (!person) { fetchWikipediaHeadshot(shotEl, playerName); return; }
-    tryHeadshotUrls(shotEl, mlbHeadshotUrls(person.id), playerName);
+    if (!person) {
+      // No MLB API match — try Fantrax CDN then Wikipedia
+      const urls = fantraxId ? [`https://fantraximg.com/si/headshots/MLB/${fantraxId}_400_4.png`] : [];
+      if (urls.length) tryHeadshotUrls(shotEl, urls, playerName);
+      else fetchWikipediaHeadshot(shotEl, playerName);
+      return;
+    }
+    tryHeadshotUrls(shotEl, mlbHeadshotUrls(person.id, fantraxId), playerName);
   } catch(e) { fetchWikipediaHeadshot(shotEl, playerName); }
 }
 
@@ -8184,9 +8195,9 @@ async function loadNewsCardStats(statsEl) {
     const id = person.id;
 
     // Update headshot
-    const card   = statsEl.closest('.ncv2-card');
-    const shotEl = card && card.querySelector('.ncv2-shot');
-    if (shotEl) tryHeadshotUrls(shotEl, mlbHeadshotUrls(id), playerName);
+    const card      = statsEl.closest('.ncv2-card');
+    const shotEl    = card && card.querySelector('.ncv2-shot');
+    if (shotEl) tryHeadshotUrls(shotEl, mlbHeadshotUrls(id, shotEl.dataset.fantraxid || ''), playerName);
 
     // Parallel fetch across all sport levels — take the richest result
     const base = `https://statsapi.mlb.com/api/v1/people/${id}/stats`;
