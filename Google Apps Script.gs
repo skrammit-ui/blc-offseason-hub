@@ -416,7 +416,9 @@ function removeKeeper(ss, teamKey, playerId, player) {
     const rowKey      = String(data[i][0]).trim();
     const rowPlayerId = String(data[i][2]).trim();
     const rowPlayer   = String(data[i][1]).trim();
-    if (rowKey === teamKey && (playerId ? rowPlayerId === playerId : rowPlayer === player)) {
+    const idMatch     = playerId && rowPlayerId && rowPlayerId === playerId;
+    const nameMatch   = rowPlayer === player;
+    if (rowKey === teamKey && (idMatch || nameMatch)) {
       sheet.deleteRow(i + 1);
       return;
     }
