@@ -8102,11 +8102,30 @@ function newsIsPitcherPos(pos) {
 
 // ── Headshot waterfall helpers ────────────────────────────────────────────────
 // Tries each URL in sequence; on exhaustion falls through to Wikipedia then placeholder.
+// Fantrax CDN URLs are pre-checked in a hidden Image — if naturalWidth < MIN_REAL_WIDTH
+// it's a placeholder silhouette (HTTP 200 but not a real headshot) and we skip it.
+const FANTRAX_MIN_WIDTH = 100; // real Fantrax photos are ~400px; placeholders are smaller
+
 function tryHeadshotUrls(shotEl, urls, playerName) {
   if (!urls.length) { fetchWikipediaHeadshot(shotEl, playerName); return; }
   const [first, ...rest] = urls;
-  shotEl.onerror = () => tryHeadshotUrls(shotEl, rest, playerName);
-  shotEl.src = first;
+  if (first.includes('fantraximg.com')) {
+    // Pre-check: confirm it's a real photo before committing to the card
+    const tester = new Image();
+    tester.onload = function() {
+      if (this.naturalWidth >= FANTRAX_MIN_WIDTH) {
+        shotEl.onerror = () => tryHeadshotUrls(shotEl, rest, playerName);
+        shotEl.src = first; // browser uses cached copy — no re-download
+      } else {
+        tryHeadshotUrls(shotEl, rest, playerName); // placeholder — skip
+      }
+    };
+    tester.onerror = () => tryHeadshotUrls(shotEl, rest, playerName);
+    tester.src = first;
+  } else {
+    shotEl.onerror = () => tryHeadshotUrls(shotEl, rest, playerName);
+    shotEl.src = first;
+  }
 }
 
 async function fetchWikipediaHeadshot(shotEl, playerName) {
