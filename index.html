@@ -2329,6 +2329,7 @@ input[type=file] { display: none; }
           <div class="news-section-head-title">Draft Prospects</div>
           <div class="news-section-head-sub">2026 draftees &middot; US HS &amp; college prospects &middot; pre-draft watchlist</div>
         </div>
+        <span class="news-section-count" id="news-draft-count"></span>
       </div>
       <div class="news-sub-label">Hitters</div>
       <div class="news-grid" id="news-draft-hitters"></div>
@@ -2344,6 +2345,7 @@ input[type=file] { display: none; }
           <div class="news-section-head-title">Global Pipeline</div>
           <div class="news-section-head-sub">NPB &middot; KBO &middot; Latin America &middot; International signings &amp; prospects</div>
         </div>
+        <span class="news-section-count" id="news-asian-count"></span>
       </div>
       <div class="news-sub-label">Hitters</div>
       <div class="news-grid" id="news-asian-hitters"></div>
@@ -2660,6 +2662,7 @@ function loadTeam(teamName) {
   document.getElementById('roster-card-title').textContent = teamName;
   setTeamLogo(ownerKeyFor(teamName));
   populateRosterTeamSelect(teamName);
+  populateNewsTeamSelect();
 
   const players = LEAGUE[teamName] || [];
 
@@ -8977,11 +8980,13 @@ async function initNewsPage() {
   renderGrid('news-asian-hitters',  asianHit, 'asian');
   renderGrid('news-asian-pitchers', asianPit, 'asian');
 
-  const cnt = document.getElementById('news-milb-count');
-  if (cnt) {
-    const label = viewTeam === currentTeam ? 'on your roster' : `on ${viewTeam}'s roster`;
-    cnt.textContent = (milbHit.length + milbPit.length) + ' ' + label;
-  }
+  const rosterLabel = viewTeam === currentTeam ? 'on your roster' : `on ${viewTeam}'s roster`;
+  const milbCnt = document.getElementById('news-milb-count');
+  if (milbCnt) milbCnt.textContent = (milbHit.length + milbPit.length) + ' ' + rosterLabel;
+  const draftCnt = document.getElementById('news-draft-count');
+  if (draftCnt) draftCnt.textContent = (draftHit.length + draftPit.length) + ' ' + rosterLabel;
+  const asianCnt = document.getElementById('news-asian-count');
+  if (asianCnt) asianCnt.textContent = (asianHit.length + asianPit.length) + ' ' + rosterLabel;
 
   document.getElementById('news-loading').style.display = 'none';
   document.getElementById('news-content').style.display = 'block';
