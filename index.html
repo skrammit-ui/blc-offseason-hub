@@ -8178,6 +8178,12 @@ async function fetchHeadshotOnly(shotEl) {
       );
     }
     if (!person) {
+      const r3 = await fetch(
+        `https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(playerName)}`
+      ).then(x => x.json()).catch(() => null);
+      person = r3 && r3.people && r3.people[0];
+    }
+    if (!person) {
       // No MLB API match — try Fantrax CDN then Wikipedia
       const urls = fantraxId ? [`https://fantraximg.com/si/headshots/MLB/${fantraxId}_400_4.png`] : [];
       if (urls.length) tryHeadshotUrls(shotEl, urls, playerName);
@@ -8210,13 +8216,31 @@ async function loadNewsCardStats(statsEl) {
         p.fullName && p.fullName.toLowerCase().startsWith(first)
       );
     }
-    if (!person) { statsEl.innerHTML = '<div class="news-empty">Stats unavailable</div>'; return; }
-    const id = person.id;
+    // Third attempt: broader search with no sportId filter (catches DSL, intl leagues, etc.)
+    if (!person) {
+      const r3 = await fetch(
+        `https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(playerName)}`
+      ).then(x=>x.json()).catch(()=>null);
+      person = r3 && r3.people && r3.people[0];
+    }
 
     // Update headshot
     const card      = statsEl.closest('.ncv2-card');
     const shotEl    = card && card.querySelector('.ncv2-shot');
-    if (shotEl) tryHeadshotUrls(shotEl, mlbHeadshotUrls(id, shotEl.dataset.fantraxid || ''), playerName);
+    const fantraxId = shotEl ? (shotEl.dataset.fantraxid || '') : '';
+
+    if (!person) {
+      // Person not in MLB API — still try headshot via Fantrax CDN then Wikipedia
+      if (shotEl) {
+        const urls = fantraxId ? [`https://fantraximg.com/si/headshots/MLB/${fantraxId}_400_4.png`] : [];
+        if (urls.length) tryHeadshotUrls(shotEl, urls, playerName);
+        else fetchWikipediaHeadshot(shotEl, playerName);
+      }
+      statsEl.innerHTML = '<div class="news-empty">Stats unavailable</div>';
+      return;
+    }
+    const id = person.id;
+    if (shotEl) tryHeadshotUrls(shotEl, mlbHeadshotUrls(id, fantraxId), playerName);
 
     // Parallel fetch across all sport levels — take the richest result
     const base = `https://statsapi.mlb.com/api/v1/people/${id}/stats`;
