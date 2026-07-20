@@ -59,6 +59,7 @@ function doGet(e) {
       playoffs:           getPlayoffsData(ss),
       matchups:           getMatchups(ss),
       fantraxConnected:   isFantraxConfigured(),
+      prospectNotes:      getProspectNotes(ss),
     };
     return corsResponse({ ok: true, data });
   } catch(err) {
@@ -168,6 +169,9 @@ function doPost(e) {
         return corsResponse(debugFantraxPlayerEndpoints());
       case 'debugFantraxStatsEndpoints':
         return corsResponse(debugFantraxStatsEndpoints());
+      case 'saveProspectNote':
+        saveProspectNote(ss, payload.player, payload.overrides);
+        return corsResponse({ ok: true });
       default:
         return corsResponse({ ok: false, error: 'Unknown action: ' + payload.action });
     }
@@ -752,6 +756,37 @@ function getBuilderSlots(ss) {
   });
   return slots;
 }
+// ── Prospect Notes ────────────────────────────────────────────────────────────
+function getProspectNotes(ss) {
+  const sheet = ss.getSheetByName('ProspectNotes');
+  if (!sheet || sheet.getLastRow() < 2) return {};
+  const rows = sheet.getDataRange().getValues().slice(1);
+  const result = {};
+  rows.forEach(row => {
+    const player = String(row[0] || '').trim();
+    const json   = String(row[1] || '').trim();
+    if (!player || !json) return;
+    try { result[player] = JSON.parse(json); } catch(e) {}
+  });
+  return result;
+}
+function saveProspectNote(ss, player, overrides) {
+  let sheet = ss.getSheetByName('ProspectNotes');
+  if (!sheet) {
+    sheet = ss.insertSheet('ProspectNotes');
+    sheet.appendRow(['Player', 'Overrides', 'UpdatedAt']);
+  }
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === player) {
+      sheet.getRange(i + 1, 2).setValue(JSON.stringify(overrides));
+      sheet.getRange(i + 1, 3).setValue(new Date().toISOString());
+      return;
+    }
+  }
+  sheet.appendRow([player, JSON.stringify(overrides), new Date().toISOString()]);
+}
+
 // ── Save stats to sheet ───────────────────────────────────────────────────────
 function saveStats(ss, stats) {
   writeStatsSheet(ss.getSheetByName('Stats') || ss.insertSheet('Stats'), stats);

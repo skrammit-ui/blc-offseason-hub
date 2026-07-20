@@ -1312,6 +1312,23 @@ input[type=file] { display: none; }
 .bc-player-name { font-size:14px; font-weight:800; color:var(--navy); letter-spacing:-.01em; line-height:1.2; }
 .bc-player-sub  { font-size:10px; color:var(--text-2); margin-top:3px; line-height:1.5; }
 .bc-draft-slot  { font-size:10px; font-weight:700; color:var(--text-2); margin-top:4px; }
+.bc-edit-btn { display:block; width:100%; margin-top:6px; padding:3px 0; font-size:10px; font-weight:600; color:var(--text-3); background:none; border:1px solid var(--border); border-radius:4px; cursor:pointer; letter-spacing:.04em; text-transform:uppercase; }
+.bc-edit-btn:hover { background:var(--bg); color:var(--text); }
+/* Prospect editor modal */
+#prospect-editor-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:2000; display:none; align-items:center; justify-content:center; }
+#prospect-editor-overlay.open { display:flex; }
+#prospect-editor-box { background:var(--card); border:1px solid var(--border); border-radius:12px; width:100%; max-width:460px; max-height:90vh; overflow-y:auto; box-shadow:0 8px 40px rgba(0,0,0,.25); }
+.pe-header { display:flex; align-items:center; justify-content:space-between; padding:14px 16px 10px; border-bottom:1px solid var(--border); }
+.pe-header h3 { font-size:14px; font-weight:700; color:var(--navy); margin:0; }
+.pe-header button { background:none; border:none; font-size:18px; color:var(--text-3); cursor:pointer; line-height:1; }
+.pe-body { padding:14px 16px; display:flex; flex-direction:column; gap:12px; }
+.pe-field label { display:block; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3); margin-bottom:4px; }
+.pe-field input, .pe-field select, .pe-field textarea { width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid var(--border); border-radius:6px; background:var(--bg); color:var(--text); font-family:inherit; }
+.pe-field textarea { resize:vertical; min-height:72px; }
+.pe-prob-row { display:flex; align-items:center; gap:8px; }
+.pe-prob-row input[type=range] { flex:1; }
+.pe-prob-val { font-size:12px; font-weight:700; color:var(--text); min-width:36px; text-align:right; }
+.pe-footer { display:flex; gap:8px; justify-content:flex-end; padding:10px 16px 14px; border-top:1px solid var(--border); }
 .ncv2-header { display:flex; align-items:flex-start; gap:10px; padding:10px 12px 8px; }
 .ncv2-headshot-wrap {
   flex-shrink:0; width:42px; height:56px; border-radius:6px; overflow:hidden;
@@ -2323,6 +2340,8 @@ let DIVISIONS = {};
 let PLAYOFFS_DATA = {};
 let MATCHUPS = []; // kept for compatibility; standings now driven by STANDINGS
 let STANDINGS = {}; // { ownerKey: { W, L, T, pct, GB, catW, catL } }
+let PROSPECT_NOTES = {};   // GM-editable overrides loaded from GAS ProspectNotes sheet
+let DRAFT_PICKS_CACHE = null; // keyed by player name, fetched from MLB Stats API
 
 // Editable flag — commissioner can always edit
 let IS_COMMISH = false;
@@ -4429,6 +4448,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Fantrax connection status
     FANTRAX_CONNECTED = !!data.fantraxConnected;
+
+    // Prospect GM notes overrides
+    if (data.prospectNotes) Object.assign(PROSPECT_NOTES, data.prospectNotes);
 
     // Hydrate custom draft plan overrides
     if (data.draftPlan) Object.assign(customDraftSlots, data.draftPlan);
@@ -8064,6 +8086,7 @@ function buildNewsCard(player, nd, section) {
     ? `<div class="ncv2-api-stats news-stats-area" data-player="${safe}" data-ispitcher="${pit?'1':'0'}"><div class="news-empty">Loading 2026 stats…</div></div>`
     : '';
 
+  const safeJs = safe.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   // ── Baseball card layout ──────────────────────────────────────────────────
   return `<div class="ncv2-card ncv2-card-${section}">
     <div class="bc-band bc-band-${section}">
@@ -8074,6 +8097,7 @@ function buildNewsCard(player, nd, section) {
       <div class="bc-player-name">${safe}</div>
       <div class="bc-player-sub">${sub}</div>
       ${draftSlot}
+      <button class="bc-edit-btn" onclick="openProspectEditor('${safeJs}')">✏ Update Prospect</button>
     </div>
     ${apiHtml}${promoHtml}${analysisHtml}
   </div>`;
@@ -8238,22 +8262,92 @@ function isGlobalCat(cat) {
   return cat === 'asian' || cat === 'hispanic' || cat === 'intl';
 }
 
-function initNewsPage() {
+// ── Draft API auto-population ─────────────────────────────────────────────────
+async function fetchDraftClass(year) {
+  try {
+    const resp = await fetch(`https://statsapi.mlb.com/api/v1/draft/${year}`);
+    if (!resp.ok) return {};
+    const data = await resp.json();
+    const picks = {};
+    const rounds = (data.drafts && data.drafts.rounds) || data.rounds || [];
+    rounds.forEach(round => {
+      (round.picks || []).forEach(pick => {
+        const name = pick.person && pick.person.fullName;
+        if (!name) return;
+        const posAbbr = (pick.person.primaryPosition && pick.person.primaryPosition.abbreviation) || '';
+        picks[name] = {
+          pickNumber: pick.pickNumber,
+          round:      String(round.round || ''),
+          team:       pick.team && pick.team.name,
+          teamAbbr:   pick.team && pick.team.abbreviation,
+          school:     pick.school && pick.school.name,
+          position:   posAbbr,
+          year,
+        };
+      });
+    });
+    return picks;
+  } catch(e) {
+    console.warn('fetchDraftClass failed:', e);
+    return {};
+  }
+}
+
+function autoBuildDraftEntry(pick) {
+  const isP = /^(P|SP|RP|RHP|LHP)$/i.test(pick.position || '');
+  const rdLabel = pick.round === '1' ? '1st Round' : pick.round === '2' ? '2nd Round' : `Round ${pick.round}`;
+  return {
+    category: 'draft',
+    isPitcher: isP,
+    positionDisplay: pick.position || '?',
+    school: pick.school || 'TBD',
+    draftClass: `${pick.year} MLB Draft`,
+    actionBadge: 'pick',
+    actionText: `No. ${pick.pickNumber} Overall — ${pick.teamAbbr || pick.team || '?'}`,
+    sentiment: 'Rising',
+    infoBoxes: [
+      { label: 'Drafted', value: `No. ${pick.pickNumber} Overall — ${pick.team || '?'}` },
+      { label: 'Round',   value: rdLabel },
+      { label: 'School',  value: pick.school || 'TBD' },
+    ],
+    statBoxes: [],
+    promotionProb: null,
+    analysis: `${pick.year} draft pick — No. ${pick.pickNumber} overall (${rdLabel}), selected by the ${pick.team || 'an MLB organization'}. Add scouting notes via the Edit button.`,
+    _autoGenerated: true,
+  };
+}
+
+function getEffectiveNewsEntry(playerName) {
+  // 1. Manual curated entry takes priority
+  let nd = getNewsEntry(playerName);
+  // 2. Auto-generate from MLB draft API cache if not in NEWS_DATA
+  if (!nd && DRAFT_PICKS_CACHE) {
+    const pick = DRAFT_PICKS_CACHE[playerName];
+    if (pick) nd = autoBuildDraftEntry(pick);
+  }
+  // 3. Layer GM overrides on top
+  const overrides = PROSPECT_NOTES[playerName];
+  if (overrides && Object.keys(overrides).length) {
+    nd = nd ? { ...nd, ...overrides } : { category: 'milb', ...overrides };
+  }
+  return nd;
+}
+
+async function initNewsPage() {
   document.getElementById('news-loading').style.display = 'block';
   document.getElementById('news-content').style.display = 'none';
 
-  // Roster-first: every player comes from Fantrax — no manually added players.
-  // Route each MiLB roster player to the correct section via their NEWS_DATA category:
-  //   'draft'             → Draft Prospects  (US HS/college + current-year draftees;
-  //                          auto-graduates to milb on April 1 of the following season)
-  //   'asian'/'hispanic'/'intl' → Global Pipeline (NPB/KBO/Latin American int'l prospects)
-  //   'milb' or no entry → Minor Leaguers
+  // Fetch current-year draft picks from MLB Stats API (cached after first call)
+  if (DRAFT_PICKS_CACHE === null) {
+    DRAFT_PICKS_CACHE = await fetchDraftClass(new Date().getFullYear());
+  }
+
   const myPlayers = LEAGUE[currentTeam] || [];
   const milbHit = [], milbPit = [], draftHit = [], draftPit = [], asianHit = [], asianPit = [];
 
   myPlayers.forEach(p => {
     if ((STATUS_MAP[p.status] || 'MLB') !== 'MiLB') return;
-    const nd  = getNewsEntry(p.player);
+    const nd  = getEffectiveNewsEntry(p.player);
     const cat = prospectEffectiveCat(nd);
     const pit = nd && nd.isPitcher !== undefined ? nd.isPitcher : newsIsPitcherPos(p.position);
     const item = { player: p, nd };
@@ -8291,6 +8385,139 @@ function initNewsPage() {
 
   document.querySelectorAll('#page-news .news-stats-area').forEach(el => loadNewsCardStats(el));
 }
+
+// ── Prospect Editor ───────────────────────────────────────────────────────────
+let _peTarget = null;
+
+function openProspectEditor(playerName) {
+  _peTarget = playerName;
+  const nd  = getEffectiveNewsEntry(playerName) || {};
+  const ovr = PROSPECT_NOTES[playerName]        || {};
+
+  document.getElementById('pe-title').textContent = playerName;
+
+  const cat = ovr.category || nd.category || 'milb';
+  document.getElementById('pe-category').value = cat;
+
+  const prob = ovr.promotionProb != null ? ovr.promotionProb
+             : nd.promotionProb  != null ? nd.promotionProb : 0.25;
+  const pct = Math.round(prob * 100);
+  document.getElementById('pe-prob').value = pct;
+  document.getElementById('pe-prob-val').textContent = pct + '%';
+
+  document.getElementById('pe-prob-label').value =
+    ovr.promotionLabel || nd.promotionLabel || 'MLB Debut Probability';
+
+  document.getElementById('pe-action-badge').value =
+    ovr.actionBadge || nd.actionBadge || 'monitor';
+
+  document.getElementById('pe-action-text').value =
+    ovr.actionText || nd.actionText || '';
+
+  document.getElementById('pe-sentiment').value =
+    ovr.sentiment || nd.sentiment || '';
+
+  document.getElementById('pe-analysis').value =
+    ovr.analysis || nd.analysis || '';
+
+  document.getElementById('prospect-editor-overlay').classList.add('open');
+}
+
+function closeProspectEditor() {
+  document.getElementById('prospect-editor-overlay').classList.remove('open');
+  _peTarget = null;
+}
+
+async function saveProspectEdits() {
+  if (!_peTarget) return;
+  const pct = parseInt(document.getElementById('pe-prob').value, 10);
+  const overrides = {
+    category:       document.getElementById('pe-category').value     || undefined,
+    promotionProb:  pct / 100,
+    promotionLabel: document.getElementById('pe-prob-label').value   || undefined,
+    actionBadge:    document.getElementById('pe-action-badge').value || undefined,
+    actionText:     document.getElementById('pe-action-text').value  || undefined,
+    sentiment:      document.getElementById('pe-sentiment').value    || undefined,
+    analysis:       document.getElementById('pe-analysis').value     || undefined,
+  };
+  Object.keys(overrides).forEach(k => overrides[k] === undefined && delete overrides[k]);
+
+  try {
+    const result = await remotePost({ action: 'saveProspectNote', player: _peTarget, overrides });
+    if (!result.ok) throw new Error(result.error || 'Save failed');
+    PROSPECT_NOTES[_peTarget] = overrides;
+    DRAFT_PICKS_CACHE = null; // force re-check on next page open
+    closeProspectEditor();
+    initNewsPage();
+    toast('✓ Prospect notes saved');
+  } catch(e) {
+    toast('✗ ' + e.message);
+  }
+}
 </script>
+
+<!-- Prospect Editor Modal -->
+<div id="prospect-editor-overlay" onclick="if(event.target===this)closeProspectEditor()">
+  <div id="prospect-editor-box">
+    <div class="pe-header">
+      <h3 id="pe-title">Edit Prospect</h3>
+      <button onclick="closeProspectEditor()">✕</button>
+    </div>
+    <div class="pe-body">
+      <div class="pe-field">
+        <label>Status Category</label>
+        <select id="pe-category">
+          <option value="draft">Draft Prospect</option>
+          <option value="milb">Minor Leaguer</option>
+        </select>
+      </div>
+      <div class="pe-field">
+        <label>Call-Up / Debut Probability</label>
+        <div class="pe-prob-row">
+          <input type="range" id="pe-prob" min="0" max="100" step="5"
+            oninput="document.getElementById('pe-prob-val').textContent=this.value+'%'">
+          <span class="pe-prob-val" id="pe-prob-val">25%</span>
+        </div>
+      </div>
+      <div class="pe-field">
+        <label>Probability Label</label>
+        <input type="text" id="pe-prob-label" placeholder="MLB Debut Probability (Post-Draft)">
+      </div>
+      <div class="pe-field">
+        <label>Action Badge</label>
+        <select id="pe-action-badge">
+          <option value="monitor">Monitor</option>
+          <option value="buy">Buy</option>
+          <option value="pick">Draft Pick</option>
+          <option value="elite">Elite</option>
+        </select>
+      </div>
+      <div class="pe-field">
+        <label>Action Text</label>
+        <input type="text" id="pe-action-text" placeholder="No. 4 Overall — Giants">
+      </div>
+      <div class="pe-field">
+        <label>Sentiment</label>
+        <select id="pe-sentiment">
+          <option value="">— Default —</option>
+          <option value="Elite">Elite</option>
+          <option value="Rising">Rising</option>
+          <option value="Bullish">Bullish</option>
+          <option value="Neutral">Neutral</option>
+          <option value="Bearish">Bearish</option>
+        </select>
+      </div>
+      <div class="pe-field">
+        <label>Notes / Analysis</label>
+        <textarea id="pe-analysis" rows="5" placeholder="Scouting notes, timeline, dynasty outlook…"></textarea>
+      </div>
+    </div>
+    <div class="pe-footer">
+      <button class="btn" onclick="closeProspectEditor()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProspectEdits()">Save</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
