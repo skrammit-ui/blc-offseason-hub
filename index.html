@@ -8142,7 +8142,12 @@ async function fetchHeadshotOnly(shotEl) {
     if (!person) { fetchExternalHeadshot(shotEl, playerName); return; }
     const id = person.id;
     const spotUrl = `https://midfield.mlbstatic.com/v1/people/${id}/spots/240?zoom=1.2`;
-    shotEl.onerror = function() { this.src = HEADSHOT_PLACEHOLDER; fetchExternalHeadshot(this, playerName); };
+    const imgUrl  = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_426,q_auto:best/v1/people/${id}/headshot/67/current`;
+    shotEl.dataset.imgfb = imgUrl;
+    shotEl.onerror = function() {
+      if (this.dataset.imgfb) { this.src = this.dataset.imgfb; delete this.dataset.imgfb; }
+      else { this.src = HEADSHOT_PLACEHOLDER; fetchExternalHeadshot(this, playerName); }
+    };
     shotEl.src = spotUrl;
   } catch(e) { fetchExternalHeadshot(shotEl, playerName); }
 }
@@ -8177,7 +8182,12 @@ async function loadNewsCardStats(statsEl) {
     const shotEl = card && card.querySelector('.ncv2-shot');
     if (shotEl) {
       const spotUrl = `https://midfield.mlbstatic.com/v1/people/${id}/spots/240?zoom=1.2`;
-      shotEl.onerror = function() { this.src = HEADSHOT_PLACEHOLDER; fetchExternalHeadshot(this, this.dataset.player); };
+      const imgUrl  = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_426,q_auto:best/v1/people/${id}/headshot/67/current`;
+      shotEl.dataset.imgfb = imgUrl;
+      shotEl.onerror = function() {
+        if (this.dataset.imgfb) { this.src = this.dataset.imgfb; delete this.dataset.imgfb; }
+        else { this.src = HEADSHOT_PLACEHOLDER; fetchExternalHeadshot(this, this.dataset.player); }
+      };
       shotEl.src = spotUrl;
     }
 
