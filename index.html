@@ -2777,12 +2777,11 @@ function renderDivisionCard(divName, year, ownerKeys) {
         const teamName = OWNER_MAP[key] || key;
         const isMe = teamName === myTeam;
         const suffix = isMe ? ' <span class="stag stag-active" style="font-size:9px">You</span>' : '';
-        const byeTag = i === 0 ? ' <span class="stag" style="font-size:9px;padding:1px 5px;background:#edf7f1;color:#1a7a4a;border:1px solid var(--green)">BYE</span>' : '';
         const r = recs[key];
         const recStr = r ? `${r.W}-${r.L}${r.T ? `-${r.T}` : ''}` : '—';
         return `<tr${i === 0 ? ' class="div-leader"' : ''}>
           <td>${i + 1}</td>
-          <td>${teamName}${suffix}${byeTag}</td>
+          <td>${teamName}${suffix}</td>
           <td style="text-align:center;color:var(--text-3);font-size:12px;white-space:nowrap">${recStr}</td>
         </tr>`;
       }).join('');
@@ -2826,7 +2825,7 @@ function renderPlayoffBracket(year) {
     const lbl = matchupLabel(tmpl, matchupId);
     const w = s.winner;
 
-    function teamRow(teamKey, name, slot, bye) {
+    function teamRow(teamKey, name, slot) {
       const isWinner = w && w === teamKey;
       const isTbd = !teamKey;
       let cls = 'smatchup-team';
@@ -2834,10 +2833,9 @@ function renderPlayoffBracket(year) {
       if (isTbd) cls += ' tbd';
       if (canEdit && !isTbd && !w) cls += ' clickable';
       const click = (canEdit && !isTbd && !w) ? ` onclick="setBracketWinner('${year}','${matchupId}','${teamKey}')"` : '';
-      const byeBadge = bye && !isTbd ? `<span style="font-size:9px;font-weight:700;color:#1a7a4a;background:#edf7f1;border:1px solid var(--green);border-radius:3px;padding:1px 5px;flex-shrink:0">BYE</span>` : '';
       return `<div class="${cls}"${click}>
         <span class="smatchup-name">${isTbd ? 'TBD' : name}</span>
-        ${byeBadge}${isWinner ? '<span class="smatchup-check">✓</span>' : ''}
+        ${isWinner ? '<span class="smatchup-check">✓</span>' : ''}
       </div>`;
     }
 
@@ -2850,7 +2848,7 @@ function renderPlayoffBracket(year) {
 
     return `<div class="smatchup">
       ${labelHtml}
-      ${teamRow(s.team1, n1, 'team1', matchupId.startsWith('ch21_'))}
+      ${teamRow(s.team1, n1, 'team1')}
       ${teamRow(s.team2, n2, 'team2')}
     </div>`;
   }
