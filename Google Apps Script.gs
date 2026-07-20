@@ -60,6 +60,7 @@ function doGet(e) {
       matchups:           getMatchups(ss),
       fantraxConnected:   isFantraxConfigured(),
       prospectNotes:      getProspectNotes(ss),
+      mlbIdMap:           getMlbIdMap(ss),
     };
     return corsResponse({ ok: true, data });
   } catch(err) {
@@ -1468,6 +1469,23 @@ function getMLBCareerCache(ss) {
     };
   });
   return cache;
+}
+
+// Returns lightweight { fantraxId: mlbId } map for frontend headshot lookups
+function getMlbIdMap(ss) {
+  const sheet = ss.getSheetByName('MLBCareerCache');
+  if (!sheet || sheet.getLastRow() < 2) return {};
+  const [headers, ...rows] = sheet.getDataRange().getValues();
+  const fidIdx = headers.indexOf('fantraxId');
+  const midIdx = headers.indexOf('mlbId');
+  if (fidIdx < 0 || midIdx < 0) return {};
+  const map = {};
+  rows.forEach(r => {
+    const fid   = String(r[fidIdx] || '').trim();
+    const mlbId = String(r[midIdx] || '').trim();
+    if (fid && mlbId) map[fid] = mlbId;
+  });
+  return map;
 }
 
 function upsertMLBCareerCache(ss, entries) {
