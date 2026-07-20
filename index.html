@@ -8099,22 +8099,36 @@ function newsIsPitcherPos(pos) {
   return parts.length > 0 && parts.some(p => pSlots.has(p));
 }
 
-// ── Wikipedia image fallback ──────────────────────────────────────────────────
-async function fetchExternalHeadshot(shotEl, playerName) {
+// ── Headshot waterfall helpers ────────────────────────────────────────────────
+// Tries each URL in sequence; on exhaustion falls through to Wikipedia then placeholder.
+function tryHeadshotUrls(shotEl, urls, playerName) {
+  if (!urls.length) { fetchWikipediaHeadshot(shotEl, playerName); return; }
+  const [first, ...rest] = urls;
+  shotEl.onerror = () => tryHeadshotUrls(shotEl, rest, playerName);
+  shotEl.src = first;
+}
+
+async function fetchWikipediaHeadshot(shotEl, playerName) {
   if (!playerName) return;
   try {
     const title = encodeURIComponent(playerName.replace(/ /g, '_'));
     const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${title}&prop=pageimages&format=json&pithumbsize=300&origin=*`;
     const data = await fetch(url).then(r => r.json()).catch(() => null);
-    if (!data) return;
-    const pages = data.query && data.query.pages;
-    if (!pages) return;
-    const page = Object.values(pages)[0];
+    const pages = data && data.query && data.query.pages;
+    const page  = pages && Object.values(pages)[0];
     if (page && page.thumbnail && page.thumbnail.source) {
       shotEl.onerror = null;
       shotEl.src = page.thumbnail.source;
     }
   } catch(e) {}
+}
+
+function mlbHeadshotUrls(id) {
+  return [
+    `https://midfield.mlbstatic.com/v1/people/${id}/spots/240?zoom=1.2`,
+    `https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_360/v1/people/${id}/headshot/milb/current`,
+    `https://img.mlbstatic.com/mlb-photos/image/upload/w_426,q_auto:best/v1/people/${id}/headshot/67/current`,
+  ];
 }
 
 // ── Headshot-only fetch for draft/global cards ────────────────────────────────
@@ -8139,17 +8153,9 @@ async function fetchHeadshotOnly(shotEl) {
         p.fullName && p.fullName.toLowerCase().startsWith(first)
       );
     }
-    if (!person) { fetchExternalHeadshot(shotEl, playerName); return; }
-    const id = person.id;
-    const spotUrl = `https://midfield.mlbstatic.com/v1/people/${id}/spots/240?zoom=1.2`;
-    const imgUrl  = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_426,q_auto:best/v1/people/${id}/headshot/67/current`;
-    shotEl.dataset.imgfb = imgUrl;
-    shotEl.onerror = function() {
-      if (this.dataset.imgfb) { this.src = this.dataset.imgfb; delete this.dataset.imgfb; }
-      else { this.src = HEADSHOT_PLACEHOLDER; fetchExternalHeadshot(this, playerName); }
-    };
-    shotEl.src = spotUrl;
-  } catch(e) { fetchExternalHeadshot(shotEl, playerName); }
+    if (!person) { fetchWikipediaHeadshot(shotEl, playerName); return; }
+    tryHeadshotUrls(shotEl, mlbHeadshotUrls(person.id), playerName);
+  } catch(e) { fetchWikipediaHeadshot(shotEl, playerName); }
 }
 
 // ── Async stats loader ────────────────────────────────────────────────────────
@@ -8180,16 +8186,7 @@ async function loadNewsCardStats(statsEl) {
     // Update headshot
     const card   = statsEl.closest('.ncv2-card');
     const shotEl = card && card.querySelector('.ncv2-shot');
-    if (shotEl) {
-      const spotUrl = `https://midfield.mlbstatic.com/v1/people/${id}/spots/240?zoom=1.2`;
-      const imgUrl  = `https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:67:current.png/w_426,q_auto:best/v1/people/${id}/headshot/67/current`;
-      shotEl.dataset.imgfb = imgUrl;
-      shotEl.onerror = function() {
-        if (this.dataset.imgfb) { this.src = this.dataset.imgfb; delete this.dataset.imgfb; }
-        else { this.src = HEADSHOT_PLACEHOLDER; fetchExternalHeadshot(this, this.dataset.player); }
-      };
-      shotEl.src = spotUrl;
-    }
+    if (shotEl) tryHeadshotUrls(shotEl, mlbHeadshotUrls(id), playerName);
 
     // Parallel fetch across all sport levels — take the richest result
     const base = `https://statsapi.mlb.com/api/v1/people/${id}/stats`;
