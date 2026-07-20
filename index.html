@@ -5998,8 +5998,9 @@ function buildKeepersPage() {
       .map(name => ({ name, p: (LEAGUE[team] || []).find(x => x.player === name), type: keptMap[name] }))
       .filter(x => {
         if (!x.p) return false;
-        const isExpiring = (x.p.contract && x.p.contract.trim() === '2026') || x.p.status === 'Expired';
-        return !isExpiring;
+        const con = String(x.p.contract || '').trim();
+        const sts = String(x.p.status  || '').trim().toLowerCase();
+        return con !== '2026' && sts !== 'expired';
       })
       .sort((a, b) => (parseInt(a.p.salary) || 999) - (parseInt(b.p.salary) || 999));
 
@@ -6086,7 +6087,10 @@ function buildAllRostersPage() {
       const stagHtml = `<span class="stag ${sm.cls}"${toggleAttr}>${sm.label}</span>`;
 
       const keeperType = (keeperStore[team] || {})[p.player];
-      const keeperClass = keeperType ? `keeper-${keeperType}` : '';
+      const _con = String(p.contract || '').trim();
+      const _sts = String(p.status  || '').trim().toLowerCase();
+      const _expiring = _con === '2026' || _sts === 'expired';
+      const keeperClass = (keeperType && !_expiring) ? `keeper-${keeperType}` : '';
       return `<tr class="${keeperClass}" style="border-bottom:1px solid var(--border)"
           data-player="${p.player.replace(/"/g,'&quot;')}"
           data-manager="${team.replace(/"/g,'&quot;')}"
