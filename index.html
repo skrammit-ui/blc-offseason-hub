@@ -7993,16 +7993,12 @@ function buildActionBadge(style, text) {
   return `<span class="ncv2-badge ${cls}">${prefix}${escHtml(text)}</span>`;
 }
 
-const MLB_TEAM_IDS = {
-  'ARI':109,'ATL':144,'BAL':110,'BOS':111,'CHC':112,'CHW':145,'CWS':145,
-  'CIN':113,'CLE':114,'COL':115,'DET':116,'HOU':117,'KC':118,'KCR':118,
-  'LAA':108,'LAD':119,'MIA':146,'MIL':158,'MIN':142,'NYM':121,'NYY':147,
-  'OAK':133,'PHI':143,'PIT':134,'SD':135,'SDP':135,'SF':137,'SFG':137,
-  'SEA':136,'STL':138,'TB':139,'TBR':139,'TEX':140,'TOR':141,'WSH':120,'WSN':120,
-};
+// ESPN abbreviation overrides where their abbr differs from Fantrax
+const ESPN_ABBR_MAP = { 'CHW':'cws', 'CWS':'cws', 'WSH':'wsh', 'WSN':'wsh', 'KC':'kc', 'KCR':'kc', 'SDP':'sd', 'SFG':'sf', 'TBR':'tb', 'KCR':'kc' };
 function mlbTeamLogoUrl(abbr) {
-  const id = MLB_TEAM_IDS[String(abbr || '').toUpperCase()];
-  return id ? `https://img.mlbstatic.com/mlb-photos/image/upload/w_60,q_auto:best,f_auto/v1/teams/${id}/logo/spot/current` : '';
+  if (!abbr) return '';
+  const a = (ESPN_ABBR_MAP[abbr.toUpperCase()] || abbr).toLowerCase();
+  return `https://a.espncdn.com/i/teamlogos/mlb/500/${a}.png`;
 }
 
 const HEADSHOT_PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent(
