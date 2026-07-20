@@ -1312,23 +1312,6 @@ input[type=file] { display: none; }
 .bc-player-name { font-size:14px; font-weight:800; color:var(--navy); letter-spacing:-.01em; line-height:1.2; }
 .bc-player-sub  { font-size:10px; color:var(--text-2); margin-top:3px; line-height:1.5; }
 .bc-draft-slot  { font-size:10px; font-weight:700; color:var(--text-2); margin-top:4px; }
-.bc-edit-btn { display:block; width:100%; margin-top:6px; padding:3px 0; font-size:10px; font-weight:600; color:var(--text-3); background:none; border:1px solid var(--border); border-radius:4px; cursor:pointer; letter-spacing:.04em; text-transform:uppercase; }
-.bc-edit-btn:hover { background:var(--bg); color:var(--text); }
-/* Prospect editor modal */
-#prospect-editor-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:2000; display:none; align-items:center; justify-content:center; }
-#prospect-editor-overlay.open { display:flex; }
-#prospect-editor-box { background:var(--card); border:1px solid var(--border); border-radius:12px; width:100%; max-width:460px; max-height:90vh; overflow-y:auto; box-shadow:0 8px 40px rgba(0,0,0,.25); }
-.pe-header { display:flex; align-items:center; justify-content:space-between; padding:14px 16px 10px; border-bottom:1px solid var(--border); }
-.pe-header h3 { font-size:14px; font-weight:700; color:var(--navy); margin:0; }
-.pe-header button { background:none; border:none; font-size:18px; color:var(--text-3); cursor:pointer; line-height:1; }
-.pe-body { padding:14px 16px; display:flex; flex-direction:column; gap:12px; }
-.pe-field label { display:block; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text-3); margin-bottom:4px; }
-.pe-field input, .pe-field select, .pe-field textarea { width:100%; box-sizing:border-box; padding:6px 8px; font-size:12px; border:1px solid var(--border); border-radius:6px; background:var(--bg); color:var(--text); font-family:inherit; }
-.pe-field textarea { resize:vertical; min-height:72px; }
-.pe-prob-row { display:flex; align-items:center; gap:8px; }
-.pe-prob-row input[type=range] { flex:1; }
-.pe-prob-val { font-size:12px; font-weight:700; color:var(--text); min-width:36px; text-align:right; }
-.pe-footer { display:flex; gap:8px; justify-content:flex-end; padding:10px 16px 14px; border-top:1px solid var(--border); }
 .ncv2-header { display:flex; align-items:flex-start; gap:10px; padding:10px 12px 8px; }
 .ncv2-headshot-wrap {
   flex-shrink:0; width:42px; height:56px; border-radius:6px; overflow:hidden;
@@ -2263,7 +2246,10 @@ input[type=file] { display: none; }
 ════════════════════════════════════════ -->
 <div class="page" id="page-news">
   <div class="page-title"><img class="page-title-icon" src="icons/prospects.png" alt="">Prospect Hub</div>
-  <div class="page-sub">Minor league scouting &middot; Draft intelligence &middot; Global talent pipeline</div>
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <div class="page-sub" style="margin:0">Minor league scouting &middot; Draft intelligence &middot; Global talent pipeline</div>
+    <button class="btn btn-primary" style="margin-left:auto;font-size:12px;padding:6px 14px" onclick="refreshProspects()">↻ Update Prospects</button>
+  </div>
 
   <div id="news-loading" style="text-align:center;padding:60px 20px;color:var(--text-3)">
     <div style="font-size:36px;margin-bottom:12px">&#x1F4E1;</div>
@@ -8097,7 +8083,6 @@ function buildNewsCard(player, nd, section) {
       <div class="bc-player-name">${safe}</div>
       <div class="bc-player-sub">${sub}</div>
       ${draftSlot}
-      <button class="bc-edit-btn" onclick="openProspectEditor('${safeJs}')">✏ Update Prospect</button>
     </div>
     ${apiHtml}${promoHtml}${analysisHtml}
   </div>`;
@@ -8386,138 +8371,15 @@ async function initNewsPage() {
   document.querySelectorAll('#page-news .news-stats-area').forEach(el => loadNewsCardStats(el));
 }
 
-// ── Prospect Editor ───────────────────────────────────────────────────────────
-let _peTarget = null;
-
-function openProspectEditor(playerName) {
-  _peTarget = playerName;
-  const nd  = getEffectiveNewsEntry(playerName) || {};
-  const ovr = PROSPECT_NOTES[playerName]        || {};
-
-  document.getElementById('pe-title').textContent = playerName;
-
-  const cat = ovr.category || nd.category || 'milb';
-  document.getElementById('pe-category').value = cat;
-
-  const prob = ovr.promotionProb != null ? ovr.promotionProb
-             : nd.promotionProb  != null ? nd.promotionProb : 0.25;
-  const pct = Math.round(prob * 100);
-  document.getElementById('pe-prob').value = pct;
-  document.getElementById('pe-prob-val').textContent = pct + '%';
-
-  document.getElementById('pe-prob-label').value =
-    ovr.promotionLabel || nd.promotionLabel || 'MLB Debut Probability';
-
-  document.getElementById('pe-action-badge').value =
-    ovr.actionBadge || nd.actionBadge || 'monitor';
-
-  document.getElementById('pe-action-text').value =
-    ovr.actionText || nd.actionText || '';
-
-  document.getElementById('pe-sentiment').value =
-    ovr.sentiment || nd.sentiment || '';
-
-  document.getElementById('pe-analysis').value =
-    ovr.analysis || nd.analysis || '';
-
-  document.getElementById('prospect-editor-overlay').classList.add('open');
-}
-
-function closeProspectEditor() {
-  document.getElementById('prospect-editor-overlay').classList.remove('open');
-  _peTarget = null;
-}
-
-async function saveProspectEdits() {
-  if (!_peTarget) return;
-  const pct = parseInt(document.getElementById('pe-prob').value, 10);
-  const overrides = {
-    category:       document.getElementById('pe-category').value     || undefined,
-    promotionProb:  pct / 100,
-    promotionLabel: document.getElementById('pe-prob-label').value   || undefined,
-    actionBadge:    document.getElementById('pe-action-badge').value || undefined,
-    actionText:     document.getElementById('pe-action-text').value  || undefined,
-    sentiment:      document.getElementById('pe-sentiment').value    || undefined,
-    analysis:       document.getElementById('pe-analysis').value     || undefined,
-  };
-  Object.keys(overrides).forEach(k => overrides[k] === undefined && delete overrides[k]);
-
-  try {
-    const result = await remotePost({ action: 'saveProspectNote', player: _peTarget, overrides });
-    if (!result.ok) throw new Error(result.error || 'Save failed');
-    PROSPECT_NOTES[_peTarget] = overrides;
-    DRAFT_PICKS_CACHE = null; // force re-check on next page open
-    closeProspectEditor();
-    initNewsPage();
-    toast('✓ Prospect notes saved');
-  } catch(e) {
-    toast('✗ ' + e.message);
-  }
+// ── Prospect refresh ──────────────────────────────────────────────────────────
+async function refreshProspects() {
+  DRAFT_PICKS_CACHE = null; // clear cache so next initNewsPage re-fetches
+  toast('Refreshing prospect data…');
+  await initNewsPage();
+  toast('✓ Prospects updated');
 }
 </script>
 
-<!-- Prospect Editor Modal -->
-<div id="prospect-editor-overlay" onclick="if(event.target===this)closeProspectEditor()">
-  <div id="prospect-editor-box">
-    <div class="pe-header">
-      <h3 id="pe-title">Edit Prospect</h3>
-      <button onclick="closeProspectEditor()">✕</button>
-    </div>
-    <div class="pe-body">
-      <div class="pe-field">
-        <label>Status Category</label>
-        <select id="pe-category">
-          <option value="draft">Draft Prospect</option>
-          <option value="milb">Minor Leaguer</option>
-        </select>
-      </div>
-      <div class="pe-field">
-        <label>Call-Up / Debut Probability</label>
-        <div class="pe-prob-row">
-          <input type="range" id="pe-prob" min="0" max="100" step="5"
-            oninput="document.getElementById('pe-prob-val').textContent=this.value+'%'">
-          <span class="pe-prob-val" id="pe-prob-val">25%</span>
-        </div>
-      </div>
-      <div class="pe-field">
-        <label>Probability Label</label>
-        <input type="text" id="pe-prob-label" placeholder="MLB Debut Probability (Post-Draft)">
-      </div>
-      <div class="pe-field">
-        <label>Action Badge</label>
-        <select id="pe-action-badge">
-          <option value="monitor">Monitor</option>
-          <option value="buy">Buy</option>
-          <option value="pick">Draft Pick</option>
-          <option value="elite">Elite</option>
-        </select>
-      </div>
-      <div class="pe-field">
-        <label>Action Text</label>
-        <input type="text" id="pe-action-text" placeholder="No. 4 Overall — Giants">
-      </div>
-      <div class="pe-field">
-        <label>Sentiment</label>
-        <select id="pe-sentiment">
-          <option value="">— Default —</option>
-          <option value="Elite">Elite</option>
-          <option value="Rising">Rising</option>
-          <option value="Bullish">Bullish</option>
-          <option value="Neutral">Neutral</option>
-          <option value="Bearish">Bearish</option>
-        </select>
-      </div>
-      <div class="pe-field">
-        <label>Notes / Analysis</label>
-        <textarea id="pe-analysis" rows="5" placeholder="Scouting notes, timeline, dynasty outlook…"></textarea>
-      </div>
-    </div>
-    <div class="pe-footer">
-      <button class="btn" onclick="closeProspectEditor()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveProspectEdits()">Save</button>
-    </div>
-  </div>
-</div>
 
 </body>
 </html>
