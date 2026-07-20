@@ -1851,12 +1851,12 @@ input[type=file] { display: none; }
   <!-- Commissioner: inline actions (shown only for commish) -->
   <div id="standings-push-actions" style="display:none;margin-top:14px">
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <button class="btn btn-primary" style="font-size:12px;padding:6px 18px" onclick="pushStandingsToPlayoffs()">⬇ Lock Standings &amp; Seed Playoffs</button>
+      <button class="btn btn-primary" style="font-size:12px;padding:6px 18px" onclick="pushStandingsToPlayoffs()">⬇ Seed Playoffs from Standings</button>
       <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="saveDivisionAssignments()">💾 Save Standings</button>
       <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="resetPlayoffBracket()">↺ Reset Bracket</button>
       <span id="bracket-push-status" style="font-size:11px;color:var(--text-3)"></span>
     </div>
-    <div style="margin-top:8px;font-size:11px;color:var(--text-3)">Drag teams to reorder standings. <strong>Lock &amp; Seed</strong> saves standings and seeds the playoff bracket. Click a team in the bracket to advance them.</div>
+    <div style="margin-top:8px;font-size:11px;color:var(--text-3)">Drag teams to reorder divisions. <strong>Seed Playoffs</strong> snapshots the current standings into the bracket — standings keep updating normally. Click a team in the bracket to advance them.</div>
   </div>
 
   <!-- Playoffs section -->
