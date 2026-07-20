@@ -8099,6 +8099,60 @@ function newsIsPitcherPos(pos) {
   return parts.length > 0 && parts.some(p => pSlots.has(p));
 }
 
+// ── Wikipedia image fallback ──────────────────────────────────────────────────
+async function fetchExternalHeadshot(shotEl, playerName) {
+  if (!playerName) return;
+  try {
+    const title = encodeURIComponent(playerName.replace(/ /g, '_'));
+    const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${title}&prop=pageimages&format=json&pithumbsize=300&origin=*`;
+    const data = await fetch(url).then(r => r.json()).catch(() => null);
+    if (!data) return;
+    const pages = data.query && data.query.pages;
+    if (!pages) return;
+    const page = Object.values(pages)[0];
+    if (page && page.thumbnail && page.thumbnail.source) {
+      shotEl.onerror = null;
+      shotEl.src = page.thumbnail.source;
+    }
+  } catch(e) {}
+}
+
+// ── Headshot-only fetch for draft/global cards ────────────────────────────────
+async function fetchHeadshotOnly(shotEl) {
+  const playerName = shotEl.dataset.player;
+  if (!playerName) return;
+  try {
+    const searchPerson = async query => {
+      const r = await fetch(
+        `https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(query)}&sportIds=1,11,12,13,14,15,16`
+      ).then(x => x.json()).catch(() => null);
+      return r && r.people && r.people[0];
+    };
+    let person = await searchPerson(playerName);
+    if (!person) {
+      const last  = playerName.trim().split(' ').pop();
+      const first = playerName.trim().split(' ')[0].toLowerCase();
+      const r2 = await fetch(
+        `https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(last)}&sportIds=1,11,12,13,14,15,16`
+      ).then(x => x.json()).catch(() => null);
+      person = r2 && r2.people && r2.people.find(p =>
+        p.fullName && p.fullName.toLowerCase().startsWith(first)
+      );
+    }
+    if (!person) { fetchExternalHeadshot(shotEl, playerName); return; }
+    const id = person.id;
+    const mlbUrl  = `https://img.mlbstatic.com/mlb-photos/image/upload/w_120,q_auto:best,f_auto/v1/people/${id}/headshot/67/current`;
+    const milbUrl = `https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_120/v1/people/${id}/headshot/milb/current`;
+    shotEl.dataset.milbfb = milbUrl;
+    shotEl.onerror = function() {
+      const fb = this.dataset.milbfb;
+      if (fb && this.src !== fb) { this.src = fb; delete this.dataset.milbfb; }
+      else { this.src = HEADSHOT_PLACEHOLDER; fetchExternalHeadshot(this, playerName); }
+    };
+    shotEl.src = mlbUrl;
+  } catch(e) { fetchExternalHeadshot(shotEl, playerName); }
+}
+
 // ── Async stats loader ────────────────────────────────────────────────────────
 async function loadNewsCardStats(statsEl) {
   const playerName = statsEl.dataset.player;
@@ -8373,6 +8427,11 @@ async function initNewsPage() {
   }));
 
   document.querySelectorAll('#page-news .news-stats-area').forEach(el => loadNewsCardStats(el));
+  // Headshot waterfall for draft/global cards (no stats area — MLB CDN → MiLB CDN → Wikipedia)
+  document.querySelectorAll('#page-news .ncv2-shot').forEach(shotEl => {
+    const card = shotEl.closest('.ncv2-card');
+    if (card && !card.querySelector('.news-stats-area')) fetchHeadshotOnly(shotEl);
+  });
 }
 
 // ── Prospect refresh ──────────────────────────────────────────────────────────
