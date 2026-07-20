@@ -6540,6 +6540,68 @@ function r5RenderPool() {
   }).join('');
 }
 
+// ── FantasyPros projections ───────────────────────────────────────────────────
+const FP_API_KEY = '6Zr6JBTdDoaiwKDqyezEO4RGxvAy3aAs6cisLt5A';
+const _fpCache = {}; // 'hitter'|'pitcher' → players array (null = failed)
+
+async function _fpLoad(isPit) {
+  const key = isPit ? 'pitcher' : 'hitter';
+  if (key in _fpCache) return _fpCache[key];
+  const pos = isPit ? 'P' : 'BATTING';
+  try {
+    const r = await fetch(
+      `https://api.fantasypros.com/public/v2/json/mlb/projections?position=${pos}&type=ros`,
+      { headers: { 'x-api-key': FP_API_KEY } }
+    ).then(x => x.json());
+    console.log('[FP] response keys:', Object.keys(r || {}));
+    const list = r?.players || r?.projections || (Array.isArray(r) ? r : null);
+    _fpCache[key] = list;
+    return list;
+  } catch(e) {
+    console.warn('[FP] fetch error:', e);
+    _fpCache[key] = null;
+    return null;
+  }
+}
+
+function _fpMatch(players, name) {
+  if (!players?.length) return null;
+  const norm = s => (s || '').toLowerCase().replace(/[^a-z]/g, '');
+  const t = norm(name);
+  return players.find(p => norm(p.player_name || p.name || '') === t)
+      || players.find(p => { const n = norm(p.player_name || p.name || ''); return n && (t.includes(n) || n.includes(t)); })
+      || null;
+}
+
+function _fpStats(player, isPit) {
+  if (!player) return null;
+  // Stats live under player.stats or flat on the player object
+  const s = player.stats || player;
+  if (!isPit) {
+    const r   = s.R   ?? s.r   ?? null;
+    const hr  = s.HR  ?? s.hr  ?? null;
+    const rbi = s.RBI ?? s.rbi ?? null;
+    const sb  = s.SB  ?? s.sb  ?? null;
+    const avg = s.AVG ?? s.avg ?? null;
+    const obp = s.OBP ?? s.obp ?? null;
+    if ([r, hr, rbi, sb, avg].every(v => v == null)) return null;
+    const fmt3 = v => v != null ? Number(v).toFixed(3).replace(/^0/, '') : '—';
+    return { R: r ?? '—', HR: hr ?? '—', RBI: rbi ?? '—', SB: sb ?? '—',
+             AVG: avg != null ? fmt3(avg) : '—', OBP: obp != null ? fmt3(obp) : '—' };
+  } else {
+    const w    = s.W    ?? s.w    ?? null;
+    const era  = s.ERA  ?? s.era  ?? null;
+    const k    = s.SO   ?? s.K    ?? s.k    ?? s.so   ?? null;
+    const whip = s.WHIP ?? s.whip ?? null;
+    const sv   = s.SV   ?? s.sv   ?? null;
+    const ip   = s.IP   ?? s.ip   ?? null;
+    if ([w, era, k, whip].every(v => v == null)) return null;
+    const f2 = v => v != null ? Number(v).toFixed(2) : '—';
+    return { W: w ?? '—', ERA: era != null ? f2(era) : '—', K: k ?? '—',
+             WHIP: whip != null ? f2(whip) : '—', SV: sv ?? '—', IP: ip ?? '—' };
+  }
+}
+
 // ── Rule 5 pool hover card ────────────────────────────────────────────────────
 (function() {
   const el = document.createElement('div');
@@ -6616,28 +6678,39 @@ function r5HideHover() {
 
 async function _r5hcFetch(playerName, position) {
   const isPit = /^(SP|RP|P|LHP|RHP|CP)$/i.test(position || '');
-  // Resolve MLB ID via search
-  const search = async q => {
-    const r = await fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(q)}&sportIds=1,11,12,13,14,15,16`).then(x=>x.json()).catch(()=>null);
-    return r?.people?.[0] || null;
-  };
-  let person = await search(playerName);
-  if (!person) {
-    const last  = playerName.trim().split(' ').pop();
-    const first = playerName.trim().split(' ')[0].toLowerCase();
-    const r2 = await fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(last)}&sportIds=1,11,12,13,14,15,16`).then(x=>x.json()).catch(()=>null);
-    person = r2?.people?.find(p => p.fullName?.toLowerCase().startsWith(first)) || null;
-  }
-  if (!person) return { found: false };
+
+  // Run MLB stats search + FP projections fetch in parallel
+  const [person, fpPlayers] = await Promise.all([
+    (async () => {
+      const search = async q => {
+        const r = await fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(q)}&sportIds=1,11,12,13,14,15,16`).then(x=>x.json()).catch(()=>null);
+        return r?.people?.[0] || null;
+      };
+      let p = await search(playerName);
+      if (!p) {
+        const last  = playerName.trim().split(' ').pop();
+        const first = playerName.trim().split(' ')[0].toLowerCase();
+        const r2 = await fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(last)}&sportIds=1,11,12,13,14,15,16`).then(x=>x.json()).catch(()=>null);
+        p = r2?.people?.find(x => x.fullName?.toLowerCase().startsWith(first)) || null;
+      }
+      return p;
+    })(),
+    _fpLoad(isPit),
+  ]);
+
+  // FantasyPros projection for this player
+  const fpPlayer = _fpMatch(fpPlayers, playerName);
+  const fpProj   = _fpStats(fpPlayer, isPit);
+
+  if (!person) return { found: false, isPit, fpProj };
 
   const grp  = isPit ? 'pitching' : 'hitting';
   const base = `https://statsapi.mlb.com/api/v1/people/${person.id}/stats`;
   const getGL = sid => fetch(`${base}?stats=gameLog&season=2026&group=${grp}&sportId=${sid}`).then(r=>r.json()).then(r=>(r?.stats||[]).flatMap(s=>s.splits||[])).catch(()=>[]);
   const all = await Promise.all([1,11,12,13,14].map(getGL));
   const games = all.reduce((best,curr) => curr.length > best.length ? curr : best, []);
-  if (!games.length) return { found: true, noStats: true, isPit };
+  if (!games.length) return { found: true, noStats: true, isPit, fpProj };
 
-  // Aggregate
   if (!isPit) {
     let ab=0, h=0, hr=0, rbi=0, sb=0, bb=0, pa=0, tb=0;
     games.forEach(g => {
@@ -6651,32 +6724,32 @@ async function _r5hcFetch(playerName, position) {
       pa  += (s.plateAppearances || s.atBats || 0);
       tb  += s.totalBases    || 0;
     });
-    const avg  = ab  ? (h/ab).toFixed(3).replace(/^0/,'')         : '.---';
-    const obp  = pa  ? ((h+bb)/pa).toFixed(3).replace(/^0/,'')    : '.---';
-    const slg  = ab  ? (tb/ab).toFixed(3).replace(/^0/,'')        : '.---';
-    return { found:true, isPit:false, stats:{ AVG:avg, OBP:obp, SLG:slg, HR:hr, RBI:rbi, SB:sb } };
+    const avg = ab  ? (h/ab).toFixed(3).replace(/^0/,'')      : '.---';
+    const obp = pa  ? ((h+bb)/pa).toFixed(3).replace(/^0/,'') : '.---';
+    const slg = ab  ? (tb/ab).toFixed(3).replace(/^0/,'')     : '.---';
+    return { found:true, isPit:false, stats:{ AVG:avg, OBP:obp, SLG:slg, HR:hr, RBI:rbi, SB:sb }, fpProj };
   } else {
-    let ip=0, er=0, k=0, bb=0, h=0, w=0, l=0, gs=0;
+    let ip=0, er=0, k=0, bb=0, h=0, w=0, l=0;
     games.forEach(g => {
       const s = g.stat;
       const raw = parseFloat(s.inningsPitched) || 0;
       ip  += Math.floor(raw) + (raw % 1) * 10/3;
-      er  += s.earnedRuns    || 0;
-      k   += s.strikeOuts    || 0;
-      bb  += s.baseOnBalls   || 0;
-      h   += s.hits          || 0;
-      w   += s.wins          || 0;
-      l   += s.losses        || 0;
-      gs  += s.gamesStarted  || 0;
+      er  += s.earnedRuns  || 0;
+      k   += s.strikeOuts  || 0;
+      bb  += s.baseOnBalls || 0;
+      h   += s.hits        || 0;
+      w   += s.wins        || 0;
+      l   += s.losses      || 0;
     });
     const era  = ip ? ((er*9)/ip).toFixed(2) : '—';
     const whip = ip ? ((bb+h)/ip).toFixed(2) : '—';
     const ipFmt = Math.floor(ip) + '.' + Math.round((ip%1)*3);
-    return { found:true, isPit:true, stats:{ ERA:era, WHIP:whip, K:k, IP:ipFmt, [`W-L`]:`${w}-${l}` } };
+    return { found:true, isPit:true, stats:{ ERA:era, WHIP:whip, K:k, IP:ipFmt, 'W-L':`${w}-${l}` }, fpProj };
   }
 }
 
 function _r5hcRenderStats(el, result, p) {
+  // 2026 actuals
   if (!result.found || result.noStats) {
     el.innerHTML = `<div class="r5hc-section-lbl">2026 Stats</div><div class="r5hc-empty">${result.found ? 'No 2026 stats yet' : 'Not found in MLB database'}</div>`;
   } else {
@@ -6685,9 +6758,17 @@ function _r5hcRenderStats(el, result, p) {
     ).join('');
     el.innerHTML = `<div class="r5hc-section-lbl">2026 Actuals</div><div class="r5hc-stat-grid">${cells}</div>`;
   }
-  // 2027 projections placeholder — wire up FantasyPros API when key is available
+  // 2027 projections (FantasyPros)
   const projEl = document.getElementById('r5hcProj');
-  if (projEl) projEl.innerHTML = `<div class="r5hc-section-lbl" style="margin-top:8px">2027 Projections</div><div class="r5hc-empty" style="color:var(--text-3);opacity:.6">Pending FantasyPros API</div>`;
+  if (!projEl) return;
+  if (result.fpProj) {
+    const cells = Object.entries(result.fpProj).map(([lbl, val]) =>
+      `<div class="r5hc-stat"><div class="r5hc-stat-val">${val}</div><div class="r5hc-stat-lbl">${lbl}</div></div>`
+    ).join('');
+    projEl.innerHTML = `<div class="r5hc-section-lbl" style="margin-top:8px">2027 Projections</div><div class="r5hc-stat-grid">${cells}</div>`;
+  } else {
+    projEl.innerHTML = `<div class="r5hc-section-lbl" style="margin-top:8px">2027 Projections</div><div class="r5hc-empty">Not found in FantasyPros</div>`;
+  }
 }
 
 function r5UpdateOrderBar() {
