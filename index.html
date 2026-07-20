@@ -1307,6 +1307,7 @@ input[type=file] { display: none; }
 .bc-band-draft { background:linear-gradient(155deg,#2d1f4e 0%,#4c3580 55%,#6b52a8 100%); }
 .bc-band-asian { background:linear-gradient(155deg,#2d1f0e 0%,#6b4a1a 55%,#8f6a30 100%); }
 .bc-shot { width:90px; height:90px; object-fit:cover; object-position:center top; border-radius:50%; position:relative; z-index:1; filter:drop-shadow(0 2px 10px rgba(0,0,0,.45)); }
+.bc-shot.bc-shot-rect { width:70px; height:95px; border-radius:4px; }
 .bc-badge-corner { position:absolute; top:8px; right:8px; display:flex; flex-direction:column; gap:4px; align-items:flex-end; z-index:2; }
 .bc-nameplate { padding:10px 12px 8px; text-align:center; border-bottom:1px solid var(--border); }
 .bc-player-name { font-size:14px; font-weight:800; color:var(--navy); letter-spacing:-.01em; line-height:1.2; }
@@ -7604,6 +7605,7 @@ const NEWS_DATA = {
   },
   'Striker Pence': {
     category:'draft', isPitcher:true, positionDisplay:'SP',
+    pgUrl:'https://09d1d85a2275582e9dad-7b3e649a230e2ba2cff912d8af17e0b5.ssl.cf1.rackcdn.com/114108-National-8.jpg',
     school:'Santiago HS, Corona CA', draftClass:'2027 MLB Draft',
     actionBadge:'monitor', actionText:'2027 Draft — Watch', sentiment:'Rising',
     infoBoxes:[
@@ -7647,6 +7649,7 @@ const NEWS_DATA = {
   // === DRAFT PROSPECTS ===
   'Jackson Flora': {
     category:'draft', isPitcher:true, positionDisplay:'SP',
+    mlbId:'814176',
     school:'UC Santa Barbara', schoolYear:'Junior', draftClass:'2026 MLB Draft',
     actionBadge:'pick', actionText:'No. 4 Overall — Giants', sentiment:'Elite',
     infoBoxes:[
@@ -7842,6 +7845,7 @@ const NEWS_DATA = {
   },
   'Dexter McCleon Jr.': {
     category:'draft', isPitcher:false, positionDisplay:'OF (CF)',
+    pgUrl:'https://09d1d85a2275582e9dad-7b3e649a230e2ba2cff912d8af17e0b5.ssl.cf1.rackcdn.com/114108-American-1.jpg',
     school:'Georgia (2028 draft class)', draftClass:'2028 MLB Draft',
     actionBadge:'monitor', actionText:'2028 Draft — Watch', sentiment:'Rising',
     infoBoxes:[
@@ -8075,7 +8079,10 @@ function buildNewsCard(player, nd, section) {
     ? (STATUS_MAP[player.status] === 'MiLB')
     : (nd && nd.level && nd.level !== 'MLB');
   const fantraxId = player && player.id ? String(player.id).replace(/\*/g, '').trim() : '';
-  const knownMlbId = (fantraxId && MLB_ID_MAP[fantraxId]) ? String(MLB_ID_MAP[fantraxId]) : '';
+  const knownMlbId = (fantraxId && MLB_ID_MAP[fantraxId])
+    ? String(MLB_ID_MAP[fantraxId])
+    : ((nd && nd.mlbId) ? String(nd.mlbId) : '');
+  const pgUrl = (nd && nd.pgUrl) ? nd.pgUrl : '';
 
   // Live stats (MiLB + Asian only)
   const apiHtml = section !== 'draft'
@@ -8086,7 +8093,7 @@ function buildNewsCard(player, nd, section) {
   return `<div class="ncv2-card ncv2-card-${section}">
     <div class="bc-band bc-band-${section}">
       ${logoHtml}
-      <img class="bc-shot ncv2-shot" data-player="${safe}" data-ismilb="${isMiLBp?'1':'0'}" data-fantraxid="${escHtml(fantraxId)}" data-mlbid="${escHtml(knownMlbId)}" src="${HEADSHOT_PLACEHOLDER}" loading="lazy">
+      <img class="bc-shot ncv2-shot" data-player="${safe}" data-ismilb="${isMiLBp?'1':'0'}" data-fantraxid="${escHtml(fantraxId)}" data-mlbid="${escHtml(knownMlbId)}" data-pgurl="${escHtml(pgUrl)}" src="${HEADSHOT_PLACEHOLDER}" loading="lazy">
       <div class="bc-badge-corner">${watchBadge}${actionBadge}</div>
     </div>
     <div class="bc-nameplate">
@@ -8129,6 +8136,7 @@ function tryHeadshotUrls(shotEl, urls, playerName) {
       shotEl.onerror = null;
       shotEl.onload  = null;
       shotEl.src = first;
+      if (first.includes('rackcdn.com')) shotEl.classList.add('bc-shot-rect');
     } else {
       console.log(`[headshot] ${playerName}: ✗ blank/placeholder (${this.naturalWidth}px) → skip`);
       tryHeadshotUrls(shotEl, rest, playerName);
@@ -8173,9 +8181,22 @@ async function fetchHeadshotOnly(shotEl) {
   const playerName = shotEl.dataset.player;
   const fantraxId  = shotEl.dataset.fantraxid || '';
   const knownMlbId = shotEl.dataset.mlbid || '';
+  const pgUrl      = shotEl.dataset.pgurl || '';
   if (!playerName) return;
-  // If we already know the MLB ID from the career cache, skip the Stats API search
-  if (knownMlbId) { tryHeadshotUrls(shotEl, mlbHeadshotUrls(knownMlbId, fantraxId), playerName); return; }
+
+  const withPg = urls => pgUrl ? [pgUrl, ...urls] : urls;
+
+  // If we already know the MLB ID, skip the Stats API search
+  if (knownMlbId) {
+    tryHeadshotUrls(shotEl, withPg(mlbHeadshotUrls(knownMlbId, fantraxId)), playerName);
+    return;
+  }
+  // If we have a PG URL but no MLB ID, try PG first then Fantrax/Wikipedia
+  if (pgUrl) {
+    const fallback = fantraxId ? [`https://fantraximg.com/si/headshots/MLB/${fantraxId}_400_4.png`] : [];
+    tryHeadshotUrls(shotEl, [pgUrl, ...fallback], playerName);
+    return;
+  }
   try {
     const searchPerson = async query => {
       const r = await fetch(
@@ -8201,13 +8222,12 @@ async function fetchHeadshotOnly(shotEl) {
       person = r3 && r3.people && r3.people[0];
     }
     if (!person) {
-      // No MLB API match — try Fantrax CDN then Wikipedia
-      const urls = fantraxId ? [`https://fantraximg.com/si/headshots/MLB/${fantraxId}_400_4.png`] : [];
-      if (urls.length) tryHeadshotUrls(shotEl, urls, playerName);
+      const fallbackUrls = fantraxId ? [`https://fantraximg.com/si/headshots/MLB/${fantraxId}_400_4.png`] : [];
+      if (fallbackUrls.length) tryHeadshotUrls(shotEl, fallbackUrls, playerName);
       else fetchWikipediaHeadshot(shotEl, playerName);
       return;
     }
-    tryHeadshotUrls(shotEl, mlbHeadshotUrls(person.id, fantraxId), playerName);
+    tryHeadshotUrls(shotEl, withPg(mlbHeadshotUrls(person.id, fantraxId)), playerName);
   } catch(e) { fetchWikipediaHeadshot(shotEl, playerName); }
 }
 
