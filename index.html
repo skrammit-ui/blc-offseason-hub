@@ -2246,10 +2246,7 @@ input[type=file] { display: none; }
 ════════════════════════════════════════ -->
 <div class="page" id="page-news">
   <div class="page-title"><img class="page-title-icon" src="icons/prospects.png" alt="">Prospect Hub</div>
-  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-    <div class="page-sub" style="margin:0">Minor league scouting &middot; Draft intelligence &middot; Global talent pipeline</div>
-    <button class="btn btn-primary" style="margin-left:auto;font-size:12px;padding:6px 14px" onclick="refreshProspects()">↻ Update Prospects</button>
-  </div>
+  <div class="page-sub">Minor league scouting &middot; Draft intelligence &middot; Global talent pipeline</div>
 
   <div id="news-loading" style="text-align:center;padding:60px 20px;color:var(--text-3)">
     <div style="font-size:36px;margin-bottom:12px">&#x1F4E1;</div>
@@ -2266,6 +2263,7 @@ input[type=file] { display: none; }
           <div class="news-section-head-sub">Your roster's MiLB players &middot; scouting reports &amp; promotion intel</div>
         </div>
         <span class="news-section-count" id="news-milb-count"></span>
+        <button onclick="refreshProspects()" style="margin-left:8px;font-size:11px;font-weight:600;padding:4px 10px;background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;cursor:pointer;white-space:nowrap">↻ Update</button>
       </div>
       <div class="news-sub-label">Hitters</div>
       <div class="news-grid" id="news-milb-hitters"></div>
