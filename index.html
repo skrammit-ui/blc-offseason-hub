@@ -6029,7 +6029,7 @@ function buildKeepersPage() {
                    : 'ctag-teal';
       const conHtml = `<span class="ctag ${conCls}" style="cursor:default">${con || '—'}</span>`;
 
-      return `<tr style="border-bottom:1px solid var(--border)">
+      return `<tr class="keeper-${type}" style="border-bottom:1px solid var(--border)">
         <td style="padding:3px 8px;max-width:160px">
           <div style="display:flex;align-items:center;gap:4px;overflow:hidden">
             <span style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1">${p.player}</span>
