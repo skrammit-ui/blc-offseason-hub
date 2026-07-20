@@ -3196,10 +3196,11 @@ function buildDndItem(key, idx, divName, year) {
   const recs = computeStandings();
   const r = recs[key];
   const recTag = r ? ` <span style="font-size:10px;color:var(--text-3)">${r.W}-${r.L}${r.T ? `-${r.T}` : ''}</span>` : '';
+  const byeTag = idx === 0 ? ` <span style="font-size:9px;font-weight:700;padding:1px 5px;background:#edf7f1;color:#1a7a4a;border:1px solid var(--green);border-radius:3px">BYE</span>` : '';
   item.innerHTML = `
     <span class="drag-handle">⠿</span>
     <span class="dnd-pos">${idx + 1}</span>
-    <span class="dnd-name">${OWNER_MAP[key] || key}${recTag}</span>
+    <span class="dnd-name">${OWNER_MAP[key] || key}${recTag}${byeTag}</span>
     <button class="dnd-remove" onclick="dndRemoveTeam(event,'${year}','${divName}','${key}')" title="Remove">✕</button>
   `;
 
