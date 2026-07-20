@@ -6078,7 +6078,11 @@ function buildAllRostersPage() {
       (parseInt(a.salary) || 999) - (parseInt(b.salary) || 999)
     );
 
-    const rowsHtml = players.map(p => {
+    const rowsHtml = players.filter(p => {
+      const _con = String(p.contract || '').trim();
+      const _sts = String(p.status  || '').trim().toLowerCase();
+      return _con !== '2026' && _sts !== 'expired';
+    }).map(p => {
       const normStatus = STATUS_MAP[p.status] || 'MLB';
       const sm = STATUS_META[normStatus] || STATUS_META['MLB'];
       const toggleAttr = IS_COMMISH
@@ -6087,10 +6091,7 @@ function buildAllRostersPage() {
       const stagHtml = `<span class="stag ${sm.cls}"${toggleAttr}>${sm.label}</span>`;
 
       const keeperType = (keeperStore[team] || {})[p.player];
-      const _con = String(p.contract || '').trim();
-      const _sts = String(p.status  || '').trim().toLowerCase();
-      const _expiring = _con === '2026' || _sts === 'expired';
-      const keeperClass = (keeperType && !_expiring) ? `keeper-${keeperType}` : '';
+      const keeperClass = keeperType ? `keeper-${keeperType}` : '';
       return `<tr class="${keeperClass}" style="border-bottom:1px solid var(--border)"
           data-player="${p.player.replace(/"/g,'&quot;')}"
           data-manager="${team.replace(/"/g,'&quot;')}"
