@@ -14,6 +14,26 @@ function migrateGelofToMerrilly() {
   transferTeam(ss, 'gelof', 'merrilly');
   Logger.log('Done — all sheets updated from gelof to merrilly');
 }
+
+// ── Debug: run from Script Editor to test each refresh target individually ────
+// Open Apps Script → select testFullRefresh → Run → View Logs
+function testFullRefresh() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const targets = ['standings', 'rosters', 'draft', 'draftPicks'];
+  targets.forEach(function(t) {
+    try {
+      Logger.log('▶ ' + t + ' …');
+      let result;
+      if      (t === 'standings')  result = refreshFantraxStandings(ss);
+      else if (t === 'rosters')    result = refreshFantraxRosters(ss);
+      else if (t === 'draft')      result = refreshFantraxDraft(ss);
+      else if (t === 'draftPicks') result = refreshFantraxDraftPicks(ss);
+      Logger.log('✓ ' + t + ': ' + JSON.stringify(result).substring(0, 300));
+    } catch(e) {
+      Logger.log('✗ ' + t + ' FAILED: ' + e.message + '\n' + e.stack);
+    }
+  });
+}
 // ── CORS helper ──────────────────────────────────────────────────────────────
 function corsResponse(data) {
   return ContentService
