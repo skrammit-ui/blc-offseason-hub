@@ -6521,10 +6521,10 @@ function r5RenderPool() {
     const safePlayer = p.player.replace(/'/g, "\\'");
     const safeTeam   = p.fromTeam.replace(/'/g, "\\'");
     const clickable  = canPick;
-    const hcData     = escHtml(JSON.stringify({
+    const hcData     = JSON.stringify({
       player: p.player, position: p.position, mlb_team: p.mlb_team,
       fromTeam: p.fromTeam, salary: p.salary, contract: p.contract, age: p.age || ''
-    }));
+    }).replace(/"/g, '&quot;');
     return `<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:5px;border:1px solid var(--border);background:var(--surface);${clickable ? 'cursor:pointer' : 'opacity:.5;cursor:not-allowed'};transition:background .1s"
       data-hc="${hcData}"
       onmouseenter="r5ShowHover(this)"
