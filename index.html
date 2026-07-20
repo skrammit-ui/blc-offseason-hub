@@ -5996,7 +5996,11 @@ function buildKeepersPage() {
     // Sort by round ascending
     const playersSorted = keptPlayers
       .map(name => ({ name, p: (LEAGUE[team] || []).find(x => x.player === name), type: keptMap[name] }))
-      .filter(x => x.p && x.p.status !== 'Expired')
+      .filter(x => {
+        if (!x.p) return false;
+        const isExpiring = (x.p.contract && x.p.contract.trim() === '2026') || x.p.status === 'Expired';
+        return !isExpiring;
+      })
       .sort((a, b) => (parseInt(a.p.salary) || 999) - (parseInt(b.p.salary) || 999));
 
     const thStyle = `font-family:var(--head);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:4px 8px;border-bottom:1px solid var(--border)`;
