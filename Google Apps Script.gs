@@ -1374,6 +1374,9 @@ function testFantraxConnection() {
 }
 
 // ── Refresh dispatcher ────────────────────────────────────────────────────────
+// Each target is independently try-caught so one failure never blocks others.
+// 'rosters' only syncs Fantrax rosters — MiLB cache and YTD stats are separate
+// targets so the caller can choose what to run and avoid GAS 6-min timeout.
 function refreshFantrax(ss, targets) {
   if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
   const results = {};
@@ -1382,16 +1385,16 @@ function refreshFantrax(ss, targets) {
     catch(e) { results.standings = { ok: false, error: e.message }; }
   }
   if (targets.includes('rosters')) {
-    // Always refresh the MLB career cache first so MiLB eligibility is current
-    // when refreshFantraxRosters applies status overrides from the cache.
+    try { results.rosters = refreshFantraxRosters(ss); }
+    catch(e) { results.rosters = { ok: false, error: e.message }; }
+  }
+  if (targets.includes('milb')) {
     try {
       const mlb = refreshMLBCareerCache();
       results.milbCache = { ok: true, message: mlb.eligible + ' MiLB-eligible, ' + mlb.rosterUpdated + ' labeled' };
-    } catch(e) {
-      results.milbCache = { ok: false, error: e.message };
-    }
-    try { results.rosters = refreshFantraxRosters(ss); }
-    catch(e) { results.rosters = { ok: false, error: e.message }; }
+    } catch(e) { results.milbCache = { ok: false, error: e.message }; }
+  }
+  if (targets.includes('ytdStats')) {
     try {
       const ytd = refreshMLBYTDStats(ss);
       results.ytdStats = { ok: true, message: ytd.total + ' player stats updated (' + ytd.season + ' YTD)' };
@@ -2134,9 +2137,9 @@ function refreshFantraxDraftPicks(ss) {
 
   const data = fetchFantrax('getDraftPicks');
 
-  // Try common property names for the picks array
-  const picks = data.picks || data.draftPicks || data.futurePickList || data.draftPickList ||
-                (Array.isArray(data) ? data : []);
+  // Fantrax returns futureDraftPicks and/or currentDraftPicks
+  const picks = [].concat(data.futureDraftPicks || [], data.currentDraftPicks || [],
+                           data.picks || [], data.draftPicks || []);
 
   if (!Array.isArray(picks) || picks.length === 0) {
     return { ok: true, updated: 0, added: 0, note: 'No picks found. Keys: ' + Object.keys(data).join(', ') };
@@ -2205,10 +2208,9 @@ function refreshFantraxDraftPicks(ss) {
 
 function debugDraftPicksData() {
   const data = fetchFantrax('getDraftPicks');
-  const picks = data.picks || data.draftPicks || data.futurePickList || data.draftPickList ||
-                (Array.isArray(data) ? data : []);
-  const sample = Array.isArray(picks) ? picks.slice(0, 3) : [];
-  return { ok: true, topLevelKeys: Object.keys(data), total: picks.length, sample };
+  const picks = [].concat(data.futureDraftPicks || [], data.currentDraftPicks || [],
+                           data.picks || [], data.draftPicks || []);
+  return { ok: true, topLevelKeys: Object.keys(data), total: picks.length, sample: picks.slice(0, 3) };
 }
 
 // ── Debug: return raw Fantrax API response ────────────────────────────────────
