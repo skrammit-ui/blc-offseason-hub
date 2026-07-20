@@ -2293,6 +2293,11 @@ input[type=file] { display: none; }
   <div class="page-title"><img class="page-title-icon" src="icons/prospects.png" alt="">Prospect Hub</div>
   <div class="page-sub">Minor league scouting &middot; Draft intelligence &middot; Global talent pipeline</div>
 
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+    <span style="font-size:12px;color:var(--text-3);white-space:nowrap">Viewing:</span>
+    <select id="news-team-select" class="roster-team-select" onchange="viewNewsTeam(this.value)"></select>
+  </div>
+
   <div id="news-loading" style="text-align:center;padding:60px 20px;color:var(--text-3)">
     <div style="font-size:36px;margin-bottom:12px">&#x1F4E1;</div>
     <div style="font-size:14px;font-weight:600">Loading prospect data&hellip;</div>
@@ -2376,6 +2381,7 @@ let DRAFT_PICKS_CACHE = null; // keyed by player name, fetched from MLB Stats AP
 // Editable flag — commissioner can always edit
 let IS_COMMISH = false;
 let currentTeam = 'Wetherholt 45s';
+let newsViewTeam = null; // null = use currentTeam
 
 // ── Navigation ────────────────────────────────────────────────────────────────
 // ── Mobile nav ───────────────────────────────────────────────────────────────
@@ -7733,6 +7739,7 @@ function populateCommishSelects() {
 
   // Roster team browser
   populateRosterTeamSelect(currentTeam);
+  populateNewsTeamSelect();
 
   // Export: single-team select
   const exportSel = document.getElementById('export-team-select');
@@ -8916,6 +8923,21 @@ function getEffectiveNewsEntry(playerName) {
   return nd;
 }
 
+function viewNewsTeam(teamName) {
+  newsViewTeam = teamName;
+  const sel = document.getElementById('news-team-select');
+  if (sel) sel.value = teamName;
+  initNewsPage();
+}
+
+function populateNewsTeamSelect() {
+  const sel = document.getElementById('news-team-select');
+  if (!sel) return;
+  const teams = Object.keys(LEAGUE).sort();
+  sel.innerHTML = teams.map(t => `<option value="${t.replace(/"/g,'&quot;')}">${t}${t === currentTeam ? ' (You)' : ''}</option>`).join('');
+  sel.value = newsViewTeam || currentTeam;
+}
+
 async function initNewsPage() {
   document.getElementById('news-loading').style.display = 'block';
   document.getElementById('news-content').style.display = 'none';
@@ -8925,7 +8947,9 @@ async function initNewsPage() {
     DRAFT_PICKS_CACHE = await fetchDraftClass(new Date().getFullYear());
   }
 
-  const myPlayers = LEAGUE[currentTeam] || [];
+  const viewTeam = newsViewTeam || currentTeam;
+  populateNewsTeamSelect();
+  const myPlayers = LEAGUE[viewTeam] || [];
   const milbHit = [], milbPit = [], draftHit = [], draftPit = [], asianHit = [], asianPit = [];
 
   myPlayers.forEach(p => {
@@ -8954,7 +8978,10 @@ async function initNewsPage() {
   renderGrid('news-asian-pitchers', asianPit, 'asian');
 
   const cnt = document.getElementById('news-milb-count');
-  if (cnt) cnt.textContent = (milbHit.length + milbPit.length) + ' on your roster';
+  if (cnt) {
+    const label = viewTeam === currentTeam ? 'on your roster' : `on ${viewTeam}'s roster`;
+    cnt.textContent = (milbHit.length + milbPit.length) + ' ' + label;
+  }
 
   document.getElementById('news-loading').style.display = 'none';
   document.getElementById('news-content').style.display = 'block';
