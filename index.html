@@ -1308,6 +1308,34 @@ input[type=file] { display: none; }
 .bc-band-asian { background:linear-gradient(155deg,#2d1f0e 0%,#6b4a1a 55%,#8f6a30 100%); }
 .bc-shot { width:90px; height:90px; object-fit:cover; object-position:center top; border-radius:50%; position:relative; z-index:1; filter:drop-shadow(0 2px 10px rgba(0,0,0,.45)); }
 .bc-shot.bc-shot-rect { width:70px; height:95px; border-radius:4px; }
+/* Add-photo button (reveals on bc-band hover) */
+.bc-addphoto-btn{position:absolute;bottom:7px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.2);border-radius:10px;color:rgba(255,255,255,.9);font-size:10px;padding:2px 8px;cursor:pointer;opacity:0;transition:opacity .15s;z-index:3;white-space:nowrap;display:flex;align-items:center;gap:3px;pointer-events:none;}
+.bc-band:hover .bc-addphoto-btn{opacity:1;pointer-events:auto;}
+.bc-addphoto-btn:hover{background:rgba(0,0,0,.78);}
+/* Custom photo modal */
+.cpm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:9999;}
+.cpm-overlay.cpm-open{display:flex;}
+.cpm-box{background:#1e293b;border:1px solid rgba(255,255,255,.12);border-radius:12px;width:340px;max-width:calc(100vw - 32px);}
+.cpm-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 12px;border-bottom:1px solid rgba(255,255,255,.1);}
+.cpm-hdr-name{font-weight:600;font-size:14px;color:#e2e8f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cpm-x{background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;line-height:1;padding:0 2px;flex-shrink:0;}
+.cpm-x:hover{color:#fff;}
+.cpm-body{padding:16px;}
+.cpm-lbl{font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+.cpm-file,.cpm-url{width:100%;box-sizing:border-box;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:6px;color:#e2e8f0;font-size:13px;padding:8px 10px;}
+.cpm-file{cursor:pointer;}
+.cpm-url::placeholder{color:#475569;}
+.cpm-or{text-align:center;color:#475569;font-size:12px;margin:11px 0;position:relative;}
+.cpm-or::before,.cpm-or::after{content:'';position:absolute;top:50%;width:42%;height:1px;background:rgba(255,255,255,.1);}
+.cpm-or::before{left:0;}.cpm-or::after{right:0;}
+.cpm-preview{margin-top:12px;text-align:center;display:none;}
+.cpm-preview img{width:82px;height:82px;object-fit:cover;object-position:center top;border-radius:50%;border:2px solid rgba(255,255,255,.2);}
+.cpm-footer{display:flex;gap:8px;padding:0 16px 14px;}
+.cpm-btn{padding:9px 0;border-radius:7px;border:none;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .15s;}
+.cpm-btn:hover{opacity:.82;}
+.cpm-btn-save{flex:1;background:#3b82f6;color:#fff;}
+.cpm-btn-remove{background:rgba(239,68,68,.18);color:#f87171;border:1px solid rgba(239,68,68,.28);padding:9px 14px;}
+.cpm-btn-cancel{background:rgba(255,255,255,.07);color:#94a3b8;padding:9px 14px;}
 .bc-badge-corner { position:absolute; top:8px; right:8px; display:flex; flex-direction:column; gap:4px; align-items:flex-end; z-index:2; }
 .bc-nameplate { padding:10px 12px 8px; text-align:center; border-bottom:1px solid var(--border); }
 .bc-player-name { font-size:14px; font-weight:800; color:var(--navy); letter-spacing:-.01em; line-height:1.2; }
@@ -7667,6 +7695,7 @@ const NEWS_DATA = {
   },
   'Vahn Lackey': {
     category:'draft', isPitcher:false, positionDisplay:'C',
+    pgUrl:'https://ramblinwreck.com/imgproxy/Hm7EVroYWxWwYa2Q5pAxhBFIEelVosstsrDpg6vekuw/fit/2500/2500/ce/0/aHR0cHM6Ly9yYW1ibGlud3JlY2suY29tL3dwLWNvbnRlbnQvdXBsb2Fkcy8yMDI1LzExL1ZhaG4tTGFja2V5LUhTLTIwMjYuanBn.jpg',
     school:'Georgia Tech (ACC)', schoolYear:'Junior', draftClass:'2026 MLB Draft',
     watchList:false,
     actionBadge:'pick', actionText:'No. 3 Overall — Twins', sentiment:'Elite',
@@ -7751,6 +7780,7 @@ const NEWS_DATA = {
   },
   'Cameron Flukey': {
     category:'draft', isPitcher:true, positionDisplay:'SP',
+    pgUrl:'https://09d1d85a2275582e9dad-7b3e649a230e2ba2cff912d8af17e0b5.ssl.cf1.rackcdn.com/49598-10-Royal-26.jpg',
     school:'Coastal Carolina', draftClass:'2026 MLB Draft',
     actionBadge:'pick', actionText:'No. 22 Overall — Tigers', sentiment:'Rising',
     infoBoxes:[
@@ -7828,6 +7858,7 @@ const NEWS_DATA = {
   },
   'Brody Bumila': {
     category:'draft', isPitcher:true, positionDisplay:'LHP',
+    pgUrl:'https://09d1d85a2275582e9dad-7b3e649a230e2ba2cff912d8af17e0b5.ssl.cf1.rackcdn.com/71944-18-Northeast-18.jpg',
     school:'Bishop Feehan HS, Attleboro MA', draftClass:'2026 MLB Draft',
     actionBadge:'monitor', actionText:'No. 89 Overall — Rangers', sentiment:'Rising',
     infoBoxes:[
@@ -8095,6 +8126,7 @@ function buildNewsCard(player, nd, section) {
       ${logoHtml}
       <img class="bc-shot ncv2-shot" data-player="${safe}" data-ismilb="${isMiLBp?'1':'0'}" data-fantraxid="${escHtml(fantraxId)}" data-mlbid="${escHtml(knownMlbId)}" data-pgurl="${escHtml(pgUrl)}" src="${HEADSHOT_PLACEHOLDER}" loading="lazy">
       <div class="bc-badge-corner">${watchBadge}${actionBadge}</div>
+      <button class="bc-addphoto-btn" data-player="${safe}" onclick="openCPM(this.dataset.player)" title="Add custom photo"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> photo</button>
     </div>
     <div class="bc-nameplate">
       <div class="bc-player-name">${safe}</div>
@@ -8116,6 +8148,127 @@ function newsIsPitcherPos(pos) {
 // Tries each URL in sequence; on exhaustion falls through to Wikipedia then placeholder.
 // Fantrax CDN URLs are pre-checked in a hidden Image — if naturalWidth < MIN_REAL_WIDTH
 // it's a placeholder silhouette (HTTP 200 but not a real headshot) and we skip it.
+// ── Custom photo storage (localStorage) ──────────────────────────────────────
+const CP_KEY = n => 'ncv2cp_' + n;
+const getCP   = n => localStorage.getItem(CP_KEY(n)) || null;
+const setCP   = (n, url) => localStorage.setItem(CP_KEY(n), url);
+const delCP   = n => localStorage.removeItem(CP_KEY(n));
+
+function applyCP(playerName, url) {
+  document.querySelectorAll('.ncv2-shot').forEach(el => {
+    if (el.dataset.player !== playerName) return;
+    if (url) {
+      el.src = url;
+      el.classList.remove('bc-shot-rect');
+    } else {
+      el.src = HEADSHOT_PLACEHOLDER;
+    }
+    const btn = el.closest('.bc-band') && el.closest('.bc-band').querySelector('.bc-addphoto-btn');
+    if (btn) { btn.title = url ? 'Edit custom photo' : 'Add custom photo'; btn.classList.toggle('has-custom', !!url); }
+  });
+}
+
+// ── Custom photo modal ────────────────────────────────────────────────────────
+(function injectCPM() {
+  const el = document.createElement('div');
+  el.id = 'cpm';
+  el.className = 'cpm-overlay';
+  el.innerHTML = `
+    <div class="cpm-box">
+      <div class="cpm-header">
+        <div class="cpm-hdr-name" id="cpmName"></div>
+        <button class="cpm-x" onclick="closeCPM()">&#x2715;</button>
+      </div>
+      <div class="cpm-body">
+        <div class="cpm-lbl">Upload photo</div>
+        <input type="file" id="cpmFile" class="cpm-file" accept="image/*">
+        <div class="cpm-or">or</div>
+        <div class="cpm-lbl">Paste image URL</div>
+        <input type="text" id="cpmUrl" class="cpm-url" placeholder="https://…">
+        <div class="cpm-preview" id="cpmPreview"><img id="cpmPrevImg" src="" alt=""></div>
+      </div>
+      <div class="cpm-footer">
+        <button class="cpm-btn cpm-btn-save" onclick="saveCPM()">Save Photo</button>
+        <button class="cpm-btn cpm-btn-remove" id="cpmRemove" onclick="removeCPM()">Remove</button>
+        <button class="cpm-btn cpm-btn-cancel" onclick="closeCPM()">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  el.addEventListener('click', e => { if (e.target === el) closeCPM(); });
+  // Live preview on URL input
+  document.getElementById('cpmUrl').addEventListener('input', function() {
+    const v = this.value.trim();
+    const prev = document.getElementById('cpmPreview');
+    const img  = document.getElementById('cpmPrevImg');
+    if (v) { img.src = v; prev.style.display = ''; } else { prev.style.display = 'none'; }
+  });
+  // Live preview on file input
+  document.getElementById('cpmFile').addEventListener('change', function() {
+    const f = this.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = e => {
+      const prev = document.getElementById('cpmPreview');
+      document.getElementById('cpmPrevImg').src = e.target.result;
+      prev.style.display = '';
+    };
+    r.readAsDataURL(f);
+  });
+})();
+
+let _cpmPlayer = null;
+
+function openCPM(playerName) {
+  _cpmPlayer = playerName;
+  const existing = getCP(playerName);
+  document.getElementById('cpmName').textContent = playerName;
+  document.getElementById('cpmFile').value = '';
+  document.getElementById('cpmUrl').value = existing && !existing.startsWith('data:') ? existing : '';
+  document.getElementById('cpmRemove').style.display = existing ? '' : 'none';
+  const prev = document.getElementById('cpmPreview');
+  if (existing) { document.getElementById('cpmPrevImg').src = existing; prev.style.display = ''; }
+  else { prev.style.display = 'none'; }
+  document.getElementById('cpm').classList.add('cpm-open');
+}
+
+function closeCPM() {
+  document.getElementById('cpm').classList.remove('cpm-open');
+  _cpmPlayer = null;
+}
+
+function saveCPM() {
+  if (!_cpmPlayer) return;
+  const file = document.getElementById('cpmFile').files[0];
+  const url  = document.getElementById('cpmUrl').value.trim();
+  if (file) {
+    const r = new FileReader();
+    r.onload = e => { setCP(_cpmPlayer, e.target.result); applyCP(_cpmPlayer, e.target.result); closeCPM(); };
+    r.readAsDataURL(file);
+  } else if (url) {
+    setCP(_cpmPlayer, url); applyCP(_cpmPlayer, url); closeCPM();
+  }
+}
+
+function removeCPM() {
+  if (!_cpmPlayer) return;
+  const name = _cpmPlayer;
+  delCP(name);
+  closeCPM();
+  // Re-run waterfall for all cards with this player
+  document.querySelectorAll('.ncv2-shot').forEach(el => {
+    if (el.dataset.player !== name) return;
+    el.src = HEADSHOT_PLACEHOLDER;
+    el.classList.remove('bc-shot-rect');
+    const band = el.closest('.bc-band');
+    const btn = band && band.querySelector('.bc-addphoto-btn');
+    if (btn) { btn.title = 'Add custom photo'; btn.classList.remove('has-custom'); }
+    const card = el.closest('.ncv2-card');
+    const statsArea = card && card.querySelector('.news-stats-area');
+    if (statsArea) loadNewsCardStats(statsArea);
+    else fetchHeadshotOnly(el);
+  });
+}
+
 const FANTRAX_MIN_WIDTH = 100; // real Fantrax photos are ~400px; placeholders are smaller
 
 function tryHeadshotUrls(shotEl, urls, playerName) {
@@ -8184,6 +8337,10 @@ async function fetchHeadshotOnly(shotEl) {
   const pgUrl      = shotEl.dataset.pgurl || '';
   if (!playerName) return;
 
+  // Custom photo set by manager always wins
+  const custom = getCP(playerName);
+  if (custom) { shotEl.src = custom; return; }
+
   const withPg = urls => pgUrl ? [pgUrl, ...urls] : urls;
 
   // If we already know the MLB ID, skip the Stats API search
@@ -8237,6 +8394,11 @@ async function loadNewsCardStats(statsEl) {
   const isPit      = statsEl.dataset.ispitcher === '1';
   const card    = statsEl.closest('.ncv2-card');
   const shotEl  = card && card.querySelector('.ncv2-shot');
+
+  // Custom photo set by manager always wins — still load stats below
+  const customPhoto = shotEl ? getCP(playerName) : null;
+  if (customPhoto && shotEl) shotEl.src = customPhoto;
+
   const fantraxId  = shotEl ? (shotEl.dataset.fantraxid || '') : '';
   const cachedMlbId = shotEl ? (shotEl.dataset.mlbid || '') : '';
   console.log(`[headshot] ${playerName}: fantraxId="${fantraxId}" cachedMlbId="${cachedMlbId}"`);
@@ -8275,7 +8437,7 @@ async function loadNewsCardStats(statsEl) {
 
     if (!personId) {
       console.log(`[headshot] ${playerName}: no MLB ID found — falling back to Fantrax/Wikipedia`);
-      if (shotEl) {
+      if (shotEl && !customPhoto) {
         const urls = fantraxId ? [`https://fantraximg.com/si/headshots/MLB/${fantraxId}_400_4.png`] : [];
         if (urls.length) tryHeadshotUrls(shotEl, urls, playerName);
         else fetchWikipediaHeadshot(shotEl, playerName);
@@ -8285,7 +8447,7 @@ async function loadNewsCardStats(statsEl) {
     }
 
     // Single headshot call with known personId
-    if (shotEl) tryHeadshotUrls(shotEl, mlbHeadshotUrls(personId, fantraxId), playerName);
+    if (shotEl && !customPhoto) tryHeadshotUrls(shotEl, mlbHeadshotUrls(personId, fantraxId), playerName);
     const id = personId;
 
     // Parallel fetch across all sport levels — take the richest result
@@ -8525,6 +8687,9 @@ async function initNewsPage() {
   document.querySelectorAll('#page-news .ncv2-shot').forEach(shotEl => {
     const card = shotEl.closest('.ncv2-card');
     if (card && !card.querySelector('.news-stats-area')) fetchHeadshotOnly(shotEl);
+    // Mark button if a custom photo is already stored
+    const btn = card && card.querySelector('.bc-addphoto-btn');
+    if (btn && getCP(shotEl.dataset.player)) { btn.classList.add('has-custom'); btn.title = 'Edit custom photo'; }
   });
 }
 
