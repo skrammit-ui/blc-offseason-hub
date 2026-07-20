@@ -6186,8 +6186,10 @@ function r5Teams() {
 }
 
 function r5DraftOrderTeams() {
-  // Use standingsOrder (1st place = index 0) mapped through R5_DRAFT_ORDER_SEEDS
-  return R5_DRAFT_ORDER_SEEDS.map(seed => standingsOrder[seed - 1]).filter(Boolean);
+  // standingsOrder is set at script init when LEAGUE is still empty; fall back to
+  // Object.keys(LEAGUE) at call time so the board works before standings are entered.
+  const order = standingsOrder.length ? standingsOrder : Object.keys(LEAGUE);
+  return R5_DRAFT_ORDER_SEEDS.map(seed => order[seed - 1]).filter(Boolean);
 }
 
 function r5UnprotectedPlayers() {
