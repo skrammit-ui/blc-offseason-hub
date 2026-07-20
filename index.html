@@ -164,7 +164,10 @@ table.roster-tbl {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .roster-tbl tr:last-child td { border-bottom: none; }
-.roster-tbl tbody tr:hover td { background: var(--bg) !important; }
+.roster-tbl tbody tr:not([class*="keeper"]):hover td { background: var(--bg) !important; }
+.roster-tbl tbody tr:hover td            { box-shadow: 0 1px 0 rgba(0,0,0,0.18), 0 -1px 0 rgba(0,0,0,0.18); }
+.roster-tbl tbody tr:hover td:first-child { box-shadow: inset 2px 0 0 rgba(0,0,0,0.18), 0 1px 0 rgba(0,0,0,0.18), 0 -1px 0 rgba(0,0,0,0.18); }
+.roster-tbl tbody tr:hover td:last-child  { box-shadow: inset -2px 0 0 rgba(0,0,0,0.18), 0 1px 0 rgba(0,0,0,0.18), 0 -1px 0 rgba(0,0,0,0.18); }
 
 /* Column widths */
 .roster-tbl .col-status  { width: 70px; }
