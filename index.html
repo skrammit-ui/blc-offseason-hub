@@ -8168,9 +8168,10 @@ async function fetchWikipediaHeadshot(shotEl, playerName) {
 function mlbHeadshotUrls(id, fantraxId) {
   const urls = [];
   if (fantraxId) urls.push(`https://fantraximg.com/si/headshots/MLB/${fantraxId}_400_4.png`);
+  // milb/current first — confirmed reliable for MiLB players; midfield for draft/prospect-only profiles
   urls.push(
-    `https://midfield.mlbstatic.com/v1/people/${id}/spots/240?zoom=1.2`,
     `https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_360/v1/people/${id}/headshot/milb/current`,
+    `https://midfield.mlbstatic.com/v1/people/${id}/spots/240?zoom=1.2`,
     `https://img.mlbstatic.com/mlb-photos/image/upload/w_426,q_auto:best/v1/people/${id}/headshot/67/current`,
   );
   return urls;
