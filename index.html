@@ -774,6 +774,9 @@ input[type=file] { display: none; }
   /* Round header: full-width strip */
   .db-round-hdr { padding: 4px 8px !important; }
 
+  /* ── Rule 5 hover card ── */
+  #r5hc { display:none; }
+
   /* ── Rule 5 Draft: mobile layout ── */
   /* Stack board + pool vertically */
   .r5-layout { grid-template-columns: 1fr !important; }
@@ -1336,6 +1339,20 @@ input[type=file] { display: none; }
 .cpm-btn-save{flex:1;background:#3b82f6;color:#fff;}
 .cpm-btn-remove{background:rgba(239,68,68,.18);color:#f87171;border:1px solid rgba(239,68,68,.28);padding:9px 14px;}
 .cpm-btn-cancel{background:rgba(255,255,255,.07);color:#94a3b8;padding:9px 14px;}
+/* ── Rule 5 pool hover card ── */
+#r5hc{position:fixed;z-index:8500;width:270px;background:var(--bg);border:1px solid var(--border);border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.13);padding:14px;pointer-events:none;display:none;}
+#r5hc .r5hc-name{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#r5hc .r5hc-sub{font-size:11px;color:var(--text-3);margin-bottom:10px;}
+#r5hc .r5hc-pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+#r5hc .r5hc-pill{font-size:10px;font-weight:700;font-family:var(--mono);background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:2px 7px;color:var(--text);}
+#r5hc .r5hc-pill.gold{background:#fffbea;border-color:#f6c94a;color:#92650a;}
+#r5hc .r5hc-section-lbl{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);margin-bottom:5px;}
+#r5hc .r5hc-stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 8px;margin-bottom:10px;}
+#r5hc .r5hc-stat{text-align:center;}
+#r5hc .r5hc-stat-val{font-size:14px;font-weight:700;font-family:var(--mono);color:var(--navy);}
+#r5hc .r5hc-stat-lbl{font-size:9px;color:var(--text-3);font-weight:600;letter-spacing:.04em;text-transform:uppercase;}
+#r5hc .r5hc-analysis{font-size:11px;color:var(--text-3);line-height:1.45;font-style:italic;border-top:1px solid var(--border);padding-top:8px;margin-top:4px;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;}
+#r5hc .r5hc-empty{font-size:11px;color:var(--text-3);font-style:italic;}
 .bc-badge-corner { position:absolute; top:8px; right:8px; display:flex; flex-direction:column; gap:4px; align-items:flex-end; z-index:2; }
 .bc-nameplate { padding:10px 12px 8px; text-align:center; border-bottom:1px solid var(--border); }
 .bc-player-name { font-size:14px; font-weight:800; color:var(--navy); letter-spacing:-.01em; line-height:1.2; }
@@ -6501,10 +6518,17 @@ function r5RenderPool() {
   }
 
   poolEl.innerHTML = players.map(p => {
-    const safePlayer = p.player.replace(/'/g, "\'");
-    const safeTeam   = p.fromTeam.replace(/'/g, "\'");
+    const safePlayer = p.player.replace(/'/g, "\\'");
+    const safeTeam   = p.fromTeam.replace(/'/g, "\\'");
     const clickable  = canPick;
+    const hcData     = escHtml(JSON.stringify({
+      player: p.player, position: p.position, mlb_team: p.mlb_team,
+      fromTeam: p.fromTeam, salary: p.salary, contract: p.contract, age: p.age || ''
+    }));
     return `<div style="display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:5px;border:1px solid var(--border);background:var(--surface);${clickable ? 'cursor:pointer' : 'opacity:.5;cursor:not-allowed'};transition:background .1s"
+      data-hc="${hcData}"
+      onmouseenter="r5ShowHover(this)"
+      onmouseleave="r5HideHover()"
       ${clickable ? `onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='var(--surface)'"` : ''}
       ${clickable ? `onclick="r5SelectPlayer('${safePlayer}','${safeTeam}')"` : ''}>
       <div style="flex:1;min-width:0">
@@ -6514,6 +6538,152 @@ function r5RenderPool() {
       <span style="font-size:10px;font-family:var(--mono);color:var(--text-3);flex-shrink:0">Rd ${p.salary}</span>
     </div>`;
   }).join('');
+}
+
+// ── Rule 5 pool hover card ────────────────────────────────────────────────────
+(function() {
+  const el = document.createElement('div');
+  el.id = 'r5hc';
+  el.innerHTML = `
+    <div class="r5hc-name" id="r5hcName"></div>
+    <div class="r5hc-sub"  id="r5hcSub"></div>
+    <div class="r5hc-pills" id="r5hcPills"></div>
+    <div id="r5hcStats"></div>
+    <div class="r5hc-analysis" id="r5hcAnalysis" style="display:none"></div>`;
+  document.body.appendChild(el);
+})();
+
+const _r5hcCache = {}; // playerName → { hits: bool, isPit: bool, stats: {} }
+
+function r5ShowHover(el) {
+  const p = JSON.parse(el.dataset.hc);
+  const card = document.getElementById('r5hc');
+  if (!card) return;
+
+  // Position: prefer left of the pool panel; flip right if not enough space
+  const rect = el.getBoundingClientRect();
+  const W = 270;
+  let left = rect.left - W - 12;
+  if (left < 8) left = rect.right + 12;
+  let top = Math.min(rect.top, window.innerHeight - 340);
+  if (top < 8) top = 8;
+  card.style.left = left + 'px';
+  card.style.top  = top  + 'px';
+
+  document.getElementById('r5hcName').textContent = p.player;
+  document.getElementById('r5hcSub').textContent  =
+    fmtPos(p.position) + ' · ' + (p.mlb_team || '—') + ' · ' + p.fromTeam;
+
+  const pills = [
+    `<span class="r5hc-pill gold">Rd ${p.salary || '—'}</span>`,
+    p.contract ? `<span class="r5hc-pill">Exp ${p.contract}</span>` : '',
+    p.age      ? `<span class="r5hc-pill">Age ${p.age}</span>`      : '',
+  ].filter(Boolean).join('');
+  document.getElementById('r5hcPills').innerHTML = pills;
+
+  // NEWS_DATA analysis
+  const nd = getEffectiveNewsEntry(p.player);
+  const analysisEl = document.getElementById('r5hcAnalysis');
+  if (nd && nd.analysis) {
+    analysisEl.textContent = nd.analysis;
+    analysisEl.style.display = '';
+  } else {
+    analysisEl.style.display = 'none';
+  }
+
+  card.style.display = '';
+
+  // Stats
+  const statsEl = document.getElementById('r5hcStats');
+  if (_r5hcCache[p.player]) {
+    _r5hcRenderStats(statsEl, _r5hcCache[p.player], p);
+  } else {
+    statsEl.innerHTML = '<div class="r5hc-empty">Loading 2026 stats…</div>';
+    _r5hcFetch(p.player, p.position).then(result => {
+      _r5hcCache[p.player] = result;
+      if (document.getElementById('r5hcName')?.textContent === p.player) {
+        _r5hcRenderStats(statsEl, result, p);
+      }
+    });
+  }
+}
+
+function r5HideHover() {
+  const card = document.getElementById('r5hc');
+  if (card) card.style.display = 'none';
+}
+
+async function _r5hcFetch(playerName, position) {
+  const isPit = /^(SP|RP|P|LHP|RHP|CP)$/i.test(position || '');
+  // Resolve MLB ID via search
+  const search = async q => {
+    const r = await fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(q)}&sportIds=1,11,12,13,14,15,16`).then(x=>x.json()).catch(()=>null);
+    return r?.people?.[0] || null;
+  };
+  let person = await search(playerName);
+  if (!person) {
+    const last  = playerName.trim().split(' ').pop();
+    const first = playerName.trim().split(' ')[0].toLowerCase();
+    const r2 = await fetch(`https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(last)}&sportIds=1,11,12,13,14,15,16`).then(x=>x.json()).catch(()=>null);
+    person = r2?.people?.find(p => p.fullName?.toLowerCase().startsWith(first)) || null;
+  }
+  if (!person) return { found: false };
+
+  const grp  = isPit ? 'pitching' : 'hitting';
+  const base = `https://statsapi.mlb.com/api/v1/people/${person.id}/stats`;
+  const getGL = sid => fetch(`${base}?stats=gameLog&season=2026&group=${grp}&sportId=${sid}`).then(r=>r.json()).then(r=>(r?.stats||[]).flatMap(s=>s.splits||[])).catch(()=>[]);
+  const all = await Promise.all([1,11,12,13,14].map(getGL));
+  const games = all.reduce((best,curr) => curr.length > best.length ? curr : best, []);
+  if (!games.length) return { found: true, noStats: true, isPit };
+
+  // Aggregate
+  if (!isPit) {
+    let ab=0, h=0, hr=0, rbi=0, sb=0, bb=0, pa=0, tb=0;
+    games.forEach(g => {
+      const s = g.stat;
+      ab  += s.atBats        || 0;
+      h   += s.hits          || 0;
+      hr  += s.homeRuns      || 0;
+      rbi += s.rbi           || 0;
+      sb  += s.stolenBases   || 0;
+      bb  += s.baseOnBalls   || 0;
+      pa  += (s.plateAppearances || s.atBats || 0);
+      tb  += s.totalBases    || 0;
+    });
+    const avg  = ab  ? (h/ab).toFixed(3).replace(/^0/,'')         : '.---';
+    const obp  = pa  ? ((h+bb)/pa).toFixed(3).replace(/^0/,'')    : '.---';
+    const slg  = ab  ? (tb/ab).toFixed(3).replace(/^0/,'')        : '.---';
+    return { found:true, isPit:false, stats:{ AVG:avg, OBP:obp, SLG:slg, HR:hr, RBI:rbi, SB:sb } };
+  } else {
+    let ip=0, er=0, k=0, bb=0, h=0, w=0, l=0, gs=0;
+    games.forEach(g => {
+      const s = g.stat;
+      const raw = parseFloat(s.inningsPitched) || 0;
+      ip  += Math.floor(raw) + (raw % 1) * 10/3;
+      er  += s.earnedRuns    || 0;
+      k   += s.strikeOuts    || 0;
+      bb  += s.baseOnBalls   || 0;
+      h   += s.hits          || 0;
+      w   += s.wins          || 0;
+      l   += s.losses        || 0;
+      gs  += s.gamesStarted  || 0;
+    });
+    const era  = ip ? ((er*9)/ip).toFixed(2) : '—';
+    const whip = ip ? ((bb+h)/ip).toFixed(2) : '—';
+    const ipFmt = Math.floor(ip) + '.' + Math.round((ip%1)*3);
+    return { found:true, isPit:true, stats:{ ERA:era, WHIP:whip, K:k, IP:ipFmt, [`W-L`]:`${w}-${l}` } };
+  }
+}
+
+function _r5hcRenderStats(el, result, p) {
+  if (!result.found || result.noStats) {
+    el.innerHTML = `<div class="r5hc-section-lbl">2026 Stats</div><div class="r5hc-empty">${result.found ? 'No 2026 stats yet' : 'Not found in MLB database'}</div>`;
+    return;
+  }
+  const cells = Object.entries(result.stats).map(([lbl, val]) =>
+    `<div class="r5hc-stat"><div class="r5hc-stat-val">${val}</div><div class="r5hc-stat-lbl">${lbl}</div></div>`
+  ).join('');
+  el.innerHTML = `<div class="r5hc-section-lbl">2026 Actuals</div><div class="r5hc-stat-grid">${cells}</div>`;
 }
 
 function r5UpdateOrderBar() {
