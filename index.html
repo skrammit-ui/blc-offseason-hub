@@ -8112,23 +8112,40 @@ function newsIsPitcherPos(pos) {
 const FANTRAX_MIN_WIDTH = 100; // real Fantrax photos are ~400px; placeholders are smaller
 
 function tryHeadshotUrls(shotEl, urls, playerName) {
-  if (!urls.length) { fetchWikipediaHeadshot(shotEl, playerName); return; }
+  if (!urls.length) {
+    console.log(`[headshot] ${playerName}: all CDN URLs exhausted → Wikipedia`);
+    fetchWikipediaHeadshot(shotEl, playerName);
+    return;
+  }
   const [first, ...rest] = urls;
+  console.log(`[headshot] ${playerName}: trying ${first}`);
   if (first.includes('fantraximg.com')) {
-    // Pre-check: confirm it's a real photo before committing to the card
     const tester = new Image();
     tester.onload = function() {
       if (this.naturalWidth >= FANTRAX_MIN_WIDTH) {
+        console.log(`[headshot] ${playerName}: ✓ Fantrax (${this.naturalWidth}px)`);
         shotEl.onerror = () => tryHeadshotUrls(shotEl, rest, playerName);
-        shotEl.src = first; // browser uses cached copy — no re-download
+        shotEl.onload  = null;
+        shotEl.src = first;
       } else {
-        tryHeadshotUrls(shotEl, rest, playerName); // placeholder — skip
+        console.log(`[headshot] ${playerName}: ✗ Fantrax placeholder (${this.naturalWidth}px < ${FANTRAX_MIN_WIDTH}) → skip`);
+        tryHeadshotUrls(shotEl, rest, playerName);
       }
     };
-    tester.onerror = () => tryHeadshotUrls(shotEl, rest, playerName);
+    tester.onerror = () => {
+      console.log(`[headshot] ${playerName}: ✗ Fantrax 404/error`);
+      tryHeadshotUrls(shotEl, rest, playerName);
+    };
     tester.src = first;
   } else {
-    shotEl.onerror = () => tryHeadshotUrls(shotEl, rest, playerName);
+    shotEl.onerror = () => {
+      console.log(`[headshot] ${playerName}: ✗ ${first}`);
+      tryHeadshotUrls(shotEl, rest, playerName);
+    };
+    shotEl.onload = () => {
+      console.log(`[headshot] ${playerName}: ✓ ${first}`);
+      shotEl.onload = null;
+    };
     shotEl.src = first;
   }
 }
@@ -8206,45 +8223,46 @@ async function fetchHeadshotOnly(shotEl) {
 async function loadNewsCardStats(statsEl) {
   const playerName = statsEl.dataset.player;
   const isPit      = statsEl.dataset.ispitcher === '1';
+  const card    = statsEl.closest('.ncv2-card');
+  const shotEl  = card && card.querySelector('.ncv2-shot');
+  const fantraxId  = shotEl ? (shotEl.dataset.fantraxid || '') : '';
+  const cachedMlbId = shotEl ? (shotEl.dataset.mlbid || '') : '';
+  console.log(`[headshot] ${playerName}: fantraxId="${fantraxId}" cachedMlbId="${cachedMlbId}"`);
   try {
-    // Check if MLB ID is already known from career cache — skip Stats API search for headshot
-    const card0   = statsEl.closest('.ncv2-card');
-    const shotEl0 = card0 && card0.querySelector('.ncv2-shot');
-    const knownId0 = shotEl0 && shotEl0.dataset.mlbid;
-    if (knownId0) tryHeadshotUrls(shotEl0, mlbHeadshotUrls(knownId0, shotEl0.dataset.fantraxid || ''), playerName);
+    let personId = cachedMlbId; // use career-cache ID if available — skips Stats API search
 
-    const searchPerson = async query => {
-      const r = await fetch(
-        `https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(query)}&sportIds=1,11,12,13,14,15,16`
-      ).then(x=>x.json()).catch(()=>null);
-      return r && r.people && r.people[0];
-    };
-    let person = await searchPerson(playerName);
-    if (!person) {
-      const last  = playerName.trim().split(' ').pop();
-      const first = playerName.trim().split(' ')[0].toLowerCase();
-      const r2    = await fetch(
-        `https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(last)}&sportIds=1,11,12,13,14,15,16`
-      ).then(x=>x.json()).catch(()=>null);
-      person = r2 && r2.people && r2.people.find(p =>
-        p.fullName && p.fullName.toLowerCase().startsWith(first)
-      );
+    if (!personId) {
+      const searchPerson = async query => {
+        const r = await fetch(
+          `https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(query)}&sportIds=1,11,12,13,14,15,16`
+        ).then(x=>x.json()).catch(()=>null);
+        return r && r.people && r.people[0];
+      };
+      let person = await searchPerson(playerName);
+      if (!person) {
+        const last  = playerName.trim().split(' ').pop();
+        const first = playerName.trim().split(' ')[0].toLowerCase();
+        const r2    = await fetch(
+          `https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(last)}&sportIds=1,11,12,13,14,15,16`
+        ).then(x=>x.json()).catch(()=>null);
+        person = r2 && r2.people && r2.people.find(p =>
+          p.fullName && p.fullName.toLowerCase().startsWith(first)
+        );
+      }
+      if (!person) {
+        const r3 = await fetch(
+          `https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(playerName)}`
+        ).then(x=>x.json()).catch(()=>null);
+        person = r3 && r3.people && r3.people[0];
+      }
+      if (person) {
+        personId = String(person.id);
+        console.log(`[headshot] ${playerName}: found via Stats API → id=${personId}`);
+      }
     }
-    // Third attempt: broader search with no sportId filter (catches DSL, intl leagues, etc.)
-    if (!person) {
-      const r3 = await fetch(
-        `https://statsapi.mlb.com/api/v1/people/search?names=${encodeURIComponent(playerName)}`
-      ).then(x=>x.json()).catch(()=>null);
-      person = r3 && r3.people && r3.people[0];
-    }
 
-    // Update headshot
-    const card      = statsEl.closest('.ncv2-card');
-    const shotEl    = card && card.querySelector('.ncv2-shot');
-    const fantraxId = shotEl ? (shotEl.dataset.fantraxid || '') : '';
-
-    if (!person) {
-      // Person not in MLB API — still try headshot via Fantrax CDN then Wikipedia
+    if (!personId) {
+      console.log(`[headshot] ${playerName}: no MLB ID found — falling back to Fantrax/Wikipedia`);
       if (shotEl) {
         const urls = fantraxId ? [`https://fantraximg.com/si/headshots/MLB/${fantraxId}_400_4.png`] : [];
         if (urls.length) tryHeadshotUrls(shotEl, urls, playerName);
@@ -8253,8 +8271,10 @@ async function loadNewsCardStats(statsEl) {
       statsEl.innerHTML = '<div class="news-empty">Stats unavailable</div>';
       return;
     }
-    const id = person.id;
-    if (shotEl) tryHeadshotUrls(shotEl, mlbHeadshotUrls(id, fantraxId), playerName);
+
+    // Single headshot call with known personId
+    if (shotEl) tryHeadshotUrls(shotEl, mlbHeadshotUrls(personId, fantraxId), playerName);
+    const id = personId;
 
     // Parallel fetch across all sport levels — take the richest result
     const base = `https://statsapi.mlb.com/api/v1/people/${id}/stats`;
