@@ -5832,8 +5832,8 @@ function buildDraftBoard() {
           rows.push({ rd, pk, type: 'keeper', ...keeper, team: assignedTeam });
         } else if (drafted) {
           const existingP = (LEAGUE[drafted.manager] || []).find(x => x.player === drafted.player);
-          const sal = existingP ? (existingP.salary || String(rd)) : String(rd);
-          const con = (existingP && existingP.contract) ? existingP.contract : String(DRAFT_YEAR + 3);
+          const sal = (existingP && existingP.salary) ? existingP.salary : (drafted.salary || String(rd));
+          const con = (existingP && existingP.contract) ? existingP.contract : (drafted.contract || '');
           rows.push({ rd, pk, type: 'draft', ...drafted, team: drafted.manager, sal, contract: con, status: existingP ? (existingP.status || '') : '' });
         } else {
           rows.push({ rd, pk, type: 'open', team: assignedTeam });
