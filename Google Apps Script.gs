@@ -150,6 +150,8 @@ function doPost(e) {
         return corsResponse(refreshFantraxDraftPicks(ss));
       case 'debugDraftPicks':
         return corsResponse(debugDraftPicksData());
+      case 'debugDraftResults':
+        return corsResponse(debugDraftResultsData());
       case 'refreshFantrax':
         return corsResponse(refreshFantrax(ss, payload.targets || ['standings','rosters','draft']));
       case 'testFantraxConnection':
@@ -2266,6 +2268,28 @@ function debugDraftPicksData() {
   const picks = [].concat(data.futureDraftPicks || [], data.currentDraftPicks || [],
                            data.picks || [], data.draftPicks || []);
   return { ok: true, topLevelKeys: Object.keys(data), total: picks.length, sample: picks.slice(0, 3) };
+}
+
+function debugDraftResultsData() {
+  try {
+    const data = fetchFantrax('getDraftResults');
+    const topLevelKeys = Object.keys(data);
+    // Try every plausible key to find the picks array
+    const picks = data.draftResults || (data.data && data.data.draftResults) || data.picks || data.results || [];
+    return {
+      ok: true,
+      topLevelKeys,
+      picksFound: Array.isArray(picks) ? picks.length : typeof picks,
+      sample: Array.isArray(picks) ? picks.slice(0, 3) : picks,
+      rawSample: topLevelKeys.slice(0, 6).reduce(function(o, k) {
+        const v = data[k];
+        o[k] = Array.isArray(v) ? v.slice(0, 2) : (typeof v === 'object' && v ? { _keys: Object.keys(v).slice(0, 5) } : v);
+        return o;
+      }, {})
+    };
+  } catch(e) {
+    return { ok: false, error: e.message };
+  }
 }
 
 // ── Debug: return raw Fantrax API response ────────────────────────────────────
