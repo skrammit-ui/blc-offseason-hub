@@ -2196,6 +2196,38 @@ function refreshFantraxDraft(ss) {
   return { ok: true, updated, added, skipped };
 }
 
+// Run from Apps Script editor — checks whether playerId keys resolve via getLeagueInfo
+function debugDraftResolution() {
+  const draftData  = fetchFantrax('getDraftResults');
+  const picks      = draftData.draftPicks || [];
+  Logger.log('Total picks: ' + picks.length);
+
+  const sample = picks[0];
+  Logger.log('Sample pick: ' + JSON.stringify(sample));
+
+  const leagueInfo = fetchFantrax('getLeagueInfo');
+  const playerInfo = (leagueInfo && leagueInfo.playerInfo) || {};
+  const pInfoKeys  = Object.keys(playerInfo);
+  Logger.log('playerInfo entries: ' + pInfoKeys.length);
+  Logger.log('playerInfo sample keys: ' + JSON.stringify(pInfoKeys.slice(0, 5)));
+  if (pInfoKeys.length > 0) {
+    Logger.log('playerInfo sample entry: ' + JSON.stringify(playerInfo[pInfoKeys[0]]));
+  }
+
+  if (sample) {
+    const pid = String(sample.playerId || '').trim();
+    Logger.log('Looking up playerId "' + pid + '": ' + JSON.stringify(playerInfo[pid] || 'NOT FOUND'));
+    // Also try the first 3 draft pick IDs
+    picks.slice(0, 3).forEach(function(p) {
+      const id = String(p.playerId || '').trim();
+      Logger.log('  ' + id + ' → ' + JSON.stringify(playerInfo[id] || 'NOT FOUND'));
+    });
+  }
+
+  // Also check what getLeagueInfo top-level keys look like
+  Logger.log('getLeagueInfo top-level keys: ' + JSON.stringify(Object.keys(leagueInfo).slice(0, 10)));
+}
+
 // Run from Apps Script editor to test the import without touching the sheet
 function testDraftResultsImport() {
   const ss = SpreadsheetApp.openById(SHEET_ID);
