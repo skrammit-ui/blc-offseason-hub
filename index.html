@@ -6666,19 +6666,8 @@ function r5ShowHover(el) {
   const pills = [
     `<span class="r5hc-pill gold">Rd ${p.salary || '—'}</span>`,
     p.contract ? `<span class="r5hc-pill">Exp ${p.contract}</span>` : '',
-    p.age      ? `<span class="r5hc-pill">Age ${p.age}</span>`      : '',
   ].filter(Boolean).join('');
   document.getElementById('r5hcPills').innerHTML = pills;
-
-  // NEWS_DATA analysis
-  const nd = getEffectiveNewsEntry(p.player);
-  const analysisEl = document.getElementById('r5hcAnalysis');
-  if (nd && nd.analysis) {
-    analysisEl.textContent = nd.analysis;
-    analysisEl.style.display = '';
-  } else {
-    analysisEl.style.display = 'none';
-  }
 
   card.style.display = 'block';
 
