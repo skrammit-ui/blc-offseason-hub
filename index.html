@@ -1354,7 +1354,7 @@ input[type=file] { display: none; }
 #r5hc .r5hc-analysis{font-size:11px;color:var(--text-3);line-height:1.45;font-style:italic;border-top:1px solid var(--border);padding-top:8px;margin-top:4px;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;}
 #r5hc .r5hc-empty{font-size:11px;color:var(--text-3);font-style:italic;}
 .bc-badge-corner { position:absolute; top:8px; right:8px; display:flex; flex-direction:column; gap:4px; align-items:flex-end; z-index:2; }
-.bc-sal-con-row { display:flex; gap:4px; align-items:center; justify-content:center; margin-top:5px; }
+.bc-sal-con-row { display:flex; gap:3px; align-items:center; justify-content:flex-end; }
 .roster-team-select { font-size:12px; padding:3px 20px 3px 8px; border-radius:6px; border:1px solid var(--border); background:var(--bg); color:var(--text); cursor:pointer; appearance:auto; max-width:200px; }
 .bc-nameplate { padding:10px 12px 8px; text-align:center; border-bottom:1px solid var(--border); }
 .bc-player-name { font-size:14px; font-weight:800; color:var(--navy); letter-spacing:-.01em; line-height:1.2; }
@@ -8414,13 +8414,12 @@ function buildNewsCard(player, nd, section) {
     <div class="bc-band bc-band-${section}">
       ${logoHtml}
       <img class="bc-shot ncv2-shot" data-player="${safe}" data-ismilb="${isMiLBp?'1':'0'}" data-fantraxid="${escHtml(fantraxId)}" data-mlbid="${escHtml(knownMlbId)}" data-pgurl="${escHtml(pgUrl)}" src="${HEADSHOT_PLACEHOLDER}" loading="lazy">
-      <div class="bc-badge-corner">${watchBadge}${actionBadge}</div>
+      <div class="bc-badge-corner">${watchBadge}${actionBadge}${salConHtml}</div>
       <button class="bc-addphoto-btn" data-player="${safe}" onclick="openCPM(this.dataset.player)" title="Add custom photo"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> photo</button>
     </div>
     <div class="bc-nameplate">
       <div class="bc-player-name">${safe}</div>
       <div class="bc-player-sub">${sub}</div>
-      ${salConHtml}
       ${draftSlot}
     </div>
     ${apiHtml}${promoHtml}${analysisHtml}
