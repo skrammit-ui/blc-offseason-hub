@@ -5691,7 +5691,7 @@ function buildDraftBoard() {
       if (!p) continue;
       const sal = parseInt(p.salary);
       if (!sal || sal > 30) continue;
-      keepers.push({ player: playerName, mlb_team: p.mlb_team, position: p.position, manager: team, contract: p.contract, sal });
+      keepers.push({ player: playerName, mlb_team: p.mlb_team, position: p.position, manager: team, contract: p.contract, sal, status: p.status || '' });
     }
     if (hasPickOrder) {
       // Build this team's picks per round, sorted ascending by pick number
@@ -5834,7 +5834,7 @@ function buildDraftBoard() {
           const existingP = (LEAGUE[drafted.manager] || []).find(x => x.player === drafted.player);
           const sal = existingP ? existingP.salary : String(rd);
           const con = existingP ? existingP.contract : '';
-          rows.push({ rd, pk, type: 'draft', ...drafted, team: drafted.manager, sal, contract: con });
+          rows.push({ rd, pk, type: 'draft', ...drafted, team: drafted.manager, sal, contract: con, status: existingP ? (existingP.status || '') : '' });
         } else {
           rows.push({ rd, pk, type: 'open', team: assignedTeam });
         }
@@ -5847,7 +5847,7 @@ function buildDraftBoard() {
         const sal = existingP ? existingP.salary : String(rd);
         const con = existingP ? existingP.contract : '';
         const isKeeper = keepersThisRound.some(k => k.player === d.player && k.manager === d.manager);
-        rows.push({ rd, pk: d.pick||'—', type: isKeeper ? 'keeper' : 'draft', ...d, team: d.manager, sal, contract: con });
+        rows.push({ rd, pk: d.pick||'—', type: isKeeper ? 'keeper' : 'draft', ...d, team: d.manager, sal, contract: con, status: existingP ? (existingP.status || '') : '' });
       });
     }
 
@@ -5889,13 +5889,23 @@ function buildDraftBoard() {
         managerCell = `<td class="db-mgr" style="padding:4px 10px;font-size:11px;font-weight:500;color:var(--text-2);border-bottom:1px solid var(--border);white-space:nowrap">${row.manager || row.team || '—'}</td>`;
       }
 
-      // Player cell: name + mlb team + position (+ SAL/CON shown on mobile only)
+      // Player cell: single line — name · pos · MiLB/MLB badge · mlb_team
+      const _st = row.status || '';
+      const statusBadge = _st === 'Minors'
+        ? `<span style="font-size:9px;background:var(--blue-lt);color:var(--blue);border:1px solid #b5d4f4;border-radius:3px;padding:1px 4px;font-family:var(--mono);font-weight:600">MiLB</span>`
+        : _st === 'Active'
+        ? `<span style="font-size:9px;background:var(--green-lt);color:var(--green);border:1px solid #a8d5bc;border-radius:3px;padding:1px 4px;font-family:var(--mono);font-weight:600">MLB</span>`
+        : '';
       const playerCell = isOpen
         ? `<td class="db-player" style="padding:4px 10px;font-size:11px;color:var(--text-3);font-style:italic;border-bottom:1px solid var(--border)">Open pick</td>`
         : `<td class="db-player" style="padding:4px 10px;border-bottom:1px solid var(--border)">
-            <span style="font-size:12px;font-weight:600;color:var(--text)">${row.player || '—'}</span>
-            ${isKeeper ? `<span style="font-size:9px;background:var(--green-lt);color:var(--green);border:1px solid #a8d5bc;border-radius:3px;padding:1px 4px;margin-left:4px;font-family:var(--mono);font-weight:600">K</span>` : ''}
-            <div style="font-size:11px;color:var(--text-3);margin-top:1px">${row.mlb_team||''} &middot; ${fmtPos(row.position||'')}${sal ? ` &middot; Rd&nbsp;${sal}` : ''}${row.contract ? ` &middot; ${row.contract}` : ''}</div>
+            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+              <span style="font-size:12px;font-weight:600;color:var(--text)">${row.player || '—'}</span>
+              ${isKeeper ? `<span style="font-size:9px;background:var(--green-lt);color:var(--green);border:1px solid #a8d5bc;border-radius:3px;padding:1px 4px;font-family:var(--mono);font-weight:600">K</span>` : ''}
+              ${statusBadge}
+              <span style="font-size:11px;color:var(--text-3)">${fmtPos(row.position||'')}</span>
+              ${row.mlb_team ? `<span style="font-size:11px;color:var(--text-3)">&middot; ${escHtml(row.mlb_team)}</span>` : ''}
+            </div>
            </td>`;
 
       const pkNum = parseInt(row.pk);
@@ -7372,7 +7382,7 @@ function pcComputeKeeperData() {
       if (!p) continue;
       const sal = parseInt(p.salary);
       if (!sal || sal > 30) continue;
-      keepers.push({ player: playerName, mlb_team: p.mlb_team, position: p.position, manager: team, contract: p.contract, sal });
+      keepers.push({ player: playerName, mlb_team: p.mlb_team, position: p.position, manager: team, contract: p.contract, sal, status: p.status || '' });
     }
 
     const teamPicksByRd = {};
