@@ -215,6 +215,7 @@ tr.row-expired td { background: #fdf2f1 !important; }
 .ctag-ok    { background: var(--green-lt);  color: var(--green);  border: 1px solid #a8d5bc; }
 .ctag-teal  { background: #e0f7f4;          color: #00796b;       border: 1px solid #80cbc4; }
 .ctag-na    { background: var(--bg);        color: var(--text-3); border: 1px solid var(--border); }
+.ctag-2050  { background: #f3e8ff;          color: #7e22ce;       border: 1px solid #d8b4fe; }
 
 /* Draft sub-pick rows (A/B/C within a round) */
 .draft-subpick {
@@ -8408,7 +8409,7 @@ function buildNewsCard(player, nd, section) {
 
   // SAL / CON tiles — always shown; contract shows raw value (2050 is not masked to —)
   const _con = (player && player.contract) || '2050';
-  const _conCls = _con === '2026' ? 'ctag-exp' : _con === '2027' ? 'ctag-2027' : _con === '2028' ? 'ctag-2028' : _con === '2029' ? 'ctag-ok' : _con === String(new Date().getFullYear()+4) ? 'ctag-teal' : 'ctag-na';
+  const _conCls = _con === '2050' ? 'ctag-2050' : _con === '2026' ? 'ctag-exp' : _con === '2027' ? 'ctag-2027' : _con === '2028' ? 'ctag-2028' : _con === '2029' ? 'ctag-ok' : _con === String(new Date().getFullYear()+4) ? 'ctag-teal' : 'ctag-na';
   const salConHtml = `<div class="bc-sal-con-row">${rdTile(player && player.salary || '')}<span class="ctag ${_conCls}">${escHtml(_con)}</span></div>`;
 
   // ── Baseball card layout ──────────────────────────────────────────────────
