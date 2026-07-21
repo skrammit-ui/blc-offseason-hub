@@ -5816,6 +5816,23 @@ function buildDraftBoard() {
     cumPicks += picksPerRound[r] || (hasPickOrder ? 0 : teams.length);
   }
 
+  // Global player lookup — searches all teams, normalises -H/-P suffix from Fantrax names
+  const _globalPMap = {};
+  for (const roster of Object.values(LEAGUE)) {
+    for (const p of roster) {
+      if (!p.player) continue;
+      _globalPMap[p.player.toLowerCase()] = p;
+      const clean = p.player.replace(/-[HP]$/i, '').trim();
+      if (clean !== p.player) _globalPMap[clean.toLowerCase()] = p;
+    }
+  }
+  const _findPlayer = name => {
+    if (!name) return null;
+    return _globalPMap[name.toLowerCase()]
+        || _globalPMap[name.replace(/-[HP]$/i, '').trim().toLowerCase()]
+        || null;
+  };
+
   let html = '';
 
   for (let rd = 1; rd <= 30; rd++) {
@@ -5831,7 +5848,7 @@ function buildDraftBoard() {
         if (keeper) {
           rows.push({ rd, pk, type: 'keeper', ...keeper, team: assignedTeam });
         } else if (drafted) {
-          const existingP = (LEAGUE[drafted.manager] || []).find(x => x.player === drafted.player);
+          const existingP = _findPlayer(drafted.player);
           const sal = (existingP && existingP.salary) ? existingP.salary : (drafted.salary || String(rd));
           const con = (existingP && existingP.contract) ? existingP.contract : (drafted.contract || '');
           rows.push({ rd, pk, type: 'draft', ...drafted, team: drafted.manager, sal, contract: con, status: existingP ? (existingP.status || '') : '' });
@@ -5843,9 +5860,9 @@ function buildDraftBoard() {
       // No pick order — show all picks for this round from draftResults, sorted by pick number
       const picksThisRound = (draftByRound[String(rd)] || []).slice().sort((a,b) => parseInt(a.pick)-parseInt(b.pick));
       picksThisRound.forEach(d => {
-        const existingP = (LEAGUE[d.manager] || []).find(x => x.player === d.player);
-        const sal = existingP ? existingP.salary : String(rd);
-        const con = existingP ? existingP.contract : '';
+        const existingP = _findPlayer(d.player);
+        const sal = (existingP && existingP.salary) ? existingP.salary : (d.salary || String(rd));
+        const con = (existingP && existingP.contract) ? existingP.contract : (d.contract || '');
         const isKeeper = keepersThisRound.some(k => k.player === d.player && k.manager === d.manager);
         rows.push({ rd, pk: d.pick||'—', type: isKeeper ? 'keeper' : 'draft', ...d, team: d.manager, sal, contract: con, status: existingP ? (existingP.status || '') : '' });
       });
