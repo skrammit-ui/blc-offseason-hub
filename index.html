@@ -2243,8 +2243,9 @@ input[type=file] { display: none; }
     <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
       <div id="commish-draft-controls" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <button class="btn btn-secondary" style="font-size:11px;padding:5px 10px;background:#22a366;border-color:#22a366;color:#fff" onclick="doRefreshDraftPicks()">⚡ Sync Pick Order</button>
+        <button class="btn btn-secondary" style="font-size:11px;padding:5px 10px;background:#1a6fba;border-color:#1a6fba;color:#fff" onclick="doSyncDraftResults()">&#x1F4E5; Sync Draft Results</button>
         <span id="draft-picks-status" style="font-size:11px;color:var(--text-3)"></span>
-        <span class="draft-upload-hint" style="font-size:11px;color:var(--text-3)">Post-draft: upload results CSV</span>
+        <span class="draft-upload-hint" style="font-size:11px;color:var(--text-3)">Or upload results CSV</span>
         <button class="btn btn-secondary" style="font-size:11px;padding:5px 10px" onclick="document.getElementById('draft-results-file').click()">&#x1F4C2; Upload Draft CSV</button>
         <input type="file" id="draft-results-file" accept=".csv" style="display:none" onchange="handleDraftResultsUpload(event)">
         <button class="btn btn-danger" style="font-size:11px;padding:5px 10px" onclick="confirmResetToKeepers()">&#x21BA; Reset to Keepers</button>
@@ -7486,6 +7487,26 @@ async function doRefreshDraftPicks() {
     if (el) { el.textContent = msg; el.style.color = res.total > 0 ? '#22a366' : '#e06c00'; }
     if (res.unresolved && res.unresolved.length) console.warn('Unresolved team names:', res.unresolved);
     if ((res.updated || 0) + (res.added || 0) > 0) setTimeout(() => location.reload(), 1500);
+  } catch(e) {
+    if (el) { el.textContent = '⚠ ' + e.message; el.style.color = '#c0392b'; }
+  }
+}
+
+async function doSyncDraftResults() {
+  const el = document.getElementById('draft-picks-status');
+  if (el) { el.textContent = '⏳ Pulling draft results from Fantrax…'; el.style.color = 'var(--text-3)'; }
+  try {
+    const res = await remotePost({ action: 'refreshFantrax', targets: ['draft', 'draftPicks'] });
+    if (!res.ok) throw new Error(res.error || 'Unknown error');
+    const dr = res.results?.draft;
+    const dp = res.results?.draftPicks;
+    const added   = (dr?.added   || 0) + (dp?.added   || 0);
+    const updated = (dr?.updated || 0) + (dp?.updated || 0);
+    const msg = (dr?.ok === false || dp?.ok === false)
+      ? '⚠ ' + (dr?.error || dp?.error || 'Partial error')
+      : `✓ ${added} added · ${updated} updated`;
+    if (el) { el.textContent = msg; el.style.color = (dr?.ok !== false && dp?.ok !== false) ? '#22a366' : '#e06c00'; }
+    if (added + updated > 0) setTimeout(() => location.reload(), 1500);
   } catch(e) {
     if (el) { el.textContent = '⚠ ' + e.message; el.style.color = '#c0392b'; }
   }
