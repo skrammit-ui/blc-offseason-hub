@@ -8406,8 +8406,10 @@ function buildNewsCard(player, nd, section) {
     ? `<div class="ncv2-api-stats news-stats-area" data-player="${safe}" data-ispitcher="${pit?'1':'0'}"><div class="news-empty">Loading 2026 stats…</div></div>`
     : '';
 
-  // SAL / CON tiles — always shown, use same rdTile/conTag functions as Team Roster
-  const salConHtml = `<div class="bc-sal-con-row">${rdTile(player && player.salary || '')}${conTag(player && player.contract || '')}</div>`;
+  // SAL / CON tiles — always shown; contract shows raw value (2050 is not masked to —)
+  const _con = (player && player.contract) || '2050';
+  const _conCls = _con === '2026' ? 'ctag-exp' : _con === '2027' ? 'ctag-2027' : _con === '2028' ? 'ctag-2028' : _con === '2029' ? 'ctag-ok' : _con === String(new Date().getFullYear()+4) ? 'ctag-teal' : 'ctag-na';
+  const salConHtml = `<div class="bc-sal-con-row">${rdTile(player && player.salary || '')}<span class="ctag ${_conCls}">${escHtml(_con)}</span></div>`;
 
   // ── Baseball card layout ──────────────────────────────────────────────────
   return `<div class="ncv2-card ncv2-card-${section}">
