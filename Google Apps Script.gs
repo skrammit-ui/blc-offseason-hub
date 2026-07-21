@@ -2132,18 +2132,28 @@ function refreshFantraxDraft(ss) {
     };
   });
 
-  // Resolve teamId → ownerKey via getTeamRosters
+  // Resolve teamId → ownerKey and playerId → { salary, contract } via getTeamRosters.
+  // roster item.id matches playerId format from getDraftResults.
   const ownerMap = getOwnerMap(ss);
   const nameToKey = {};
   Object.entries(ownerMap).forEach(function(kv) { nameToKey[kv[1].toLowerCase()] = kv[0]; });
   Object.entries(FANTRAX_TEAM_ALIASES).forEach(function(kv) { nameToKey[kv[0]] = kv[1]; });
   const rostersData = fetchFantrax('getTeamRosters');
   const rostersObj  = rostersData.rosters || {};
-  const teamIdToKey = {};
+  const teamIdToKey  = {};
+  const playerSalCon = {};
   Object.entries(rostersObj).forEach(function(kv) {
     const tname = String(kv[1].teamName || '').trim().toLowerCase();
     const key = nameToKey[tname];
     if (key) teamIdToKey[kv[0]] = key;
+    (kv[1].rosterItems || []).forEach(function(item) {
+      const pid = String(item.id || '').trim();
+      if (!pid) return;
+      playerSalCon[pid] = {
+        salary:   item.salary != null ? String(item.salary) : '',
+        contract: item.contract ? String(item.contract.name || '') : ''
+      };
+    });
   });
 
   const sheet = ss.getSheetByName('Picks') || ss.insertSheet('Picks');
@@ -2156,12 +2166,14 @@ function refreshFantraxDraft(ss) {
   const sheetData   = sheet.getDataRange().getValues();
   const headers     = sheetData[0];
   const existingRows = sheetData.slice(1);
-  const roundIdx  = headers.indexOf('round');
-  const pickIdx   = headers.indexOf('pick');
-  const teamIdx   = headers.indexOf('team');
-  const playerIdx = headers.indexOf('player');
-  const mlbIdx    = headers.indexOf('mlb_team');
-  const posIdx    = headers.indexOf('position');
+  const roundIdx    = headers.indexOf('round');
+  const pickIdx     = headers.indexOf('pick');
+  const teamIdx     = headers.indexOf('team');
+  const playerIdx   = headers.indexOf('player');
+  const mlbIdx      = headers.indexOf('mlb_team');
+  const posIdx      = headers.indexOf('position');
+  const salaryIdx   = headers.indexOf('salary');
+  const contractIdx = headers.indexOf('contract');
 
   // round|pickInRound → sheet row number (1-indexed)
   const existing = {};
@@ -2178,33 +2190,37 @@ function refreshFantraxDraft(ss) {
     const playerId = String(p.playerId     || '').trim();
     if (!round || !pick || !playerId) { skipped++; return; }
 
-    const pRoster  = playerById[playerId]  || {};
-    const pLeague  = leaguePInfo[playerId] || {};
-    const player   = pRoster.name    || '';
-    const mlbTeam  = pRoster.proTeam || '';
-    const pos      = String(pLeague.eligiblePos || '').trim();
+    const pInfo    = playerById[playerId]   || {};
+    const pLeague  = leaguePInfo[playerId]  || {};
+    const pSalCon  = playerSalCon[playerId] || {};
+    const player   = pInfo.name     || '';
+    const mlbTeam  = pInfo.mlb_team || '';
+    const pos      = pInfo.position || String(pLeague.eligiblePos || '').trim();
     const ownerKey = teamIdToKey[teamId] || '';
+    const salary   = pSalCon.salary   || round;
+    const contract = pSalCon.contract || '';
     if (!player) { skipped++; return; }
 
     const lookupKey = round + '|' + pick;
     if (existing[lookupKey]) {
       const rowNum = existing[lookupKey];
-      if (teamIdx   >= 0 && ownerKey) sheet.getRange(rowNum, teamIdx   + 1).setValue(ownerKey);
-      if (playerIdx >= 0 && player)   sheet.getRange(rowNum, playerIdx + 1).setValue(player);
-      if (mlbIdx    >= 0 && mlbTeam)  sheet.getRange(rowNum, mlbIdx    + 1).setValue(mlbTeam);
-      if (posIdx    >= 0 && pos)      sheet.getRange(rowNum, posIdx    + 1).setValue(pos);
+      if (teamIdx     >= 0 && ownerKey) sheet.getRange(rowNum, teamIdx     + 1).setValue(ownerKey);
+      if (playerIdx   >= 0 && player)   sheet.getRange(rowNum, playerIdx   + 1).setValue(player);
+      if (mlbIdx      >= 0 && mlbTeam)  sheet.getRange(rowNum, mlbIdx      + 1).setValue(mlbTeam);
+      if (posIdx      >= 0 && pos)      sheet.getRange(rowNum, posIdx      + 1).setValue(pos);
+      if (salaryIdx   >= 0 && salary)   sheet.getRange(rowNum, salaryIdx   + 1).setValue(salary);
+      if (contractIdx >= 0 && contract) sheet.getRange(rowNum, contractIdx + 1).setValue(contract);
       updated++;
     } else {
-      const draftYear = new Date().getFullYear();
-      const newRow = headers.map(function(h) {
+      const newRow = headers.map(function(h) { // salary/contract from Fantrax roster data
         if (h === 'round')    return round;
         if (h === 'pick')     return pick;
         if (h === 'team')     return ownerKey;
         if (h === 'player')   return player;
         if (h === 'mlb_team') return mlbTeam;
         if (h === 'position') return pos;
-        if (h === 'salary')   return round;
-        if (h === 'contract') return String(draftYear + 3);
+        if (h === 'salary')   return salary;
+        if (h === 'contract') return contract;
         return '';
       });
       sheet.appendRow(newRow);
