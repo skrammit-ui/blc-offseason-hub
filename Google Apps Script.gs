@@ -2195,6 +2195,7 @@ function refreshFantraxDraft(ss) {
       if (posIdx    >= 0 && pos)      sheet.getRange(rowNum, posIdx    + 1).setValue(pos);
       updated++;
     } else {
+      const draftYear = new Date().getFullYear();
       const newRow = headers.map(function(h) {
         if (h === 'round')    return round;
         if (h === 'pick')     return pick;
@@ -2202,6 +2203,8 @@ function refreshFantraxDraft(ss) {
         if (h === 'player')   return player;
         if (h === 'mlb_team') return mlbTeam;
         if (h === 'position') return pos;
+        if (h === 'salary')   return round;
+        if (h === 'contract') return String(draftYear + 3);
         return '';
       });
       sheet.appendRow(newRow);
