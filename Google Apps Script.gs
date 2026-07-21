@@ -2207,6 +2207,28 @@ function refreshFantraxDraft(ss) {
   return { ok: true, updated, added, skipped };
 }
 
+// Run from Apps Script editor — finds playerId "06alt" in getTeamRosters and dumps all its fields
+function debugRosterItem() {
+  const TARGET_ID = '06alt';
+  const data = fetchFantrax('getTeamRosters');
+  const rostersObj = data.rosters || {};
+  let found = null;
+  Object.entries(rostersObj).forEach(function(kv) {
+    (kv[1].rosterItems || []).forEach(function(item) {
+      if (String(item.id || '').trim() === TARGET_ID) found = item;
+    });
+  });
+  if (found) {
+    Logger.log('Found item for ' + TARGET_ID + ': ' + JSON.stringify(found));
+  } else {
+    Logger.log('NOT FOUND in any rosterItems. Total teams: ' + Object.keys(rostersObj).length);
+    // Log first item from first team to see the shape
+    const firstTeam = Object.values(rostersObj)[0] || {};
+    const firstItem = (firstTeam.rosterItems || [])[0] || null;
+    Logger.log('Sample rosterItem fields: ' + JSON.stringify(firstItem));
+  }
+}
+
 // Run from Apps Script editor — checks whether playerId keys resolve via getLeagueInfo
 function debugDraftResolution() {
   const draftData  = fetchFantrax('getDraftResults');
