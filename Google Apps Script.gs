@@ -2274,7 +2274,6 @@ function debugDraftResultsData() {
   try {
     const data = fetchFantrax('getDraftResults');
     const topLevelKeys = Object.keys(data);
-    // Try every plausible key to find the picks array
     const picks = data.draftResults || (data.data && data.data.draftResults) || data.picks || data.results || [];
     return {
       ok: true,
@@ -2290,6 +2289,23 @@ function debugDraftResultsData() {
   } catch(e) {
     return { ok: false, error: e.message };
   }
+}
+
+// Run this from Apps Script editor: select testDraftResults → Run → View Logs
+function testDraftResults() {
+  const data = fetchFantrax('getDraftResults');
+  Logger.log('Top-level keys: ' + JSON.stringify(Object.keys(data)));
+  // Log each key's type and length/preview
+  Object.keys(data).forEach(function(k) {
+    const v = data[k];
+    if (Array.isArray(v)) {
+      Logger.log(k + ': Array[' + v.length + '] — first item: ' + JSON.stringify(v[0] || null));
+    } else if (v && typeof v === 'object') {
+      Logger.log(k + ': Object — keys: ' + JSON.stringify(Object.keys(v).slice(0, 8)));
+    } else {
+      Logger.log(k + ': ' + JSON.stringify(v));
+    }
+  });
 }
 
 // ── Debug: return raw Fantrax API response ────────────────────────────────────
