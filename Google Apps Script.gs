@@ -2112,22 +2112,32 @@ function refreshFantraxDraft(ss) {
   const picks = data.draftPicks || [];
   if (!picks.length) return { ok: true, updated: 0, added: 0, message: 'No draft picks from Fantrax. Keys: ' + Object.keys(data).join(', ') };
 
-  // Resolve playerId → { name, proTeam, eligiblePos }
+  // getLeagueInfo.playerInfo has eligiblePos but no name/proTeam.
+  // Names and proTeam come from getTeamRosters rosterItems.
   const leagueInfo = fetchFantrax('getLeagueInfo');
-  const playerInfo = (leagueInfo && leagueInfo.playerInfo) || {};
+  const leaguePInfo = (leagueInfo && leagueInfo.playerInfo) || {};
 
-  // Resolve teamId → ownerKey
   const ownerMap = getOwnerMap(ss);
   const nameToKey = {};
   Object.entries(ownerMap).forEach(function(kv) { nameToKey[kv[1].toLowerCase()] = kv[0]; });
   Object.entries(FANTRAX_TEAM_ALIASES).forEach(function(kv) { nameToKey[kv[0]] = kv[1]; });
+
   const rostersData = fetchFantrax('getTeamRosters');
   const rostersObj  = rostersData.rosters || {};
+
+  // Build playerId → { name, proTeam } and teamId → ownerKey in one pass
+  const playerById  = {};
   const teamIdToKey = {};
   Object.entries(rostersObj).forEach(function(kv) {
-    const tname = String(kv[1].teamName || '').trim().toLowerCase();
-    const key = nameToKey[tname];
-    if (key) teamIdToKey[kv[0]] = key;
+    const fantraxId = kv[0];
+    const teamData  = kv[1];
+    const tname = String(teamData.teamName || '').trim().toLowerCase();
+    const ownerKey = nameToKey[tname];
+    if (ownerKey) teamIdToKey[fantraxId] = ownerKey;
+    (teamData.rosterItems || []).forEach(function(item) {
+      const pid = String(item.id || '').trim();
+      if (pid) playerById[pid] = { name: String(item.name || '').trim(), proTeam: String(item.proTeam || '').trim() };
+    });
   });
 
   const sheet = ss.getSheetByName('Picks') || ss.insertSheet('Picks');
@@ -2162,10 +2172,11 @@ function refreshFantraxDraft(ss) {
     const playerId = String(p.playerId     || '').trim();
     if (!round || !pick || !playerId) { skipped++; return; }
 
-    const pInfo    = playerInfo[playerId] || {};
-    const player   = String(pInfo.name        || '').trim();
-    const mlbTeam  = String(pInfo.proTeam     || '').trim();
-    const pos      = String(pInfo.eligiblePos || '').trim();
+    const pRoster  = playerById[playerId]  || {};
+    const pLeague  = leaguePInfo[playerId] || {};
+    const player   = pRoster.name    || '';
+    const mlbTeam  = pRoster.proTeam || '';
+    const pos      = String(pLeague.eligiblePos || '').trim();
     const ownerKey = teamIdToKey[teamId] || '';
     if (!player) { skipped++; return; }
 
@@ -2251,15 +2262,21 @@ function testDraftResultsImport() {
     if (key) teamIdToKey[kv[0]] = key;
   });
 
+  const playerById2 = {};
+  Object.entries(rostersObj).forEach(function(kv) {
+    (kv[1].rosterItems || []).forEach(function(item) {
+      const pid = String(item.id || '').trim();
+      if (pid) playerById2[pid] = { name: String(item.name || '').trim(), proTeam: String(item.proTeam || '').trim() };
+    });
+  });
   Logger.log('Teams resolved: ' + Object.keys(teamIdToKey).length + ' / ' + Object.keys(rostersObj).length);
-  // Show first 5 picks resolved
+  Logger.log('Players resolved: ' + Object.keys(playerById2).length);
   picks.slice(0, 5).forEach(function(p) {
-    const pInfo = playerInfo[p.playerId] || {};
+    const pr = playerById2[p.playerId] || {};
     Logger.log('Rd ' + p.round + ' Pk ' + p.pickInRound +
       ' | team=' + (teamIdToKey[p.teamId] || '??' + p.teamId) +
-      ' | player=' + (pInfo.name || '??' + p.playerId) +
-      ' | pos=' + (pInfo.eligiblePos || '') +
-      ' | mlb=' + (pInfo.proTeam || ''));
+      ' | player=' + (pr.name || '??' + p.playerId) +
+      ' | mlb=' + (pr.proTeam || ''));
   });
 }
 
