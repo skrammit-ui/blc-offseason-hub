@@ -7666,12 +7666,14 @@ async function doUpdateMiLBStatus(teamKey) {
   try {
     const res = await remotePost({ action: 'refreshTeamFull', teamKey });
     if (res.ok) {
-      const rosterUp = res.roster?.updated ?? 0;
-      const milbUp   = res.milb?.updated   ?? 0;
-      const parts    = [];
-      if (rosterUp > 0) parts.push(`${rosterUp} roster slot${rosterUp !== 1 ? 's' : ''} synced`);
-      if (milbUp   > 0) parts.push(`${milbUp} player${milbUp !== 1 ? 's' : ''} labeled MiLB`);
-      statusEl.textContent = parts.length ? `✓ ${parts.join(', ')} — refreshing…` : '✓ Roster up to date';
+      const rosterUp  = res.roster?.updated ?? 0;
+      const rosterAdd = res.roster?.added   ?? 0;
+      const milbUp    = res.milb?.updated   ?? 0;
+      const parts     = [];
+      if (rosterUp  > 0) parts.push(`${rosterUp} slot${rosterUp !== 1 ? 's' : ''} updated`);
+      if (rosterAdd > 0) parts.push(`${rosterAdd} new player${rosterAdd !== 1 ? 's' : ''} added`);
+      if (milbUp    > 0) parts.push(`${milbUp} labeled MiLB`);
+      statusEl.textContent = parts.length ? `✓ ${parts.join(' · ')} — refreshing…` : '✓ Roster up to date';
       statusEl.style.color = '#22a366';
       // Re-fetch league data and re-render the current team's roster
       try {
@@ -7680,7 +7682,7 @@ async function doUpdateMiLBStatus(teamKey) {
         if (fresh.keepers) { Object.keys(keeperStore).forEach(k => delete keeperStore[k]); Object.assign(keeperStore, fresh.keepers); }
         const displayedTeam = document.getElementById('roster-card-title').textContent.trim();
         viewTeamOverview(displayedTeam);
-        statusEl.textContent = parts.length ? `✓ ${parts.join(', ')}` : '✓ Roster up to date';
+        statusEl.textContent = parts.length ? `✓ ${parts.join(' · ')}` : '✓ Roster up to date';
       } catch(e2) {
         statusEl.textContent += ' (reload page to see changes)';
       }
