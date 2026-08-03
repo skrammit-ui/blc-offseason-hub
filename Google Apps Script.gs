@@ -2018,6 +2018,17 @@ function refreshFantraxRosters(ss, filterKey) {
   const leagueInfo  = fetchFantrax('getLeagueInfo');
   const leaguePInfo = (leagueInfo && leagueInfo.playerInfo) || {};
 
+  // Player names + MLB teams for new-player rows — keyed by Fantrax player ID
+  const playerData = fetchFantrax('getPlayerIds');
+  const playerMeta = {}; // pid → { name, mlb_team }
+  Object.entries(playerData || {}).forEach(function(kv) {
+    const p = kv[1]; if (!p || typeof p !== 'object') return;
+    const id = String(p.fantraxId || p.id || kv[0]).trim(); if (!id) return;
+    let name = String(p.name || p.playerName || '').trim();
+    if (name.includes(',')) { var pts = name.split(','); name = pts[1].trim() + ' ' + pts[0].trim(); }
+    playerMeta[id] = { name: name, mlb_team: String(p.team || p.mlbTeam || '').trim() };
+  });
+
   // MLB career stats cache — used to auto-detect MiLB-eligible players in MLB slots
   const mlbCache = getMLBCareerCache(ss);
 
@@ -2073,32 +2084,50 @@ function refreshFantraxRosters(ss, filterKey) {
       if (!pid) return;
 
       const rowIdx = idLookup[pid];
-      if (rowIdx === undefined) { notFound++; return; }
 
-      // MiLB eligibility: career MLB AB < 130 AND IP < 50 (Fantrax API exposes no flag for this).
-      // Priority 1: MLB career stats cache says eligible → always label Minors.
-      // Priority 2: player not yet in cache but was manually set to Minors → preserve it.
+      // MiLB eligibility check (applied to both existing and new rows)
       if (item.status !== 'MINORS') {
         if (mlbCache[pid] && mlbCache[pid].eligible) {
           status = 'Minors';
-        } else if ((item.status === 'ACTIVE' || item.status === 'RESERVE') &&
+        } else if (rowIdx !== undefined && (item.status === 'ACTIVE' || item.status === 'RESERVE') &&
                    statusIdx >= 0 && String(rows[rowIdx][statusIdx] || '') === 'Minors') {
           status = 'Minors'; // preserve manual override until cache is populated
         }
       }
 
+      if (rowIdx === undefined) {
+        // New player — not yet in the Rosters sheet. Add a new row.
+        const meta = playerMeta[pid] || {};
+        const newRow = headers.map(function(h) {
+          if (h === 'teamKey')   return ownerKey;
+          if (h === 'player')    return meta.name    || '';
+          if (h === 'mlb_team')  return meta.mlb_team || '';
+          if (h === 'position')  return pos;
+          if (h === 'salary')    return salary != null ? salary : '';
+          if (h === 'status')    return status || '';
+          if (h === 'contract')  return contract;
+          if (h === 'id')        return '*' + pid + '*';
+          return '';
+        });
+        sheet.appendRow(newRow);
+        idLookup[pid] = rows.length; // prevent duplicate inserts within same sync
+        rows.push(newRow);
+        notFound++;
+        return;
+      }
+
       const rowNum = rowIdx + 2; // +1 for header row, +1 for 1-based index
-      if (teamIdx     >= 0)               sheet.getRange(rowNum, teamIdx     + 1).setValue(ownerKey);
-      if (posIdx      >= 0 && pos)        sheet.getRange(rowNum, posIdx      + 1).setValue(pos);
-      if (salIdx      >= 0 && salary != null) sheet.getRange(rowNum, salIdx  + 1).setValue(salary);
-      if (statusIdx   >= 0 && status)     sheet.getRange(rowNum, statusIdx   + 1).setValue(status);
-      if (contractIdx >= 0 && contract)   sheet.getRange(rowNum, contractIdx + 1).setValue(contract);
+      if (teamIdx     >= 0)                   sheet.getRange(rowNum, teamIdx     + 1).setValue(ownerKey);
+      if (posIdx      >= 0 && pos)            sheet.getRange(rowNum, posIdx      + 1).setValue(pos);
+      if (salIdx      >= 0 && salary != null) sheet.getRange(rowNum, salIdx      + 1).setValue(salary);
+      if (statusIdx   >= 0 && status)         sheet.getRange(rowNum, statusIdx   + 1).setValue(status);
+      if (contractIdx >= 0 && contract)       sheet.getRange(rowNum, contractIdx + 1).setValue(contract);
       updated++;
     });
   });
 
-  Logger.log('refreshFantraxRosters: updated=' + updated + ' notFound=' + notFound);
-  return { ok: true, updated, notFound };
+  Logger.log('refreshFantraxRosters: updated=' + updated + ' added=' + notFound);
+  return { ok: true, updated, added: notFound };
 }
 
 // ── Refresh draft results ─────────────────────────────────────────────────────
