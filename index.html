@@ -2921,6 +2921,24 @@ function computeDivisionalRecord(key, year) {
   return { w: catW, l: catL, t: catT };
 }
 
+function computeCommonOpponentRecord(key, commonOpps) {
+  let score1 = 0, score2 = 0, games = 0;
+  for (const m of MATCHUPS) {
+    if (m.type && m.type !== 'Regular Season') continue;
+    if (m.homeScore == null || m.visitorScore == null) continue;
+    const isHome = m.home === key, isAway = m.visitor === key;
+    if (!isHome && !isAway) continue;
+    const opp = isHome ? m.visitor : m.home;
+    if (!commonOpps.has(opp)) continue;
+    score1 += isHome ? m.homeScore : m.visitorScore;
+    score2 += isHome ? m.visitorScore : m.homeScore;
+    games++;
+  }
+  if (!games) return { w: 0, l: 0, t: 0 };
+  const catT = Math.round((score1 % 1) * 2);
+  return { w: Math.round(score1 - catT * 0.5), l: Math.round(score2 - catT * 0.5), t: catT };
+}
+
 function renderPlayoffBracket(year) {
   const container = document.getElementById('bracket-container');
   if (!container) return;
@@ -2967,6 +2985,32 @@ function renderPlayoffBracket(year) {
         const r2 = `${d2.w}-${d2.l}${d2.t ? '-' + d2.t : ''}`;
         if (p1 > p2) { tbKey = s.team1; tbBadgeLabel = 'TB·DIV'; tbTitle = `Div tiebreaker (${r1} vs ${r2})`; }
         else if (p2 > p1) { tbKey = s.team2; tbBadgeLabel = 'TB·DIV'; tbTitle = `Div tiebreaker (${r2} vs ${r1})`; }
+      }
+      // 3. Common opponents record (fallback)
+      if (!tbKey) {
+        const opps1 = new Set(), opps2 = new Set();
+        for (const m of MATCHUPS) {
+          if (m.type && m.type !== 'Regular Season') continue;
+          if (m.homeScore == null || m.visitorScore == null) continue;
+          if (m.home === s.team1 || m.visitor === s.team1) {
+            const o = m.home === s.team1 ? m.visitor : m.home;
+            if (o !== s.team2) opps1.add(o);
+          }
+          if (m.home === s.team2 || m.visitor === s.team2) {
+            const o = m.home === s.team2 ? m.visitor : m.home;
+            if (o !== s.team1) opps2.add(o);
+          }
+        }
+        const common = new Set([...opps1].filter(o => opps2.has(o)));
+        if (common.size > 0) {
+          const c1 = computeCommonOpponentRecord(s.team1, common);
+          const c2 = computeCommonOpponentRecord(s.team2, common);
+          const p1 = c1.w + 0.5 * c1.t, p2 = c2.w + 0.5 * c2.t;
+          const r1 = `${c1.w}-${c1.l}${c1.t ? '-' + c1.t : ''}`;
+          const r2 = `${c2.w}-${c2.l}${c2.t ? '-' + c2.t : ''}`;
+          if (p1 > p2) { tbKey = s.team1; tbBadgeLabel = 'TB·COM'; tbTitle = `Common opp tiebreaker (${r1} vs ${r2}, ${common.size} opp)`; }
+          else if (p2 > p1) { tbKey = s.team2; tbBadgeLabel = 'TB·COM'; tbTitle = `Common opp tiebreaker (${r2} vs ${r1}, ${common.size} opp)`; }
+        }
       }
     }
 
