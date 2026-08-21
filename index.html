@@ -2878,7 +2878,7 @@ function renderDivisionCard(divName, year, ownerKeys) {
 function computeH2H(key1, key2) {
   let score1 = 0, score2 = 0, games = 0;
   for (const m of MATCHUPS) {
-    if (m.type && m.type !== 'Regular Season') continue;
+    if (m.type !== 'Regular Season') continue;
     if (m.homeScore == null || m.visitorScore == null) continue;
     const isHome = m.home === key1 && m.visitor === key2;
     const isAway = m.home === key2 && m.visitor === key1;
@@ -2904,7 +2904,7 @@ function computeDivisionalRecord(key, year) {
   }
   let score1 = 0, score2 = 0, games = 0;
   for (const m of MATCHUPS) {
-    if (m.type && m.type !== 'Regular Season') continue;
+    if (m.type !== 'Regular Season') continue;
     if (m.homeScore == null || m.visitorScore == null) continue;
     const isHome = m.home === key, isAway = m.visitor === key;
     if (!isHome && !isAway) continue;
@@ -2924,7 +2924,7 @@ function computeDivisionalRecord(key, year) {
 function computeOverallRecord(key) {
   let score1 = 0, score2 = 0, games = 0;
   for (const m of MATCHUPS) {
-    if (m.type && m.type !== 'Regular Season') continue;
+    if (m.type !== 'Regular Season') continue;
     if (m.homeScore == null || m.visitorScore == null) continue;
     const isHome = m.home === key, isAway = m.visitor === key;
     if (!isHome && !isAway) continue;
@@ -2940,7 +2940,7 @@ function computeOverallRecord(key) {
 function computeCommonOpponentRecord(key, commonOpps) {
   let score1 = 0, score2 = 0, games = 0;
   for (const m of MATCHUPS) {
-    if (m.type && m.type !== 'Regular Season') continue;
+    if (m.type !== 'Regular Season') continue;
     if (m.homeScore == null || m.visitorScore == null) continue;
     const isHome = m.home === key, isAway = m.visitor === key;
     if (!isHome && !isAway) continue;
@@ -2982,15 +2982,13 @@ function renderPlayoffBracket(year) {
     const lbl = matchupLabel(tmpl, matchupId);
     const w = s.winner;
 
-    // Tiebreaker chain — early rounds (in-division): H2H → DIV → OVR
-    //                    late rounds (cross-division): H2H → DIV → COM → OVR
-    const earlyRound = /^(wc20|co20|ch21|co21|r5_21)/.test(matchupId);
+    // Tiebreaker chain (all rounds): H2H → DIV → COM → OVR
     let tbKey = null, tbBadgeLabel = '', tbTitle = '';
     if (s.team1 && s.team2 && MATCHUPS.length) {
-      function tbRec(r1wins, r1losses, r1ties, r2wins, r2losses, r2ties, label, suffix) {
-        const t1 = r1ties ? '-' + r1ties : '', t2 = r2ties ? '-' + r2ties : '';
-        if (r1wins > r2wins) { tbKey = s.team1; tbBadgeLabel = label; tbTitle = `${suffix} (${r1wins}-${r1losses}${t1} vs ${r2wins}-${r2losses}${t2})`; }
-        else if (r2wins > r1wins) { tbKey = s.team2; tbBadgeLabel = label; tbTitle = `${suffix} (${r2wins}-${r2losses}${t2} vs ${r1wins}-${r1losses}${t1})`; }
+      function tbRec(r1w, r1l, r1t, r2w, r2l, r2t, label, suffix) {
+        const t1 = r1t ? '-' + r1t : '', t2 = r2t ? '-' + r2t : '';
+        if (r1w > r2w) { tbKey = s.team1; tbBadgeLabel = label; tbTitle = `${suffix} (${r1w}-${r1l}${t1} vs ${r2w}-${r2l}${t2})`; }
+        else if (r2w > r1w) { tbKey = s.team2; tbBadgeLabel = label; tbTitle = `${suffix} (${r2w}-${r2l}${t2} vs ${r1w}-${r1l}${t1})`; }
       }
 
       // 1. H2H
@@ -3003,11 +3001,11 @@ function renderPlayoffBracket(year) {
         tbRec(d1.w, d1.l, d1.t, d2.w, d2.l, d2.t, 'TB·DIV', 'Div tiebreaker');
       }
 
-      // 3. Common opponents (late rounds only)
-      if (!tbKey && !earlyRound) {
+      // 3. Common opponents
+      if (!tbKey) {
         const opps1 = new Set(), opps2 = new Set();
         for (const m of MATCHUPS) {
-          if (m.type && m.type !== 'Regular Season') continue;
+          if (m.type !== 'Regular Season') continue;
           if (m.homeScore == null || m.visitorScore == null) continue;
           if (m.home === s.team1 || m.visitor === s.team1) { const o = m.home === s.team1 ? m.visitor : m.home; if (o !== s.team2) opps1.add(o); }
           if (m.home === s.team2 || m.visitor === s.team2) { const o = m.home === s.team2 ? m.visitor : m.home; if (o !== s.team1) opps2.add(o); }
@@ -3019,7 +3017,7 @@ function renderPlayoffBracket(year) {
         }
       }
 
-      // Last fallback: overall record
+      // 4. Overall record
       if (!tbKey) {
         const o1 = computeOverallRecord(s.team1), o2 = computeOverallRecord(s.team2);
         tbRec(o1.w, o1.l, o1.t, o2.w, o2.l, o2.t, 'TB·OVR', 'Overall tiebreaker');
