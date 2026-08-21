@@ -142,11 +142,15 @@ function doPost(e) {
       case 'refreshMLBYTDStats':
       case 'refreshYTDStats':
         return corsResponse(refreshMLBYTDStats());
-      case 'refreshStandings': {
-        const sResult = refreshFantraxStandings(ss);
-        let mResult = { ok: true, updated: 0 };
-        try { mResult = refreshFantraxMatchups(ss); } catch(e) { mResult = { ok: false, error: e.message }; }
-        return corsResponse(Object.assign({}, sResult, { matchupsUpdated: mResult.updated, matchupsOk: mResult.ok }));
+      case 'refreshStandings':
+        return corsResponse(refreshFantraxStandings(ss));
+      case 'refreshMatchupScores': {
+        try {
+          const mResult = refreshFantraxMatchups(ss);
+          return corsResponse(mResult);
+        } catch(e) {
+          return corsResponse({ ok: false, error: e.message });
+        }
       }
       case 'debugStandings':
         return corsResponse(debugStandingsData(ss));

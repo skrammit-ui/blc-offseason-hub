@@ -1880,8 +1880,9 @@ input[type=file] { display: none; }
   <div class="page-sub">Final regular season standings by division &amp; playoff results</div>
 
   <!-- Standings sync row -->
-  <div style="display:flex;align-items:center;gap:10px;margin:8px 0 4px">
+  <div style="display:flex;align-items:center;gap:10px;margin:8px 0 4px;flex-wrap:wrap">
     <button class="btn btn-secondary" style="font-size:11px;padding:5px 14px" onclick="doRefreshStandings()">⚡ Refresh Standings from Fantrax</button>
+    <button class="btn btn-secondary" style="font-size:11px;padding:5px 14px;background:#1a6fba;color:#fff;border-color:#1a6fba" onclick="doSyncMatchupScores()">📊 Sync Scores</button>
     <span id="standings-refresh-status" style="font-size:11px;color:var(--text-3)"></span>
   </div>
 
@@ -7528,8 +7529,7 @@ async function doRefreshStandings(statusElId) {
     if (!res.ok) throw new Error(res.error || 'Unknown error');
     const warn = res.unresolved && res.unresolved.length
       ? ` ⚠ unresolved: ${res.unresolved.join(', ')}` : '';
-    const scoreMsg = res.matchupsUpdated != null ? ` · ${res.matchupsUpdated} scores updated` : '';
-    el.textContent = `✓ ${res.teams ?? 0} teams, ${res.totalMatchups ?? '?'} matchups, ${res.periods ?? '?'} periods${scoreMsg}${warn} — reloading…`;
+    el.textContent = `✓ ${res.teams ?? 0} teams, ${res.totalMatchups ?? '?'} matchups, ${res.periods ?? '?'} periods${warn} — reloading…`;
     el.style.color = res.teams > 0 ? '#22a366' : '#e06c00';
     if (resultsEl) {
       resultsEl.innerHTML = `<div style="font-family:var(--mono);font-size:11px;white-space:pre-wrap">${escHtml(JSON.stringify(res.standings, null, 2))}</div>`;
@@ -7539,6 +7539,19 @@ async function doRefreshStandings(statusElId) {
   } catch(e) {
     el.textContent = '⚠ ' + e.message;
     el.style.color = '#c0392b';
+  }
+}
+
+async function doSyncMatchupScores() {
+  const el = document.getElementById('standings-refresh-status');
+  if (el) { el.textContent = '⏳ Syncing matchup scores from Fantrax…'; el.style.color = 'var(--text-3)'; }
+  try {
+    const res = await remotePost({ action: 'refreshMatchupScores' });
+    if (!res.ok) throw new Error(res.error || 'Unknown error');
+    if (el) { el.textContent = `✓ ${res.updated ?? 0} matchup scores updated`; el.style.color = '#22a366'; }
+    if ((res.updated || 0) > 0) setTimeout(() => location.reload(), 1500);
+  } catch(e) {
+    if (el) { el.textContent = '⚠ ' + e.message; el.style.color = '#c0392b'; }
   }
 }
 
