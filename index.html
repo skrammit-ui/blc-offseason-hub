@@ -1139,6 +1139,11 @@ input[type=file] { display: none; }
 .smatchup-team.clickable:hover { background: var(--amber-lt); }
 .smatchup-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .smatchup-check { font-size: 11px; color: var(--green); margin-left: 4px; }
+.smatchup-tb {
+  font-size: 9px; font-weight: 700; font-family: var(--mono);
+  color: #a07800; background: #fff8d6; border: 1px solid #e5c84a;
+  border-radius: 3px; padding: 1px 4px; flex-shrink: 0; white-space: nowrap;
+}
 /* Bye card */
 .smatchup-bye {
   border: 1px dashed var(--border); border-radius: var(--r);
@@ -2869,6 +2874,23 @@ function renderDivisionCard(divName, year, ownerKeys) {
   </div>`;
 }
 
+function computeH2H(key1, key2) {
+  let w = 0, l = 0, t = 0;
+  for (const m of MATCHUPS) {
+    if (m.type && m.type !== 'Regular Season') continue;
+    if (m.homeScore == null || m.visitorScore == null) continue;
+    const isHome = m.home === key1 && m.visitor === key2;
+    const isAway = m.home === key2 && m.visitor === key1;
+    if (!isHome && !isAway) continue;
+    const s1 = isHome ? m.homeScore : m.visitorScore;
+    const s2 = isHome ? m.visitorScore : m.homeScore;
+    if (s1 > s2) w++;
+    else if (s1 < s2) l++;
+    else t++;
+  }
+  return { w, l, t };
+}
+
 function renderPlayoffBracket(year) {
   const container = document.getElementById('bracket-container');
   if (!container) return;
@@ -2896,7 +2918,19 @@ function renderPlayoffBracket(year) {
     const lbl = matchupLabel(tmpl, matchupId);
     const w = s.winner;
 
-    function teamRow(teamKey, name, slot) {
+    // Compute H2H tiebreaker from regular-season matchup scores
+    let tbKey = null, h2hLabel = '';
+    if (s.team1 && s.team2 && MATCHUPS.length) {
+      const h2h = computeH2H(s.team1, s.team2);
+      const total = h2h.w + h2h.l + h2h.t;
+      if (total > 0) {
+        h2hLabel = `${h2h.w}-${h2h.l}${h2h.t ? '-' + h2h.t : ''}`;
+        if (h2h.w > h2h.l) tbKey = s.team1;
+        else if (h2h.l > h2h.w) tbKey = s.team2;
+      }
+    }
+
+    function teamRow(teamKey, name) {
       const isWinner = w && w === teamKey;
       const isTbd = !teamKey;
       let cls = 'smatchup-team';
@@ -2904,8 +2938,11 @@ function renderPlayoffBracket(year) {
       if (isTbd) cls += ' tbd';
       if (canEdit && !isTbd && !w) cls += ' clickable';
       const click = (canEdit && !isTbd && !w) ? ` onclick="setBracketWinner('${year}','${matchupId}','${teamKey}')"` : '';
+      const tbBadge = (tbKey && tbKey === teamKey && h2hLabel)
+        ? `<span class="smatchup-tb" title="H2H tiebreaker (${h2hLabel})">TB</span>` : '';
       return `<div class="${cls}"${click}>
         <span class="smatchup-name">${isTbd ? 'TBD' : name}</span>
+        ${tbBadge}
         ${isWinner ? '<span class="smatchup-check">✓</span>' : ''}
       </div>`;
     }
@@ -2919,8 +2956,8 @@ function renderPlayoffBracket(year) {
 
     return `<div class="smatchup">
       ${labelHtml}
-      ${teamRow(s.team1, n1, 'team1')}
-      ${teamRow(s.team2, n2, 'team2')}
+      ${teamRow(s.team1, n1)}
+      ${teamRow(s.team2, n2)}
     </div>`;
   }
 
