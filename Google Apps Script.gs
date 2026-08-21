@@ -1938,38 +1938,17 @@ function refreshFantraxMatchups(ss) {
   return { ok: true, updated };
 }
 
-// ── Debug: matchup score resolution ──────────────────────────────────────────
+// ── Debug: getMatchupScores structure ────────────────────────────────────────
 function testMatchupScores() {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
-
-  // Check period 10 matchupList for score fields (mid-season, should be complete)
-  const leagueInfo = fetchFantrax('getLeagueInfo');
-  const periods = leagueInfo.matchups || [];
-  const mid = periods.find(function(p) { return p.period == 10; }) || periods[9] || {};
-  const midList = mid.matchupList || [];
-  Logger.log('Period 10 matchupList[0]: ' + JSON.stringify(midList[0] || {}));
-
-  // Try getLeagueInfo with explicit period param
-  function tryEndpoint(name, params) {
-    try {
-      const r = fetchFantrax(name, params);
-      const keys = Object.keys(r || {});
-      Logger.log(name + (params ? JSON.stringify(params) : '') + ' keys: ' + keys.join(', '));
-      const first = Array.isArray(r) ? r[0] : Object.values(r || {})[0];
-      if (first && typeof first === 'object') Logger.log('  first: ' + JSON.stringify(first).substring(0, 300));
-    } catch(e) {
-      Logger.log(name + ' ERROR: ' + e.message);
-    }
+  const r = fetchFantrax('getMatchupScores', { period: 1 });
+  Logger.log('getMatchupScores top-level keys: ' + Object.keys(r || {}).join(', '));
+  const matchups = r.matchups || r.matchupList || Object.values(r)[0] || [];
+  const first = Array.isArray(matchups) ? matchups[0] : null;
+  Logger.log('first matchup: ' + JSON.stringify(first || {}));
+  if (first) {
+    Logger.log('away keys: ' + Object.keys(first.away || first.awayTeam || {}).join(', '));
+    Logger.log('home keys: ' + Object.keys(first.home || first.homeTeam || {}).join(', '));
   }
-
-  tryEndpoint('getLeagueInfo', { period: 10 });
-  tryEndpoint('getMatchupsForPeriod', { period: 10 });
-  tryEndpoint('getWeeklyResults', { period: 10 });
-  tryEndpoint('getPeriodMatchups', { period: 10 });
-  tryEndpoint('getWeeklyMatchupResults', { period: 10 });
-  tryEndpoint('getHeadToHeadResults', {});
-  tryEndpoint('getTeamHeadToHead', {});
-  tryEndpoint('getLeaguePeriodStandings', { period: 10 });
 }
 
 // ── Debug: raw getStandings response ─────────────────────────────────────────
