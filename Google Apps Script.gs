@@ -1941,41 +1941,35 @@ function refreshFantraxMatchups(ss) {
 // ── Debug: matchup score resolution ──────────────────────────────────────────
 function testMatchupScores() {
   const ss = SpreadsheetApp.openById(SHEET_ID);
+
+  // Check period 10 matchupList for score fields (mid-season, should be complete)
   const leagueInfo = fetchFantrax('getLeagueInfo');
   const periods = leagueInfo.matchups || [];
+  const mid = periods.find(function(p) { return p.period == 10; }) || periods[9] || {};
+  const midList = mid.matchupList || [];
+  Logger.log('Period 10 matchupList[0]: ' + JSON.stringify(midList[0] || {}));
 
-  // Check LAST period (most recently completed) for score fields
-  if (periods.length > 0) {
-    const last = periods[periods.length - 1];
-    Logger.log('Last period: ' + last.period);
-    const ml = last.matchupList || [];
-    Logger.log('Last period matchupList[0]: ' + JSON.stringify(ml[0] || {}));
-  }
-
-  // Log teamInfo structure (may map teamId → name/ownerKey)
-  const teamInfo = leagueInfo.teamInfo || {};
-  const tiKeys = Object.keys(teamInfo);
-  Logger.log('teamInfo count: ' + tiKeys.length);
-  if (tiKeys.length > 0) {
-    Logger.log('teamInfo[0]: ' + JSON.stringify(teamInfo[tiKeys[0]]));
-  }
-
-  // Try alternative endpoints that might carry scores
-  function tryEndpoint(name) {
+  // Try getLeagueInfo with explicit period param
+  function tryEndpoint(name, params) {
     try {
-      const r = fetchFantrax(name);
-      Logger.log(name + ' keys: ' + Object.keys(r || {}).join(', '));
+      const r = fetchFantrax(name, params);
+      const keys = Object.keys(r || {});
+      Logger.log(name + (params ? JSON.stringify(params) : '') + ' keys: ' + keys.join(', '));
       const first = Array.isArray(r) ? r[0] : Object.values(r || {})[0];
-      if (first) Logger.log(name + ' first entry: ' + JSON.stringify(first).substring(0, 300));
+      if (first && typeof first === 'object') Logger.log('  first: ' + JSON.stringify(first).substring(0, 300));
     } catch(e) {
       Logger.log(name + ' ERROR: ' + e.message);
     }
   }
-  tryEndpoint('getMatchupResults');
-  tryEndpoint('getScoreboard');
-  tryEndpoint('getMatchupBoxscore');
-  tryEndpoint('getTeamMatchupResults');
-  tryEndpoint('getSchedule');
+
+  tryEndpoint('getLeagueInfo', { period: 10 });
+  tryEndpoint('getMatchupsForPeriod', { period: 10 });
+  tryEndpoint('getWeeklyResults', { period: 10 });
+  tryEndpoint('getPeriodMatchups', { period: 10 });
+  tryEndpoint('getWeeklyMatchupResults', { period: 10 });
+  tryEndpoint('getHeadToHeadResults', {});
+  tryEndpoint('getTeamHeadToHead', {});
+  tryEndpoint('getLeaguePeriodStandings', { period: 10 });
 }
 
 // ── Debug: raw getStandings response ─────────────────────────────────────────
