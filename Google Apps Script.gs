@@ -1938,6 +1938,42 @@ function refreshFantraxMatchups(ss) {
   return { ok: true, updated };
 }
 
+// ── Debug: matchup score resolution ──────────────────────────────────────────
+function testMatchupScores() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+
+  // 1. What does getLeagueInfo top-level look like?
+  const leagueInfo = fetchFantrax('getLeagueInfo');
+  Logger.log('getLeagueInfo top-level keys: ' + Object.keys(leagueInfo).join(', '));
+
+  // 2. Is there a matchups key?
+  const periods = leagueInfo.matchups || [];
+  Logger.log('periods count: ' + periods.length);
+  if (periods.length > 0) {
+    Logger.log('period[0] keys: ' + Object.keys(periods[0]).join(', '));
+    Logger.log('period[0].period: ' + periods[0].period);
+    const ml = periods[0].matchupList || periods[0].matchups || [];
+    Logger.log('matchupList[0] length: ' + ml.length);
+    if (ml.length > 0) {
+      Logger.log('matchupList[0][0]: ' + JSON.stringify(ml[0]));
+    }
+  }
+
+  // 3. Try getStandings to see if it has matchup data instead
+  const standings = fetchFantrax('getStandings');
+  Logger.log('getStandings top-level keys: ' + Object.keys(standings).join(', '));
+  // Check first entry for matchup-level data
+  const firstVal = Object.values(standings)[0];
+  if (firstVal && typeof firstVal === 'object') {
+    Logger.log('standings[0] keys: ' + Object.keys(firstVal).join(', '));
+    Logger.log('standings[0] sample: ' + JSON.stringify(firstVal).substring(0, 400));
+  }
+
+  // 4. Owner key → name map
+  const ownerMap = getOwnerMap(ss);
+  Logger.log('ownerMap sample: ' + JSON.stringify(ownerMap).substring(0, 300));
+}
+
 // ── Debug: raw getStandings response ─────────────────────────────────────────
 function debugStandingsData(ss) {
   if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
