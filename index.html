@@ -7528,7 +7528,8 @@ async function doRefreshStandings(statusElId) {
     if (!res.ok) throw new Error(res.error || 'Unknown error');
     const warn = res.unresolved && res.unresolved.length
       ? ` ⚠ unresolved: ${res.unresolved.join(', ')}` : '';
-    el.textContent = `✓ ${res.teams ?? 0} teams, ${res.totalMatchups ?? '?'} matchups, ${res.periods ?? '?'} periods${warn} — reloading…`;
+    const scoreMsg = res.matchupsUpdated != null ? ` · ${res.matchupsUpdated} scores updated` : '';
+    el.textContent = `✓ ${res.teams ?? 0} teams, ${res.totalMatchups ?? '?'} matchups, ${res.periods ?? '?'} periods${scoreMsg}${warn} — reloading…`;
     el.style.color = res.teams > 0 ? '#22a366' : '#e06c00';
     if (resultsEl) {
       resultsEl.innerHTML = `<div style="font-family:var(--mono);font-size:11px;white-space:pre-wrap">${escHtml(JSON.stringify(res.standings, null, 2))}</div>`;

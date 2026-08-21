@@ -142,8 +142,12 @@ function doPost(e) {
       case 'refreshMLBYTDStats':
       case 'refreshYTDStats':
         return corsResponse(refreshMLBYTDStats());
-      case 'refreshStandings':
-        return corsResponse(refreshFantraxStandings(ss));
+      case 'refreshStandings': {
+        const sResult = refreshFantraxStandings(ss);
+        let mResult = { ok: true, updated: 0 };
+        try { mResult = refreshFantraxMatchups(ss); } catch(e) { mResult = { ok: false, error: e.message }; }
+        return corsResponse(Object.assign({}, sResult, { matchupsUpdated: mResult.updated, matchupsOk: mResult.ok }));
+      }
       case 'debugStandings':
         return corsResponse(debugStandingsData(ss));
       case 'refreshDraftPicks':
@@ -1447,6 +1451,10 @@ function refreshFantrax(ss, targets) {
   if (targets.includes('draftPicks')) {
     try { results.draftPicks = refreshFantraxDraftPicks(ss); }
     catch(e) { results.draftPicks = { ok: false, error: e.message }; }
+  }
+  if (targets.includes('matchups')) {
+    try { results.matchups = refreshFantraxMatchups(ss); }
+    catch(e) { results.matchups = { ok: false, error: e.message }; }
   }
   return { ok: true, results };
 }
