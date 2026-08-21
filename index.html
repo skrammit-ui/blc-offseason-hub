@@ -2878,7 +2878,7 @@ function renderDivisionCard(divName, year, ownerKeys) {
 function computeH2H(key1, key2) {
   let score1 = 0, score2 = 0, games = 0;
   for (const m of MATCHUPS) {
-    if (m.type !== 'Regular Season') continue;
+    if (m.week > 19) continue;
     if (m.homeScore == null || m.visitorScore == null) continue;
     const isHome = m.home === key1 && m.visitor === key2;
     const isAway = m.home === key2 && m.visitor === key1;
@@ -2904,7 +2904,7 @@ function computeDivisionalRecord(key, year) {
   }
   let score1 = 0, score2 = 0, games = 0;
   for (const m of MATCHUPS) {
-    if (m.type !== 'Regular Season') continue;
+    if (m.week > 19) continue;
     if (m.homeScore == null || m.visitorScore == null) continue;
     const isHome = m.home === key, isAway = m.visitor === key;
     if (!isHome && !isAway) continue;
@@ -2924,7 +2924,7 @@ function computeDivisionalRecord(key, year) {
 function computeOverallRecord(key) {
   let score1 = 0, score2 = 0, games = 0;
   for (const m of MATCHUPS) {
-    if (m.type !== 'Regular Season') continue;
+    if (m.week > 19) continue;
     if (m.homeScore == null || m.visitorScore == null) continue;
     const isHome = m.home === key, isAway = m.visitor === key;
     if (!isHome && !isAway) continue;
@@ -2940,7 +2940,7 @@ function computeOverallRecord(key) {
 function computeCommonOpponentRecord(key, commonOpps) {
   let score1 = 0, score2 = 0, games = 0;
   for (const m of MATCHUPS) {
-    if (m.type !== 'Regular Season') continue;
+    if (m.week > 19) continue;
     if (m.homeScore == null || m.visitorScore == null) continue;
     const isHome = m.home === key, isAway = m.visitor === key;
     if (!isHome && !isAway) continue;
@@ -3005,7 +3005,7 @@ function renderPlayoffBracket(year) {
       if (!tbKey) {
         const opps1 = new Set(), opps2 = new Set();
         for (const m of MATCHUPS) {
-          if (m.type !== 'Regular Season') continue;
+          if (m.week > 19) continue;
           if (m.homeScore == null || m.visitorScore == null) continue;
           if (m.home === s.team1 || m.visitor === s.team1) { const o = m.home === s.team1 ? m.visitor : m.home; if (o !== s.team2) opps1.add(o); }
           if (m.home === s.team2 || m.visitor === s.team2) { const o = m.home === s.team2 ? m.visitor : m.home; if (o !== s.team1) opps2.add(o); }
