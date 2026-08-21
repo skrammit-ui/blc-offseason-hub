@@ -2876,20 +2876,27 @@ function renderDivisionCard(divName, year, ownerKeys) {
 }
 
 function computeH2H(key1, key2) {
-  let w = 0, l = 0, t = 0;
+  // Accumulate total category scores across all regular-season H2H matchups.
+  // Each matchup's score = categoryWins + 0.5*categoryTies (from Fantrax).
+  // Summing gives the full season-series category record between the two teams.
+  let score1 = 0, score2 = 0, games = 0;
   for (const m of MATCHUPS) {
     if (m.type && m.type !== 'Regular Season') continue;
     if (m.homeScore == null || m.visitorScore == null) continue;
     const isHome = m.home === key1 && m.visitor === key2;
     const isAway = m.home === key2 && m.visitor === key1;
     if (!isHome && !isAway) continue;
-    const s1 = isHome ? m.homeScore : m.visitorScore;
-    const s2 = isHome ? m.visitorScore : m.homeScore;
-    if (s1 > s2) w++;
-    else if (s1 < s2) l++;
-    else t++;
+    score1 += isHome ? m.homeScore : m.visitorScore;
+    score2 += isHome ? m.visitorScore : m.homeScore;
+    games++;
   }
-  return { w, l, t };
+  if (!games) return { w: 0, l: 0, t: 0, score1: 0, score2: 0, games: 0 };
+  // Derive category W-L-T: tied cats contribute 0.5 to each side, so the
+  // fractional part of score1 tells us the number of tied categories (mod 2).
+  const catT = Math.round((score1 % 1) * 2); // 0 or 1 (accurate for odd tie counts)
+  const catW = Math.round(score1 - catT * 0.5);
+  const catL = Math.round(score2 - catT * 0.5);
+  return { w: catW, l: catL, t: catT, score1, score2, games };
 }
 
 function computeDivisionalRecord(key, year) {
@@ -2949,8 +2956,8 @@ function renderPlayoffBracket(year) {
       const h2h = computeH2H(s.team1, s.team2);
       if (h2h.w + h2h.l + h2h.t > 0) {
         const rec = `${h2h.w}-${h2h.l}${h2h.t ? '-' + h2h.t : ''}`;
-        if (h2h.w > h2h.l) { tbKey = s.team1; tbBadgeLabel = 'TB'; tbTitle = `H2H tiebreaker (${rec})`; }
-        else if (h2h.l > h2h.w) { tbKey = s.team2; tbBadgeLabel = 'TB'; tbTitle = `H2H tiebreaker (${rec})`; }
+        if (h2h.w > h2h.l) { tbKey = s.team1; tbBadgeLabel = 'TB·H2H'; tbTitle = `H2H tiebreaker (${rec})`; }
+        else if (h2h.l > h2h.w) { tbKey = s.team2; tbBadgeLabel = 'TB·H2H'; tbTitle = `H2H tiebreaker (${rec})`; }
       }
       // 2. Divisional record (fallback)
       if (!tbKey) {
@@ -2959,8 +2966,8 @@ function renderPlayoffBracket(year) {
         const p1 = d1.w + 0.5 * d1.t, p2 = d2.w + 0.5 * d2.t;
         const r1 = `${d1.w}-${d1.l}${d1.t ? '-' + d1.t : ''}`;
         const r2 = `${d2.w}-${d2.l}${d2.t ? '-' + d2.t : ''}`;
-        if (p1 > p2) { tbKey = s.team1; tbBadgeLabel = 'TB·D'; tbTitle = `Div tiebreaker (${r1} vs ${r2})`; }
-        else if (p2 > p1) { tbKey = s.team2; tbBadgeLabel = 'TB·D'; tbTitle = `Div tiebreaker (${r2} vs ${r1})`; }
+        if (p1 > p2) { tbKey = s.team1; tbBadgeLabel = 'TB·DIV'; tbTitle = `Div tiebreaker (${r1} vs ${r2})`; }
+        else if (p2 > p1) { tbKey = s.team2; tbBadgeLabel = 'TB·DIV'; tbTitle = `Div tiebreaker (${r2} vs ${r1})`; }
       }
     }
 
