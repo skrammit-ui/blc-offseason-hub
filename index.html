@@ -2952,9 +2952,9 @@ function renderPlayoffBracket(year) {
       // 1. H2H
       const h2h = computeH2H(s.team1, s.team2);
       if (h2h.w + h2h.l + h2h.t > 0) {
-        const rec = `${h2h.w}-${h2h.l}${h2h.t ? '-' + h2h.t : ''}`;
-        if (h2h.w > h2h.l) { tbKey = s.team1; tbBadgeLabel = 'TB·H2H'; tbTitle = `H2H tiebreaker (${rec})`; }
-        else if (h2h.l > h2h.w) { tbKey = s.team2; tbBadgeLabel = 'TB·H2H'; tbTitle = `H2H tiebreaker (${rec})`; }
+        const t = h2h.t ? '-' + h2h.t : '';
+        if (h2h.w > h2h.l) { tbKey = s.team1; tbBadgeLabel = 'TB·H2H'; tbTitle = `H2H tiebreaker (${h2h.w}-${h2h.l}${t})`; }
+        else if (h2h.l > h2h.w) { tbKey = s.team2; tbBadgeLabel = 'TB·H2H'; tbTitle = `H2H tiebreaker (${h2h.l}-${h2h.w}${t})`; }
       }
       // 2. Divisional record (fallback)
       if (!tbKey) {
