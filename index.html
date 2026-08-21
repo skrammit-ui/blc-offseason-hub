@@ -2892,6 +2892,29 @@ function computeH2H(key1, key2) {
   return { w, l, t };
 }
 
+function computeDivisionalRecord(key, year) {
+  const divs = DIVISIONS[year] || {};
+  let opponents = [];
+  for (const keys of Object.values(divs)) {
+    if (keys.includes(key)) { opponents = keys.filter(k => k !== key); break; }
+  }
+  let w = 0, l = 0, t = 0;
+  for (const m of MATCHUPS) {
+    if (m.type && m.type !== 'Regular Season') continue;
+    if (m.homeScore == null || m.visitorScore == null) continue;
+    const isHome = m.home === key, isAway = m.visitor === key;
+    if (!isHome && !isAway) continue;
+    const opp = isHome ? m.visitor : m.home;
+    if (!opponents.includes(opp)) continue;
+    const mine = isHome ? m.homeScore : m.visitorScore;
+    const theirs = isHome ? m.visitorScore : m.homeScore;
+    if (mine > theirs) w++;
+    else if (mine < theirs) l++;
+    else t++;
+  }
+  return { w, l, t };
+}
+
 function renderPlayoffBracket(year) {
   const container = document.getElementById('bracket-container');
   if (!container) return;
@@ -2919,15 +2942,25 @@ function renderPlayoffBracket(year) {
     const lbl = matchupLabel(tmpl, matchupId);
     const w = s.winner;
 
-    // Compute H2H tiebreaker from regular-season matchup scores
-    let tbKey = null, h2hLabel = '';
+    // Compute tiebreaker: 1) H2H record, 2) divisional record
+    let tbKey = null, tbBadgeLabel = '', tbTitle = '';
     if (s.team1 && s.team2 && MATCHUPS.length) {
+      // 1. H2H
       const h2h = computeH2H(s.team1, s.team2);
-      const total = h2h.w + h2h.l + h2h.t;
-      if (total > 0) {
-        h2hLabel = `${h2h.w}-${h2h.l}${h2h.t ? '-' + h2h.t : ''}`;
-        if (h2h.w > h2h.l) tbKey = s.team1;
-        else if (h2h.l > h2h.w) tbKey = s.team2;
+      if (h2h.w + h2h.l + h2h.t > 0) {
+        const rec = `${h2h.w}-${h2h.l}${h2h.t ? '-' + h2h.t : ''}`;
+        if (h2h.w > h2h.l) { tbKey = s.team1; tbBadgeLabel = 'TB'; tbTitle = `H2H tiebreaker (${rec})`; }
+        else if (h2h.l > h2h.w) { tbKey = s.team2; tbBadgeLabel = 'TB'; tbTitle = `H2H tiebreaker (${rec})`; }
+      }
+      // 2. Divisional record (fallback)
+      if (!tbKey) {
+        const d1 = computeDivisionalRecord(s.team1, year);
+        const d2 = computeDivisionalRecord(s.team2, year);
+        const p1 = d1.w + 0.5 * d1.t, p2 = d2.w + 0.5 * d2.t;
+        const r1 = `${d1.w}-${d1.l}${d1.t ? '-' + d1.t : ''}`;
+        const r2 = `${d2.w}-${d2.l}${d2.t ? '-' + d2.t : ''}`;
+        if (p1 > p2) { tbKey = s.team1; tbBadgeLabel = 'TB·D'; tbTitle = `Div tiebreaker (${r1} vs ${r2})`; }
+        else if (p2 > p1) { tbKey = s.team2; tbBadgeLabel = 'TB·D'; tbTitle = `Div tiebreaker (${r2} vs ${r1})`; }
       }
     }
 
@@ -2939,8 +2972,8 @@ function renderPlayoffBracket(year) {
       if (isTbd) cls += ' tbd';
       if (canEdit && !isTbd && !w) cls += ' clickable';
       const click = (canEdit && !isTbd && !w) ? ` onclick="setBracketWinner('${year}','${matchupId}','${teamKey}')"` : '';
-      const tbBadge = (tbKey && tbKey === teamKey && h2hLabel)
-        ? `<span class="smatchup-tb" title="H2H tiebreaker (${h2hLabel})">TB</span>` : '';
+      const tbBadge = (tbKey && tbKey === teamKey)
+        ? `<span class="smatchup-tb" title="${tbTitle}">${tbBadgeLabel}</span>` : '';
       return `<div class="${cls}"${click}>
         <span class="smatchup-name">${isTbd ? 'TBD' : name}</span>
         ${tbBadge}
