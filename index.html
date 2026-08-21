@@ -2902,7 +2902,7 @@ function computeDivisionalRecord(key, year) {
   for (const keys of Object.values(divs)) {
     if (keys.includes(key)) { opponents = keys.filter(k => k !== key); break; }
   }
-  let w = 0, l = 0, t = 0;
+  let score1 = 0, score2 = 0, games = 0;
   for (const m of MATCHUPS) {
     if (m.type && m.type !== 'Regular Season') continue;
     if (m.homeScore == null || m.visitorScore == null) continue;
@@ -2910,13 +2910,15 @@ function computeDivisionalRecord(key, year) {
     if (!isHome && !isAway) continue;
     const opp = isHome ? m.visitor : m.home;
     if (!opponents.includes(opp)) continue;
-    const mine = isHome ? m.homeScore : m.visitorScore;
-    const theirs = isHome ? m.visitorScore : m.homeScore;
-    if (mine > theirs) w++;
-    else if (mine < theirs) l++;
-    else t++;
+    score1 += isHome ? m.homeScore : m.visitorScore;
+    score2 += isHome ? m.visitorScore : m.homeScore;
+    games++;
   }
-  return { w, l, t };
+  if (!games) return { w: 0, l: 0, t: 0 };
+  const catT = Math.round((score1 % 1) * 2);
+  const catW = Math.round(score1 - catT * 0.5);
+  const catL = Math.round(score2 - catT * 0.5);
+  return { w: catW, l: catL, t: catT };
 }
 
 function renderPlayoffBracket(year) {
