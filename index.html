@@ -2876,9 +2876,6 @@ function renderDivisionCard(divName, year, ownerKeys) {
 }
 
 function computeH2H(key1, key2) {
-  // Accumulate total category scores across all regular-season H2H matchups.
-  // Each matchup's score = categoryWins + 0.5*categoryTies (from Fantrax).
-  // Summing gives the full season-series category record between the two teams.
   let score1 = 0, score2 = 0, games = 0;
   for (const m of MATCHUPS) {
     if (m.type && m.type !== 'Regular Season') continue;
@@ -2889,13 +2886,13 @@ function computeH2H(key1, key2) {
     score1 += isHome ? m.homeScore : m.visitorScore;
     score2 += isHome ? m.visitorScore : m.homeScore;
     games++;
+    console.log(`H2H [${key1} vs ${key2}] wk${m.week}: ${key1}=${isHome ? m.homeScore : m.visitorScore} ${key2}=${isHome ? m.visitorScore : m.homeScore}`);
   }
   if (!games) return { w: 0, l: 0, t: 0, score1: 0, score2: 0, games: 0 };
-  // Derive category W-L-T: tied cats contribute 0.5 to each side, so the
-  // fractional part of score1 tells us the number of tied categories (mod 2).
-  const catT = Math.round((score1 % 1) * 2); // 0 or 1 (accurate for odd tie counts)
+  const catT = Math.round((score1 % 1) * 2);
   const catW = Math.round(score1 - catT * 0.5);
   const catL = Math.round(score2 - catT * 0.5);
+  console.log(`H2H [${key1} vs ${key2}] total: score1=${score1} score2=${score2} → ${catW}-${catL}-${catT}`);
   return { w: catW, l: catL, t: catT, score1, score2, games };
 }
 

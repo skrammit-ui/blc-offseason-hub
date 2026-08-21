@@ -1943,8 +1943,8 @@ function refreshFantraxMatchups(ss) {
     const visKey  = String(row[visIdx]  || '').trim();
     const hScore  = scoreLookup[week + '|' + homeKey];
     const vScore  = scoreLookup[week + '|' + visKey];
-    hScoreVals.push([hScore != null ? hScore : (row[hScoreIdx] !== '' ? row[hScoreIdx] : '')]);
-    vScoreVals.push([vScore != null ? vScore : (row[vScoreIdx] !== '' ? row[vScoreIdx] : '')]);
+    hScoreVals.push([hScore != null ? hScore : '']);
+    vScoreVals.push([vScore != null ? vScore : '']);
     if (hScore != null || vScore != null) updated++;
   });
 
