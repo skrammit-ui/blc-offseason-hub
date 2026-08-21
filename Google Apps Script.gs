@@ -1941,37 +1941,41 @@ function refreshFantraxMatchups(ss) {
 // ── Debug: matchup score resolution ──────────────────────────────────────────
 function testMatchupScores() {
   const ss = SpreadsheetApp.openById(SHEET_ID);
-
-  // 1. What does getLeagueInfo top-level look like?
   const leagueInfo = fetchFantrax('getLeagueInfo');
-  Logger.log('getLeagueInfo top-level keys: ' + Object.keys(leagueInfo).join(', '));
-
-  // 2. Is there a matchups key?
   const periods = leagueInfo.matchups || [];
-  Logger.log('periods count: ' + periods.length);
+
+  // Check LAST period (most recently completed) for score fields
   if (periods.length > 0) {
-    Logger.log('period[0] keys: ' + Object.keys(periods[0]).join(', '));
-    Logger.log('period[0].period: ' + periods[0].period);
-    const ml = periods[0].matchupList || periods[0].matchups || [];
-    Logger.log('matchupList[0] length: ' + ml.length);
-    if (ml.length > 0) {
-      Logger.log('matchupList[0][0]: ' + JSON.stringify(ml[0]));
+    const last = periods[periods.length - 1];
+    Logger.log('Last period: ' + last.period);
+    const ml = last.matchupList || [];
+    Logger.log('Last period matchupList[0]: ' + JSON.stringify(ml[0] || {}));
+  }
+
+  // Log teamInfo structure (may map teamId → name/ownerKey)
+  const teamInfo = leagueInfo.teamInfo || {};
+  const tiKeys = Object.keys(teamInfo);
+  Logger.log('teamInfo count: ' + tiKeys.length);
+  if (tiKeys.length > 0) {
+    Logger.log('teamInfo[0]: ' + JSON.stringify(teamInfo[tiKeys[0]]));
+  }
+
+  // Try alternative endpoints that might carry scores
+  function tryEndpoint(name) {
+    try {
+      const r = fetchFantrax(name);
+      Logger.log(name + ' keys: ' + Object.keys(r || {}).join(', '));
+      const first = Array.isArray(r) ? r[0] : Object.values(r || {})[0];
+      if (first) Logger.log(name + ' first entry: ' + JSON.stringify(first).substring(0, 300));
+    } catch(e) {
+      Logger.log(name + ' ERROR: ' + e.message);
     }
   }
-
-  // 3. Try getStandings to see if it has matchup data instead
-  const standings = fetchFantrax('getStandings');
-  Logger.log('getStandings top-level keys: ' + Object.keys(standings).join(', '));
-  // Check first entry for matchup-level data
-  const firstVal = Object.values(standings)[0];
-  if (firstVal && typeof firstVal === 'object') {
-    Logger.log('standings[0] keys: ' + Object.keys(firstVal).join(', '));
-    Logger.log('standings[0] sample: ' + JSON.stringify(firstVal).substring(0, 400));
-  }
-
-  // 4. Owner key → name map
-  const ownerMap = getOwnerMap(ss);
-  Logger.log('ownerMap sample: ' + JSON.stringify(ownerMap).substring(0, 300));
+  tryEndpoint('getMatchupResults');
+  tryEndpoint('getScoreboard');
+  tryEndpoint('getMatchupBoxscore');
+  tryEndpoint('getTeamMatchupResults');
+  tryEndpoint('getSchedule');
 }
 
 // ── Debug: raw getStandings response ─────────────────────────────────────────
