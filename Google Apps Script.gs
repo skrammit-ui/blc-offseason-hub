@@ -1878,8 +1878,8 @@ function refreshMLBCareerCacheForTeam(teamKey) {
 }
 
 // ── Refresh matchup scores ────────────────────────────────────────────────────
-// Uses getLeagueInfo which returns all periods' matchups with team names.
-// Matches teams by name (with aliases) and updates HomeScore/VisitorScore.
+// Uses getMatchupScores (per period) with team IDs to update HomeScore/VisitorScore.
+// Score = category wins (ties count as 0.5), matching Fantrax matchup page display.
 function refreshFantraxMatchups(ss) {
   if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
   const sheet = ss.getSheetByName('Matchups');
@@ -1892,49 +1892,64 @@ function refreshFantraxMatchups(ss) {
   const hScoreIdx = headers.indexOf('HomeScore');
   const vScoreIdx = headers.indexOf('VisitorScore');
   if (weekIdx < 0 || homeIdx < 0 || visIdx < 0) throw new Error('Matchups sheet missing required columns');
+  if (hScoreIdx < 0 || vScoreIdx < 0) throw new Error('Matchups sheet missing HomeScore/VisitorScore columns');
 
-  // Build ownerKey → Fantrax team id map from getLeagueInfo matchup data
+  // Build teamId → ownerKey via getLeagueInfo.teamInfo + inverted ownerMap
   const ownerMap = getOwnerMap(ss);
   const nameToKey = {};
-  Object.entries(ownerMap).forEach(([key, name]) => { nameToKey[name.toLowerCase()] = key; });
-  Object.entries(FANTRAX_TEAM_ALIASES).forEach(([alias, key]) => { nameToKey[alias] = key; });
+  Object.entries(ownerMap).forEach(function(kv) { nameToKey[kv[1].toLowerCase()] = kv[0]; });
+  Object.entries(FANTRAX_TEAM_ALIASES).forEach(function(kv) { nameToKey[kv[0]] = kv[1]; });
 
-  // getLeagueInfo returns { matchups: [{ period, matchupList: [{ home:{name,id,score}, away:{name,id,score} }] }] }
   const leagueInfo = fetchFantrax('getLeagueInfo');
-  const periods = leagueInfo.matchups || [];
-
-  // Build lookup: "week|homeKey|visKey" → { homeScore, visScore }
-  // Also build: ownerKey → fantraxTeamId for score lookup
-  const scoreLookup = {}; // "period|ownerKey" → { asHome: score, asAway: score }
-  periods.forEach(periodData => {
-    const week = String(periodData.period || '');
-    (periodData.matchupList || []).forEach(m => {
-      const homeKey = nameToKey[(m.home && m.home.name || '').toLowerCase()];
-      const awayKey = nameToKey[(m.away && m.away.name || '').toLowerCase()];
-      const homeScore = (m.home && (m.home.score || m.home.points)) || '';
-      const awayScore = (m.away && (m.away.score || m.away.points)) || '';
-      if (homeKey) scoreLookup[week + '|' + homeKey] = { score: homeScore, isHome: true,  partner: awayKey,  partnerScore: awayScore };
-      if (awayKey) scoreLookup[week + '|' + awayKey] = { score: awayScore, isHome: false, partner: homeKey, partnerScore: homeScore };
-    });
+  const idToKey = {};
+  Object.values(leagueInfo.teamInfo || {}).forEach(function(ti) {
+    const key = nameToKey[(ti.name || '').toLowerCase()];
+    if (key && ti.id) idToKey[ti.id] = key;
   });
 
+  // Get unique periods from the sheet (regular season weeks only)
+  const sheetPeriods = [];
+  rows.forEach(function(r) {
+    const w = String(r[weekIdx] || '').trim();
+    if (w && sheetPeriods.indexOf(w) < 0) sheetPeriods.push(w);
+  });
+
+  // Fetch scores for each period: "period|ownerKey" → score
+  const scoreLookup = {};
+  sheetPeriods.forEach(function(period) {
+    try {
+      const data = fetchFantrax('getMatchupScores', { period: period });
+      (data.matchups || []).forEach(function(m) {
+        var away = m.away || {}, home = m.home || {};
+        var awayKey = idToKey[away.teamId], homeKey = idToKey[home.teamId];
+        if (awayKey && away.score != null) scoreLookup[period + '|' + awayKey] = away.score;
+        if (homeKey && home.score != null) scoreLookup[period + '|' + homeKey] = home.score;
+      });
+    } catch(e) {
+      Logger.log('getMatchupScores period=' + period + ' error: ' + e.message);
+    }
+  });
+
+  // Batch-collect new values for HomeScore and VisitorScore columns
+  const hScoreVals = [], vScoreVals = [];
   let updated = 0;
-  rows.forEach((row, i) => {
+  rows.forEach(function(row) {
     const week    = String(row[weekIdx] || '').trim();
     const homeKey = String(row[homeIdx] || '').trim();
     const visKey  = String(row[visIdx]  || '').trim();
-    const entry   = scoreLookup[week + '|' + homeKey] || scoreLookup[week + '|' + visKey];
-    if (!entry || entry.score === '') return;
-
-    const rowNum = i + 2;
-    const hScore = entry.isHome ? entry.score : entry.partnerScore;
-    const vScore = entry.isHome ? entry.partnerScore : entry.score;
-    if (hScoreIdx >= 0 && hScore !== '') sheet.getRange(rowNum, hScoreIdx + 1).setValue(hScore);
-    if (vScoreIdx >= 0 && vScore !== '') sheet.getRange(rowNum, vScoreIdx + 1).setValue(vScore);
-    updated++;
+    const hScore  = scoreLookup[week + '|' + homeKey];
+    const vScore  = scoreLookup[week + '|' + visKey];
+    hScoreVals.push([hScore != null ? hScore : (row[hScoreIdx] !== '' ? row[hScoreIdx] : '')]);
+    vScoreVals.push([vScore != null ? vScore : (row[vScoreIdx] !== '' ? row[vScoreIdx] : '')]);
+    if (hScore != null || vScore != null) updated++;
   });
 
-  Logger.log('refreshFantraxMatchups: updated ' + updated + ' rows');
+  if (rows.length > 0) {
+    sheet.getRange(2, hScoreIdx + 1, rows.length, 1).setValues(hScoreVals);
+    sheet.getRange(2, vScoreIdx + 1, rows.length, 1).setValues(vScoreVals);
+  }
+
+  Logger.log('refreshFantraxMatchups: ' + updated + ' rows updated, ' + Object.keys(scoreLookup).length + ' scores fetched, idToKey size: ' + Object.keys(idToKey).length);
   return { ok: true, updated };
 }
 
