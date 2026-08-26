@@ -885,6 +885,13 @@ input[type=file] { display: none; }
 }
 .div-standings-tbl tr:last-child td { border-bottom: none; }
 .div-standings-tbl tr.div-leader td:nth-child(2) { font-weight: 700; color: var(--gold); }
+.ovr-rank {
+  display: inline-flex; align-items: center;
+  font-size: 9px; font-weight: 700; font-family: var(--mono);
+  color: var(--text-3); background: var(--bg-2);
+  border: 1px solid var(--border); border-radius: 3px;
+  padding: 1px 4px; margin-left: 5px;
+}
 .div-standings-tbl .no-data-row td {
   text-align: center; color: var(--text-3); font-family: var(--body);
   font-size: 12px; padding: 16px;
@@ -2809,9 +2816,10 @@ function renderDivisionGrid(year) {
     buildDivAssignGrid(year, 'division-grid');
   } else {
     const divs = DIVISIONS[year] || {};
+    const overallRanks = computeOverallRanks(year);
     grid.className = 'division-grid';
     grid.innerHTML = DIV_NAMES_ORDER.map(divName =>
-      renderDivisionCard(divName, year, divs[divName] || [])
+      renderDivisionCard(divName, year, divs[divName] || [], overallRanks)
     ).join('');
   }
 }
@@ -2841,7 +2849,29 @@ function standingsSortFn(recs) {
   };
 }
 
-function renderDivisionCard(divName, year, ownerKeys) {
+// Returns { ownerKey: overallRank } for all teams in the year's divisions.
+// Division winners ranked 1-4, runners-up 5-8, etc.; within each tier sorted by record.
+function computeOverallRanks(year) {
+  const divs = DIVISIONS[year] || {};
+  const recs = computeStandings();
+  if (!Object.keys(recs).length) return {};
+  const byDivRank = {}; // divPosition (0-based) → [ownerKeys]
+  DIV_NAMES_ORDER.forEach(divName => {
+    const keys = divs[divName] || [];
+    [...keys].sort(standingsSortFn(recs)).forEach((key, i) => {
+      if (!byDivRank[i]) byDivRank[i] = [];
+      byDivRank[i].push(key);
+    });
+  });
+  const ranks = {};
+  let nextRank = 1;
+  Object.keys(byDivRank).map(Number).sort((a, b) => a - b).forEach(pos => {
+    byDivRank[pos].sort(standingsSortFn(recs)).forEach(key => { ranks[key] = nextRank++; });
+  });
+  return ranks;
+}
+
+function renderDivisionCard(divName, year, ownerKeys, overallRanks = {}) {
   const recs = computeStandings();
   const hasResults = Object.keys(recs).length > 0;
   const sorted = hasResults ? [...ownerKeys].sort(standingsSortFn(recs)) : ownerKeys;
@@ -2854,11 +2884,13 @@ function renderDivisionCard(divName, year, ownerKeys) {
         const isMe = teamName === myTeam;
         const suffix = isMe ? ' <span class="stag stag-active" style="font-size:9px">You</span>' : '';
         const byeTag = i === 0 ? ' <span class="stag" style="font-size:9px;padding:1px 5px;background:#edf7f1;color:#1a7a4a;border:1px solid var(--green)">BYE</span>' : '';
+        const ovrRank = overallRanks[key];
+        const ovrBadge = ovrRank ? `<span class="ovr-rank">#${ovrRank}</span>` : '';
         const r = recs[key];
         const recStr = r ? `${r.W}-${r.L}${r.T ? `-${r.T}` : ''}` : '—';
         return `<tr${i === 0 ? ' class="div-leader"' : ''}>
           <td>${i + 1}</td>
-          <td>${teamName}${suffix}${byeTag}</td>
+          <td>${teamName}${suffix}${byeTag}${ovrBadge}</td>
           <td style="text-align:center;color:var(--text-3);font-size:12px;white-space:nowrap">${recStr}</td>
         </tr>`;
       }).join('');
