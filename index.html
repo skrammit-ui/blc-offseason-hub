@@ -890,7 +890,7 @@ input[type=file] { display: none; }
   font-size: 9px; font-weight: 700; font-family: var(--mono);
   color: var(--text-3); background: var(--bg-2);
   border: 1px solid var(--border); border-radius: 3px;
-  padding: 1px 4px; margin-left: 5px;
+  padding: 1px 4px; margin-left: 4px; flex-shrink: 0;
 }
 .div-standings-tbl .no-data-row td {
   text-align: center; color: var(--text-3); font-family: var(--body);
@@ -3000,6 +3000,7 @@ function renderPlayoffBracket(year) {
   const state = PLAYOFFS_DATA[year] || {};
   const canEdit = IS_COMMISH;
   const divNames = DIV_NAMES_ORDER;
+  const overallRanks = computeOverallRanks(year);
 
   function matchupLabel(tmpl, matchupId) {
     if (tmpl.divIdx !== null && tmpl.divIdx !== undefined) return divNames[tmpl.divIdx] || '';
@@ -3066,8 +3067,11 @@ function renderPlayoffBracket(year) {
       const click = (canEdit && !isTbd && !w) ? ` onclick="setBracketWinner('${year}','${matchupId}','${teamKey}')"` : '';
       const tbBadge = (tbKey && tbKey === teamKey)
         ? `<span class="smatchup-tb" title="${tbTitle}">${tbBadgeLabel}</span>` : '';
+      const ovrRank = !isTbd && overallRanks[teamKey] ? overallRanks[teamKey] : null;
+      const ovrBadge = ovrRank ? `<span class="ovr-rank">#${ovrRank}</span>` : '';
       return `<div class="${cls}"${click}>
         <span class="smatchup-name">${isTbd ? 'TBD' : name}</span>
+        ${ovrBadge}
         ${tbBadge}
         ${isWinner ? '<span class="smatchup-check">✓</span>' : ''}
       </div>`;
