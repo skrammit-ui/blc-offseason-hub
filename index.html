@@ -890,7 +890,7 @@ input[type=file] { display: none; }
   font-size: 9px; font-weight: 700; font-family: var(--mono);
   color: var(--text-3); background: var(--bg-2);
   border: 1px solid var(--border); border-radius: 3px;
-  padding: 1px 4px; margin-left: 4px; flex-shrink: 0;
+  padding: 1px 4px; flex-shrink: 0;
 }
 .div-standings-tbl .no-data-row td {
   text-align: center; color: var(--text-3); font-family: var(--body);
@@ -1144,7 +1144,8 @@ input[type=file] { display: none; }
 .smatchup-team.tbd .smatchup-name { color: var(--text-3); font-style: italic; }
 .smatchup-team.clickable { cursor: pointer; }
 .smatchup-team.clickable:hover { background: var(--amber-lt); }
-.smatchup-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.smatchup-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.smatchup-name-group { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; overflow: hidden; }
 .smatchup-check { font-size: 11px; color: var(--green); margin-left: 4px; }
 .smatchup-tb {
   font-size: 9px; font-weight: 700; font-family: var(--mono);
@@ -3070,8 +3071,10 @@ function renderPlayoffBracket(year) {
       const ovrRank = !isTbd && overallRanks[teamKey] ? overallRanks[teamKey] : null;
       const ovrBadge = ovrRank ? `<span class="ovr-rank">#${ovrRank}</span>` : '';
       return `<div class="${cls}"${click}>
-        <span class="smatchup-name">${isTbd ? 'TBD' : name}</span>
-        ${ovrBadge}
+        <span class="smatchup-name-group">
+          <span class="smatchup-name">${isTbd ? 'TBD' : name}</span>
+          ${ovrBadge}
+        </span>
         ${tbBadge}
         ${isWinner ? '<span class="smatchup-check">✓</span>' : ''}
       </div>`;
@@ -3365,14 +3368,15 @@ function buildDivAssignGrid(year, containerId) {
 
   const recs = computeStandings();
   const hasResults = Object.keys(recs).length > 0;
+  const overallRanks = computeOverallRanks(year);
   DIV_NAMES_ORDER.forEach(divName => {
     const raw = (DIVISIONS[year] || {})[divName] || [];
     const assigned = hasResults ? [...raw].sort(standingsSortFn(recs)) : raw;
-    wrap.appendChild(buildDndColumn(divName, assigned, year));
+    wrap.appendChild(buildDndColumn(divName, assigned, year, overallRanks));
   });
 }
 
-function buildDndColumn(divName, teamKeys, year) {
+function buildDndColumn(divName, teamKeys, year, overallRanks = {}) {
   const col = document.createElement('div');
   col.className = 'div-dnd-col';
   col.dataset.div = divName;
@@ -3387,7 +3391,7 @@ function buildDndColumn(divName, teamKeys, year) {
   list.dataset.div = divName;
 
   teamKeys.forEach((key, idx) => {
-    list.appendChild(buildDndItem(key, idx, divName, year));
+    list.appendChild(buildDndItem(key, idx, divName, year, overallRanks));
   });
 
   // Drop target for empty list
@@ -3422,7 +3426,7 @@ function buildDndColumn(divName, teamKeys, year) {
   return col;
 }
 
-function buildDndItem(key, idx, divName, year) {
+function buildDndItem(key, idx, divName, year, overallRanks = {}) {
   const item = document.createElement('div');
   item.className = 'div-dnd-item';
   item.draggable = true;
@@ -3434,10 +3438,12 @@ function buildDndItem(key, idx, divName, year) {
   const r = recs[key];
   const recTag = r ? ` <span style="font-size:10px;color:var(--text-3)">${r.W}-${r.L}${r.T ? `-${r.T}` : ''}</span>` : '';
   const byeTag = idx === 0 ? ` <span style="font-size:9px;font-weight:700;padding:1px 5px;background:#edf7f1;color:#1a7a4a;border:1px solid var(--green);border-radius:3px">BYE</span>` : '';
+  const ovrRank = overallRanks[key];
+  const ovrBadge = ovrRank ? ` <span class="ovr-rank">#${ovrRank}</span>` : '';
   item.innerHTML = `
     <span class="drag-handle">⠿</span>
     <span class="dnd-pos">${idx + 1}</span>
-    <span class="dnd-name">${OWNER_MAP[key] || key}${recTag}${byeTag}</span>
+    <span class="dnd-name">${OWNER_MAP[key] || key}${ovrBadge}${recTag}${byeTag}</span>
     <button class="dnd-remove" onclick="dndRemoveTeam(event,'${year}','${divName}','${key}')" title="Remove">✕</button>
   `;
 
