@@ -2751,15 +2751,16 @@ const BRACKET_TEMPLATE = {
   co20_2: { divIdx:2, winnerTo:['co21_2','team2'], loserTo:['r5_21_1','team1'] },
   co20_3: { divIdx:3, winnerTo:['co21_3','team2'], loserTo:['r5_21_1','team2'] },
   // Week 21 — Divisional (div leader vs WC winner)
-  ch21_0: { divIdx:0, winnerTo:['ch22_0','team1'], loserTo:['ch22_2','team1'] },
-  ch21_1: { divIdx:1, winnerTo:['ch22_0','team2'], loserTo:['ch22_2','team2'] },
-  ch21_2: { divIdx:2, winnerTo:['ch22_1','team1'], loserTo:['ch22_3','team1'] },
-  ch21_3: { divIdx:3, winnerTo:['ch22_1','team2'], loserTo:['ch22_3','team2'] },
+  // No winnerTo/loserTo — week 22 is reseeded by overall rank after all 4 are complete
+  ch21_0: { divIdx:0 },
+  ch21_1: { divIdx:1 },
+  ch21_2: { divIdx:2 },
+  ch21_3: { divIdx:3 },
   // Week 21 — Consolation (WC loser vs Consol Opener winner)
-  co21_0: { divIdx:0, winnerTo:['co22_0','team1'], loserTo:['co22_2','team1'] },
-  co21_1: { divIdx:1, winnerTo:['co22_0','team2'], loserTo:['co22_2','team2'] },
-  co21_2: { divIdx:2, winnerTo:['co22_1','team1'], loserTo:['co22_3','team1'] },
-  co21_3: { divIdx:3, winnerTo:['co22_1','team2'], loserTo:['co22_3','team2'] },
+  co21_0: { divIdx:0 },
+  co21_1: { divIdx:1 },
+  co21_2: { divIdx:2 },
+  co21_3: { divIdx:3 },
   // Week 21 — Rule 5
   r5_21_0: { label:'R5 Game 1', winnerTo:['r5_22_w','team1'], loserTo:['r5_22_l','team1'] },
   r5_21_1: { label:'R5 Game 2', winnerTo:['r5_22_w','team2'], loserTo:['r5_22_l','team2'] },
@@ -3259,6 +3260,55 @@ function resetPlayoffBracket() {
   if (st) { st.textContent = '↺ Bracket reset'; st.style.color = 'var(--text-3)'; }
 }
 
+// ── Week-22 reseeding: once all 4 week-21 games in a track are done,
+//    sort winners/losers by overall rank and pair best vs worst, 2nd vs 3rd ──
+const RESEED_IDS = new Set(['ch21_0','ch21_1','ch21_2','ch21_3','co21_0','co21_1','co21_2','co21_3']);
+
+function reseedWeek22(year, state) {
+  const overallRanks = computeOverallRanks(year);
+  const byRank = arr => [...arr].sort((a, b) => (overallRanks[a] || 99) - (overallRanks[b] || 99));
+
+  function applyGroup(roundIds, wSlots, lSlots) {
+    if (roundIds.every(id => state[id]?.winner)) {
+      const winners = byRank(roundIds.map(id => state[id].winner));
+      const losers  = byRank(roundIds.map(id => state[id].loser));
+      reseedPlace(state, wSlots[0], winners[0], winners[3]);
+      reseedPlace(state, wSlots[1], winners[1], winners[2]);
+      reseedPlace(state, lSlots[0], losers[0],  losers[3]);
+      reseedPlace(state, lSlots[1], losers[1],  losers[2]);
+    } else {
+      [...wSlots, ...lSlots].forEach(id => reseedClear(state, id));
+    }
+  }
+
+  applyGroup(['ch21_0','ch21_1','ch21_2','ch21_3'], ['ch22_0','ch22_1'], ['ch22_2','ch22_3']);
+  applyGroup(['co21_0','co21_1','co21_2','co21_3'], ['co22_0','co22_1'], ['co22_2','co22_3']);
+}
+
+function reseedPlace(state, matchupId, team1, team2) {
+  if (!state[matchupId]) state[matchupId] = { team1:'', team2:'', winner:'', loser:'' };
+  const m = state[matchupId];
+  if (m.team1 === team1 && m.team2 === team2) return;
+  const prevW = m.winner, prevL = m.loser;
+  m.team1 = team1; m.team2 = team2;
+  if (prevW && prevW !== team1 && prevW !== team2) {
+    m.winner = ''; m.loser = '';
+    const tmpl = BRACKET_TEMPLATE[matchupId];
+    if (tmpl?.winnerTo && prevW) { const [id, sl] = tmpl.winnerTo; if (state[id]) removeCascade(state, id, sl, prevW); }
+    if (tmpl?.loserTo  && prevL) { const [id, sl] = tmpl.loserTo;  if (state[id]) removeCascade(state, id, sl, prevL); }
+  }
+}
+
+function reseedClear(state, matchupId) {
+  const m = state[matchupId];
+  if (!m || (!m.team1 && !m.team2 && !m.winner)) return;
+  const prevW = m.winner, prevL = m.loser;
+  m.team1 = ''; m.team2 = ''; m.winner = ''; m.loser = '';
+  const tmpl = BRACKET_TEMPLATE[matchupId];
+  if (tmpl?.winnerTo && prevW) { const [id, sl] = tmpl.winnerTo; if (state[id]) removeCascade(state, id, sl, prevW); }
+  if (tmpl?.loserTo  && prevL) { const [id, sl] = tmpl.loserTo;  if (state[id]) removeCascade(state, id, sl, prevL); }
+}
+
 // ── Set winner and auto-advance through bracket ───────────────────────────────
 function setBracketWinner(year, matchupId, winnerKey) {
   if (!PLAYOFFS_DATA[year]) PLAYOFFS_DATA[year] = {};
@@ -3293,6 +3343,9 @@ function setBracketWinner(year, matchupId, winnerKey) {
     }
   }
 
+  // After week-21 results, reseed week-22 matchups by overall rank
+  if (RESEED_IDS.has(matchupId)) reseedWeek22(year, state);
+
   renderPlayoffBracket(year);
   saveBracketToSheet(year);
 }
@@ -3323,6 +3376,9 @@ function clearBracketMatchup(year, matchupId) {
     const [nextId, slot] = tmpl.loserTo;
     removeCascade(state, nextId, slot, prevLoser);
   }
+
+  // If a week-21 game was cleared, un-reseed the week-22 matchups for that track
+  if (RESEED_IDS.has(matchupId)) reseedWeek22(year, state);
 
   renderPlayoffBracket(year);
   saveBracketToSheet(year);
