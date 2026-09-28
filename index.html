@@ -2030,11 +2030,14 @@ input[type=file] { display: none; }
       <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
         <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Add manually</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <select id="trade-keeper-team" style="font-family:var(--body);font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text)">
+          <select id="trade-keeper-team" onchange="populateTradeKeeperPlayers(this.value)"
+            style="font-family:var(--body);font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text)">
             <option value="">— Team —</option>
           </select>
-          <input id="trade-keeper-player" type="text" placeholder="Player name"
-            style="font-family:var(--body);font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);width:180px">
+          <select id="trade-keeper-player" disabled
+            style="font-family:var(--body);font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);width:200px">
+            <option value="">— Select team first —</option>
+          </select>
           <button class="btn btn-primary" style="font-size:11px;padding:5px 14px" onclick="doAddManualTradeKeeper()">+ Mark as Trade Keeper</button>
         </div>
       </div>
@@ -7135,16 +7138,32 @@ async function doSyncTradeKeepers() {
   }
 }
 
+function populateTradeKeeperPlayers(teamKey) {
+  const sel = document.getElementById('trade-keeper-player');
+  if (!sel) return;
+  if (!teamKey) {
+    sel.innerHTML = '<option value="">— Select team first —</option>';
+    sel.disabled = true;
+    return;
+  }
+  const displayName = OWNER_MAP[teamKey] || teamKey;
+  const roster = LEAGUE[displayName] || [];
+  const sorted = [...roster].sort((a, b) => a.player.localeCompare(b.player));
+  sel.innerHTML = '<option value="">— Select player —</option>' +
+    sorted.map(p => `<option value="${p.player.replace(/"/g,'&quot;')}">${p.player}</option>`).join('');
+  sel.disabled = false;
+}
+
 async function doAddManualTradeKeeper() {
-  const teamKey  = document.getElementById('trade-keeper-team').value;
-  const player   = (document.getElementById('trade-keeper-player').value || '').trim();
+  const teamKey = document.getElementById('trade-keeper-team').value;
+  const player  = document.getElementById('trade-keeper-player').value;
   if (!teamKey) { toast('Select a team'); return; }
-  if (!player)  { toast('Enter a player name'); return; }
+  if (!player)  { toast('Select a player'); return; }
   try {
     await remotePost({ action: 'setKeeper', teamKey, player, keeperType: 'trade', playerId: '' });
     if (!keeperStore[teamKey]) keeperStore[teamKey] = {};
     keeperStore[teamKey][player] = 'trade';
-    document.getElementById('trade-keeper-player').value = '';
+    document.getElementById('trade-keeper-player').innerHTML = '<option value="">— Select player —</option>';
     renderTradeKeepersList();
     toast(`${player} marked as trade keeper`);
   } catch(e) { toast('⚠ ' + e.message); }
