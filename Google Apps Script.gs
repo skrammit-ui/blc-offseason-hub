@@ -2421,7 +2421,18 @@ function refreshFantraxDraftPicks(ss) {
   Object.entries(ownerMap).forEach(([key, name]) => { nameToKey[name.toLowerCase()] = key; });
   Object.entries(FANTRAX_TEAM_ALIASES).forEach(([alias, key]) => { nameToKey[alias] = key; });
 
-  const data = fetchFantrax('getDraftPicks', { season: FANTRAX_SEASON });
+  // Build teamId → ownerKey map via getTeamRosters
+  const idToKey = {};
+  try {
+    const rostersData = fetchFantrax('getTeamRosters');
+    Object.entries(rostersData.rosters || {}).forEach(([tid, info]) => {
+      const tname = String(info.teamName || '').trim().toLowerCase();
+      const k = nameToKey[tname];
+      if (k && tid) idToKey[tid] = k;
+    });
+  } catch(e) { Logger.log('getTeamRosters failed: ' + e); }
+
+  const data = fetchFantrax('getDraftPicks');
 
   // Fantrax returns futureDraftPicks and/or currentDraftPicks
   const picks = [].concat(data.futureDraftPicks || [], data.currentDraftPicks || [],
@@ -2463,8 +2474,9 @@ function refreshFantraxDraftPicks(ss) {
     const round = String(p.round || p.roundNum || p.rd || p.roundNumber || '').trim();
     const pick  = String(p.pick  || p.pickNum  || p.pickNumber || p.overallPick || '').trim();
     const rawName = (p.teamName || p.name || p.ownerName || p.team || '').toLowerCase();
-    const teamKey = nameToKey[rawName] || '';
-    if (!teamKey && rawName) unresolved.push(rawName);
+    const rawId   = String(p.teamId || p.ownerId || '').trim();
+    const teamKey = nameToKey[rawName] || idToKey[rawId] || '';
+    if (!teamKey) unresolved.push(rawName || rawId || '(unknown)');
     if (!round || !pick) return;
 
     const lookupKey = round + '|' + pick;
@@ -2493,7 +2505,7 @@ function refreshFantraxDraftPicks(ss) {
 }
 
 function debugDraftPicksData() {
-  const data = fetchFantrax('getDraftPicks', { season: FANTRAX_SEASON });
+  const data = fetchFantrax('getDraftPicks');
   const picks = [].concat(data.futureDraftPicks || [], data.currentDraftPicks || [],
                            data.picks || [], data.draftPicks || []);
   return { ok: true, topLevelKeys: Object.keys(data), total: picks.length, sample: picks.slice(0, 3) };
@@ -2501,7 +2513,7 @@ function debugDraftPicksData() {
 
 function debugDraftResultsData() {
   try {
-    const data = fetchFantrax('getDraftResults', { season: FANTRAX_SEASON });
+    const data = fetchFantrax('getDraftResults');
     const topLevelKeys = Object.keys(data);
     const picks = data.draftResults || (data.data && data.data.draftResults) || data.picks || data.results || [];
     return {
