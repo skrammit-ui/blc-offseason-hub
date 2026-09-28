@@ -156,6 +156,13 @@ function doPost(e) {
         return corsResponse(debugStandingsData(ss));
       case 'refreshDraftPicks':
         return corsResponse(refreshFantraxDraftPicks(ss));
+      case 'clearAndResyncDraft': {
+        const sheet = ss.getSheetByName('Picks');
+        if (sheet && sheet.getLastRow() > 1) sheet.deleteRows(2, sheet.getLastRow() - 1);
+        const pickRes = refreshFantraxDraftPicks(ss);
+        const draftRes = refreshFantraxDraft(ss);
+        return corsResponse({ ok: true, picks: pickRes, draft: draftRes });
+      }
       case 'debugDraftPicks':
         return corsResponse(debugDraftPicksData());
       case 'debugDraftResults':
