@@ -1354,8 +1354,9 @@ function setupMatchupsSheet() {
 //                         (open Fantrax, F12 → Network → any request → copy Cookie header)
 // ════════════════════════════════════════════════════════════════════════════
 
-const FANTRAX_BASE  = 'https://www.fantrax.com/fxea/general/';
-const FANTRAX_SPORT = 'MLB';
+const FANTRAX_BASE   = 'https://www.fantrax.com/fxea/general/';
+const FANTRAX_SPORT  = 'MLB';
+const FANTRAX_SEASON = 2027;
 
 // Fantrax team names that differ from our ownerMap values → ownerKey
 const FANTRAX_TEAM_ALIASES = {
@@ -2176,7 +2177,7 @@ function refreshFantraxRosters(ss, filterKey) {
 // Player names/positions resolved via getLeagueInfo; team names via getTeamRosters.
 function refreshFantraxDraft(ss) {
   if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
-  const data = fetchFantrax('getDraftResults');
+  const data = fetchFantrax('getDraftResults', { season: FANTRAX_SEASON });
 
   const picks = data.draftPicks || [];
   if (!picks.length) return { ok: true, updated: 0, added: 0, message: 'No draft picks from Fantrax. Keys: ' + Object.keys(data).join(', ') };
@@ -2358,7 +2359,7 @@ function debugDraftResolution() {
 // Run from Apps Script editor to test the import without touching the sheet
 function testDraftResultsImport() {
   const ss = SpreadsheetApp.openById(SHEET_ID);
-  const data = fetchFantrax('getDraftResults');
+  const data = fetchFantrax('getDraftResults', { season: FANTRAX_SEASON });
   const picks = data.draftPicks || [];
   Logger.log('Total picks: ' + picks.length + '  draftState: ' + data.draftState);
 
@@ -2412,7 +2413,7 @@ function refreshFantraxDraftPicks(ss) {
   Object.entries(ownerMap).forEach(([key, name]) => { nameToKey[name.toLowerCase()] = key; });
   Object.entries(FANTRAX_TEAM_ALIASES).forEach(([alias, key]) => { nameToKey[alias] = key; });
 
-  const data = fetchFantrax('getDraftPicks');
+  const data = fetchFantrax('getDraftPicks', { season: FANTRAX_SEASON });
 
   // Fantrax returns futureDraftPicks and/or currentDraftPicks
   const picks = [].concat(data.futureDraftPicks || [], data.currentDraftPicks || [],
@@ -2484,7 +2485,7 @@ function refreshFantraxDraftPicks(ss) {
 }
 
 function debugDraftPicksData() {
-  const data = fetchFantrax('getDraftPicks');
+  const data = fetchFantrax('getDraftPicks', { season: FANTRAX_SEASON });
   const picks = [].concat(data.futureDraftPicks || [], data.currentDraftPicks || [],
                            data.picks || [], data.draftPicks || []);
   return { ok: true, topLevelKeys: Object.keys(data), total: picks.length, sample: picks.slice(0, 3) };
@@ -2492,7 +2493,7 @@ function debugDraftPicksData() {
 
 function debugDraftResultsData() {
   try {
-    const data = fetchFantrax('getDraftResults');
+    const data = fetchFantrax('getDraftResults', { season: FANTRAX_SEASON });
     const topLevelKeys = Object.keys(data);
     const picks = data.draftResults || (data.data && data.data.draftResults) || data.picks || data.results || [];
     return {
@@ -2513,7 +2514,7 @@ function debugDraftResultsData() {
 
 // Run this from Apps Script editor: select testDraftResults → Run → View Logs
 function testDraftResults() {
-  const data = fetchFantrax('getDraftResults');
+  const data = fetchFantrax('getDraftResults', { season: FANTRAX_SEASON });
   Logger.log('Top-level keys: ' + JSON.stringify(Object.keys(data)));
   // Log each key's type and length/preview
   Object.keys(data).forEach(function(k) {
