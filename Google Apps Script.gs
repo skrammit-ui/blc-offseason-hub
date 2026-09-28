@@ -158,7 +158,8 @@ function doPost(e) {
         return corsResponse(refreshFantraxDraftPicks(ss));
       case 'clearAndResyncDraft': {
         const sheet = ss.getSheetByName('Picks');
-        if (sheet && sheet.getLastRow() > 1) sheet.deleteRows(2, sheet.getLastRow() - 1);
+        if (sheet && sheet.getLastRow() > 1)
+          sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).clearContent();
         const pickRes = refreshFantraxDraftPicks(ss);
         const draftRes = refreshFantraxDraft(ss);
         return corsResponse({ ok: true, picks: pickRes, draft: draftRes });
