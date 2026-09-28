@@ -2534,18 +2534,36 @@ function refreshTradeKeepers(ss) {
     if (name) playerById[id] = name;
   });
 
-  // Fetch transactions — Fantrax endpoint may vary; fall back gracefully
-  var txData;
-  try { txData = fetchFantrax('getTransactions'); }
-  catch(e) { return { ok: false, error: 'getTransactions failed: ' + e.message }; }
+  // Fetch transactions — try candidate endpoint names in order
+  var txData = null;
+  var txEndpoint = '';
+  var txAttempts = [];
+  var CANDIDATES = ['getLeagueTransactions', 'getTransactionLog', 'getRecentTransactions', 'getTransactions', 'getActivityLog'];
+  for (var ci = 0; ci < CANDIDATES.length; ci++) {
+    var ep = CANDIDATES[ci];
+    try {
+      var d = fetchFantrax(ep);
+      // Fantrax returns { error: '...' } for unknown endpoints
+      if (d && !d.error) { txData = d; txEndpoint = ep; break; }
+      txAttempts.push(ep + '→' + JSON.stringify(d).slice(0, 80));
+    } catch(e) {
+      txAttempts.push(ep + '→throw:' + e.message);
+    }
+  }
+
+  if (!txData) {
+    Logger.log('refreshTradeKeepers: no valid endpoint. Attempts: ' + txAttempts.join(' | '));
+    return { ok: false, error: 'No working Fantrax transactions endpoint found', attempts: txAttempts };
+  }
 
   // Normalize transaction list across possible response shapes
   var txList = [].concat(
-    txData.transactions || txData.leagueTransactions || txData.activity || txData.data || []
+    txData.transactions || txData.leagueTransactions || txData.activity ||
+    txData.transactionLog || txData.recentTransactions || txData.data || []
   );
 
   if (!Array.isArray(txList) || txList.length === 0) {
-    return { ok: true, marked: 0, note: 'No transactions returned. Keys: ' + Object.keys(txData).join(', ') };
+    return { ok: true, marked: 0, note: 'Endpoint ' + txEndpoint + ' returned no transactions. Keys: ' + Object.keys(txData).join(', ') };
   }
 
   // Extract trade-acquired players
