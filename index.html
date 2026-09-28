@@ -7114,7 +7114,7 @@ async function doSyncTradeKeepers() {
   try {
     const res = await remotePost({ action: 'refreshTradeKeepers' });
     if (!res.ok) throw new Error(res.error || 'Unknown error');
-    const note = res.note || (res.topLevelKeys ? 'Keys: ' + res.topLevelKeys.join(', ') : '');
+    const note = res.note || (res.attempts ? 'Tried: ' + res.attempts.join(' / ') : (res.topLevelKeys ? 'Keys: ' + res.topLevelKeys.join(', ') : ''));
     if (statusEl) {
       statusEl.textContent = res.marked > 0
         ? `✓ ${res.marked} trade keeper${res.marked !== 1 ? 's' : ''} marked`
