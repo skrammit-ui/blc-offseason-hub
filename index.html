@@ -2258,6 +2258,7 @@ input[type=file] { display: none; }
       <div id="commish-draft-controls" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <button class="btn btn-secondary" style="font-size:11px;padding:5px 10px;background:#22a366;border-color:#22a366;color:#fff" onclick="doRefreshDraftPicks()">⚡ Sync Pick Order</button>
         <button class="btn btn-secondary" style="font-size:11px;padding:5px 10px;background:#1a6fba;border-color:#1a6fba;color:#fff" onclick="doSyncDraftResults()">&#x1F4E5; Sync Draft Results</button>
+        <button class="btn btn-secondary" style="font-size:11px;padding:5px 10px;background:#c0392b;border-color:#c0392b;color:#fff" onclick="doClearAndResyncDraft()" title="Wipes the Picks sheet and pulls fresh from Fantrax">&#x1F5D1; Clear &amp; Resync</button>
         <span id="draft-picks-status" style="font-size:11px;color:var(--text-3)"></span>
         <span class="draft-upload-hint" style="font-size:11px;color:var(--text-3)">Or upload results CSV</span>
         <button class="btn btn-secondary" style="font-size:11px;padding:5px 10px" onclick="document.getElementById('draft-results-file').click()">&#x1F4C2; Upload Draft CSV</button>
@@ -7741,6 +7742,22 @@ async function doSyncMatchupScores() {
     if (!res.ok) throw new Error(res.error || 'Unknown error');
     if (el) { el.textContent = `✓ ${res.updated ?? 0} matchup scores updated`; el.style.color = '#22a366'; }
     if ((res.updated || 0) > 0) setTimeout(() => location.reload(), 1500);
+  } catch(e) {
+    if (el) { el.textContent = '⚠ ' + e.message; el.style.color = '#c0392b'; }
+  }
+}
+
+async function doClearAndResyncDraft() {
+  if (!confirm('This will delete all rows in the Picks sheet and re-pull from Fantrax. Continue?')) return;
+  const el = document.getElementById('draft-picks-status');
+  if (el) { el.textContent = '⏳ Clearing Picks sheet and resyncing…'; el.style.color = 'var(--text-3)'; }
+  try {
+    const res = await remotePost({ action: 'clearAndResyncDraft' });
+    if (!res.ok) throw new Error(res.error || 'Unknown error');
+    const added = (res.picks?.added || 0) + (res.draft?.added || 0);
+    const updated = (res.picks?.updated || 0) + (res.draft?.updated || 0);
+    if (el) { el.textContent = `✓ Cleared & resynced — ${added} added, ${updated} updated`; el.style.color = '#22a366'; }
+    setTimeout(() => location.reload(), 1500);
   } catch(e) {
     if (el) { el.textContent = '⚠ ' + e.message; el.style.color = '#c0392b'; }
   }
