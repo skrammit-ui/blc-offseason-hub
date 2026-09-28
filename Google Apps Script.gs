@@ -164,6 +164,8 @@ function doPost(e) {
         const draftRes = refreshFantraxDraft(ss);
         return corsResponse({ ok: true, picks: pickRes, draft: draftRes });
       }
+      case 'refreshTradeKeepers':
+        return corsResponse(refreshTradeKeepers(ss));
       case 'debugDraftPicks':
         return corsResponse(debugDraftPicksData());
       case 'debugDraftResults':
@@ -2502,6 +2504,74 @@ function refreshFantraxDraftPicks(ss) {
 
   Logger.log('refreshFantraxDraftPicks: updated=' + updated + ' added=' + newRows.length);
   return { ok: true, updated, added: newRows.length, total: picks.length, unresolved };
+}
+
+// ── Sync trade-acquired players as required keepers ───────────────────────────
+function refreshTradeKeepers(ss) {
+  if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
+
+  // Build name / id → ownerKey maps
+  const ownerMap = getOwnerMap(ss);
+  const nameToKey = {};
+  Object.entries(ownerMap).forEach(function(kv) { nameToKey[kv[1].toLowerCase()] = kv[0]; });
+  Object.entries(FANTRAX_TEAM_ALIASES).forEach(function(kv) { nameToKey[kv[0]] = kv[1]; });
+
+  const leagueInfo = fetchFantrax('getLeagueInfo');
+  const idToKey = {};
+  Object.values(leagueInfo.teamInfo || {}).forEach(function(ti) {
+    const key = nameToKey[(ti.name || '').toLowerCase()];
+    if (key && ti.id) idToKey[ti.id] = key;
+  });
+
+  // Build playerId → display name map
+  const playerData = fetchFantrax('getPlayerIds');
+  const playerById = {};
+  Object.entries(playerData || {}).forEach(function(kv) {
+    const p = kv[1]; if (!p || typeof p !== 'object') return;
+    const id = String(p.fantraxId || p.id || kv[0]).trim(); if (!id) return;
+    let name = String(p.name || p.playerName || '').trim();
+    if (name.includes(',')) { var pts = name.split(','); name = pts[1].trim() + ' ' + pts[0].trim(); }
+    if (name) playerById[id] = name;
+  });
+
+  // Fetch transactions — Fantrax endpoint may vary; fall back gracefully
+  var txData;
+  try { txData = fetchFantrax('getTransactions'); }
+  catch(e) { return { ok: false, error: 'getTransactions failed: ' + e.message }; }
+
+  // Normalize transaction list across possible response shapes
+  var txList = [].concat(
+    txData.transactions || txData.leagueTransactions || txData.activity || txData.data || []
+  );
+
+  if (!Array.isArray(txList) || txList.length === 0) {
+    return { ok: true, marked: 0, note: 'No transactions returned. Keys: ' + Object.keys(txData).join(', ') };
+  }
+
+  // Extract trade-acquired players
+  var toMark = [];
+  txList.forEach(function(tx) {
+    var txType = String(tx.type || tx.transactionType || tx.action || '').toUpperCase();
+    if (txType.indexOf('TRADE') < 0) return;
+
+    var players = [].concat(tx.players || tx.adds || tx.moves || []);
+    players.forEach(function(p) {
+      var action = String(p.type || p.action || p.transactionType || '').toUpperCase();
+      if (action !== 'ADD' && action.indexOf('ADD') < 0 && action !== 'ACQUIRE') return;
+
+      var teamId   = String(p.teamId || p.ownerId || tx.teamId || '').trim();
+      var teamKey  = idToKey[teamId] || nameToKey[String(p.teamName || '').toLowerCase()] || '';
+      var playerId = String(p.playerId || p.id || '').trim();
+      var playerName = playerById[playerId] || String(p.playerName || p.name || '').trim();
+
+      if (teamKey && playerName) toMark.push({ teamKey: teamKey, player: playerName, playerId: playerId });
+    });
+  });
+
+  toMark.forEach(function(m) { setKeeper(ss, m.teamKey, m.player, 'trade', m.playerId); });
+
+  Logger.log('refreshTradeKeepers: marked=' + toMark.length + ' from ' + txList.length + ' transactions');
+  return { ok: true, marked: toMark.length, keepers: toMark, txTotal: txList.length, topLevelKeys: Object.keys(txData) };
 }
 
 function debugDraftPicksData() {

@@ -2019,38 +2019,25 @@ input[type=file] { display: none; }
   </div>
 
   <div class="card">
-    <div class="card-header"><span class="card-title">&#x1F501; Execute Trade</span></div>
+    <div class="card-header"><span class="card-title">&#x1F7E0; Trade Keepers</span></div>
     <div style="padding:20px">
-      <div class="commish-trade-grid">
-
-        <!-- Team A -->
-        <div>
-          <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Team A gives</div>
-          <select id="trade-team-a" onchange="populateTradeRoster('a')"
-            style="width:100%;font-family:var(--body);font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text)">
-            <option value="">— Select team —</option>
-          </select>
-          <div id="trade-roster-a" style="margin-top:8px;max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:5px;font-size:12px"></div>
-        </div>
-
-        <!-- Divider arrow -->
-        <div class="commish-trade-arrow" style="text-align:center;padding-top:32px;font-size:18px;color:var(--text-3)">&#x21C4;</div>
-
-        <!-- Team B -->
-        <div>
-          <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:6px">Team B gives</div>
-          <select id="trade-team-b" onchange="populateTradeRoster('b')"
-            style="width:100%;font-family:var(--body);font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text)">
-            <option value="">— Select team —</option>
-          </select>
-          <div id="trade-roster-b" style="margin-top:8px;max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:5px;font-size:12px"></div>
-        </div>
-
+      <p style="font-size:12px;color:var(--text-2);margin:0 0 14px">Players acquired via trade are required keepers (marked orange). Sync pulls trade transactions directly from Fantrax. Use the manual row to add overrides if the API misses anything.</p>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
+        <button class="btn btn-primary" style="font-size:11px;padding:5px 14px" onclick="doSyncTradeKeepers()">&#x26A1; Sync from Fantrax</button>
+        <span id="trade-keepers-status" style="font-size:11px;color:var(--text-3)"></span>
       </div>
-
-      <!-- Preview + execute -->
-      <div id="trade-preview" style="margin-top:14px;font-size:12px;color:var(--text-2);min-height:20px"></div>
-      <button class="btn btn-primary" onclick="executeTrade()" style="margin-top:12px">&#x2713; Execute Trade</button>
+      <div id="trade-keepers-list"></div>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);margin-bottom:8px">Add manually</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="trade-keeper-team" style="font-family:var(--body);font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text)">
+            <option value="">— Team —</option>
+          </select>
+          <input id="trade-keeper-player" type="text" placeholder="Player name"
+            style="font-family:var(--body);font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--text);width:180px">
+          <button class="btn btn-primary" style="font-size:11px;padding:5px 14px" onclick="doAddManualTradeKeeper()">+ Mark as Trade Keeper</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -7131,73 +7118,87 @@ function r5InitPage() {
 
 // ── Commissioner Page Init ────────────────────────────────────────────────────
 
-// ── Trade execution ────────────────────────────────────────────────────────────
-function populateTradeRoster(side) {
-  const team = document.getElementById('trade-team-' + side).value;
-  const el   = document.getElementById('trade-roster-' + side);
-  if (!team || !LEAGUE[team]) { el.innerHTML = ''; updateTradePreview(); return; }
-  const sorted = [...LEAGUE[team]].sort((a,b) => a.player.localeCompare(b.player));
-  el.innerHTML = sorted.map(p =>
-    `<label style="display:flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer;border-bottom:1px solid var(--border)">
-      <input type="checkbox" data-player="${p.player.replace(/"/g,'&quot;')}" onchange="updateTradePreview()">
-      <span style="flex:1">${p.player}</span>
-      <span style="font-size:11px;color:var(--text-3)">${fmtPos(p.position)} &middot; ${p.mlb_team}</span>
-    </label>`
-  ).join('');
-  updateTradePreview();
+// ── Trade Keepers ─────────────────────────────────────────────────────────────
+async function doSyncTradeKeepers() {
+  const statusEl = document.getElementById('trade-keepers-status');
+  if (statusEl) { statusEl.textContent = '⏳ Syncing…'; statusEl.style.color = 'var(--text-3)'; }
+  try {
+    const res = await remotePost({ action: 'refreshTradeKeepers' });
+    if (!res.ok) throw new Error(res.error || 'Unknown error');
+    const note = res.note || (res.topLevelKeys ? 'Keys: ' + res.topLevelKeys.join(', ') : '');
+    if (statusEl) {
+      statusEl.textContent = res.marked > 0
+        ? `✓ ${res.marked} trade keeper${res.marked !== 1 ? 's' : ''} marked`
+        : `✓ Synced — no new trade keepers${note ? ' · ' + note : ''}`;
+      statusEl.style.color = res.marked > 0 ? '#22a366' : 'var(--text-3)';
+    }
+    if (res.keepers) {
+      res.keepers.forEach(k => {
+        if (!keeperStore[k.teamKey]) keeperStore[k.teamKey] = {};
+        keeperStore[k.teamKey][k.player] = 'trade';
+      });
+    }
+    renderTradeKeepersList();
+    if (res.marked > 0) setTimeout(() => location.reload(), 1800);
+  } catch(e) {
+    if (statusEl) { statusEl.textContent = '⚠ ' + e.message; statusEl.style.color = '#c0392b'; }
+    console.warn('doSyncTradeKeepers:', e);
+  }
 }
 
-function updateTradePreview() {
-  const teamA  = document.getElementById('trade-team-a').value;
-  const teamB  = document.getElementById('trade-team-b').value;
-  const aNames = [...document.querySelectorAll('#trade-roster-a input:checked')].map(cb => cb.dataset.player);
-  const bNames = [...document.querySelectorAll('#trade-roster-b input:checked')].map(cb => cb.dataset.player);
-  const el     = document.getElementById('trade-preview');
+async function doAddManualTradeKeeper() {
+  const teamKey  = document.getElementById('trade-keeper-team').value;
+  const player   = (document.getElementById('trade-keeper-player').value || '').trim();
+  if (!teamKey) { toast('Select a team'); return; }
+  if (!player)  { toast('Enter a player name'); return; }
+  try {
+    await remotePost({ action: 'setKeeper', teamKey, player, keeperType: 'trade', playerId: '' });
+    if (!keeperStore[teamKey]) keeperStore[teamKey] = {};
+    keeperStore[teamKey][player] = 'trade';
+    document.getElementById('trade-keeper-player').value = '';
+    renderTradeKeepersList();
+    toast(`${player} marked as trade keeper`);
+  } catch(e) { toast('⚠ ' + e.message); }
+}
+
+async function doUnmarkTradeKeeper(teamKey, player) {
+  try {
+    await remotePost({ action: 'setKeeper', teamKey, player, keeperType: '', playerId: '' });
+    if (keeperStore[teamKey]) delete keeperStore[teamKey][player];
+    renderTradeKeepersList();
+    toast(`${player} removed from trade keepers`);
+  } catch(e) { toast('⚠ ' + e.message); }
+}
+
+function renderTradeKeepersList() {
+  const el = document.getElementById('trade-keepers-list');
   if (!el) return;
-  if (!aNames.length && !bNames.length) { el.textContent = ''; return; }
-  const parts = [];
-  if (aNames.length) parts.push(`<strong>${teamA}</strong> sends: ${aNames.join(', ')}`);
-  if (bNames.length) parts.push(`<strong>${teamB}</strong> sends: ${bNames.join(', ')}`);
-  el.innerHTML = parts.join(' &nbsp;|&nbsp; ');
-}
-
-function executeTrade() {
-  const teamA  = document.getElementById('trade-team-a').value;
-  const teamB  = document.getElementById('trade-team-b').value;
-  if (!teamA || !teamB)        { toast('Select both teams'); return; }
-  if (teamA === teamB)         { toast('Teams must be different'); return; }
-  const aNames = [...document.querySelectorAll('#trade-roster-a input:checked')].map(cb => cb.dataset.player);
-  const bNames = [...document.querySelectorAll('#trade-roster-b input:checked')].map(cb => cb.dataset.player);
-  if (!aNames.length && !bNames.length) { toast('Select at least one player'); return; }
-
-  const moves = [];
-
-  aNames.forEach(name => {
-    const idx = LEAGUE[teamA].findIndex(p => p.player === name);
-    if (idx < 0) return;
-    const [p] = LEAGUE[teamA].splice(idx, 1);
-    LEAGUE[teamB].push(p);
-    moves.push({ player: name, playerId: p.id || '', fromTeamKey: ownerKeyFor(teamA), toTeamKey: ownerKeyFor(teamB) });
+  const rows = [];
+  Object.entries(keeperStore).forEach(([teamKey, players]) => {
+    Object.entries(players || {}).forEach(([playerName, type]) => {
+      if (type === 'trade') rows.push({ teamKey, playerName });
+    });
   });
-
-  bNames.forEach(name => {
-    const idx = LEAGUE[teamB].findIndex(p => p.player === name);
-    if (idx < 0) return;
-    const [p] = LEAGUE[teamB].splice(idx, 1);
-    LEAGUE[teamA].push(p);
-    moves.push({ player: name, playerId: p.id || '', fromTeamKey: ownerKeyFor(teamB), toTeamKey: ownerKeyFor(teamA) });
-  });
-
-  if (!moves.length) { toast('No players found to move'); return; }
-
-  remotePost({ action: 'tradePlayers', moves })
-    .then(r => { if (!r?.ok) toast('⚠ Sheet sync failed — trade recorded locally but not saved to sheet'); });
-  toast(`Trade executed: ${moves.length} player${moves.length !== 1 ? 's' : ''} moved`);
-
-  // Reset selectors and refresh
-  populateTradeRoster('a');
-  populateTradeRoster('b');
-  if (document.getElementById('page-rosters')?.classList.contains('active')) loadTeam(currentTeam);
+  if (!rows.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text-3);font-style:italic;padding:4px 0">No trade keepers marked yet.</div>';
+    return;
+  }
+  rows.sort((a, b) => (OWNER_MAP[a.teamKey] || a.teamKey).localeCompare(OWNER_MAP[b.teamKey] || b.teamKey) || a.playerName.localeCompare(b.playerName));
+  el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr style="border-bottom:1px solid var(--border)">
+      <th style="text-align:left;padding:4px 8px;color:var(--text-3);font-weight:600">Team</th>
+      <th style="text-align:left;padding:4px 8px;color:var(--text-3);font-weight:600">Player</th>
+      <th style="width:32px"></th>
+    </tr></thead>
+    <tbody>${rows.map(r => `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:5px 8px">${OWNER_MAP[r.teamKey] || r.teamKey}</td>
+      <td style="padding:5px 8px;color:var(--orange);font-weight:500">${r.playerName}</td>
+      <td style="padding:5px 8px;text-align:center">
+        <button onclick="doUnmarkTradeKeeper('${r.teamKey}','${r.playerName.replace(/'/g, "&#39;")}')"
+          style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:13px;padding:0;line-height:1" title="Remove">&#x2715;</button>
+      </td>
+    </tr>`).join('')}</tbody>
+  </table>`;
 }
 
 // ── Matchup stat helpers ───────────────────────────────────────────────────
@@ -8068,14 +8069,14 @@ function populateCommishSelects() {
     ).join('');
   }
 
-  // Trade: team A and B selects
-  const teams = Object.keys(LEAGUE).sort();
-  const teamOpts = '<option value="">— Select team —</option>' +
-    teams.map(t => `<option value="${t.replace(/"/g,'&quot;')}">${t}</option>`).join('');
-  ['trade-team-a','trade-team-b'].forEach(id => {
-    const sel = document.getElementById(id);
-    if (sel) sel.innerHTML = teamOpts;
-  });
+  // Trade Keepers: team select (uses ownerKey, not display name)
+  const ownerEntries = Object.entries(OWNER_MAP).sort((a, b) => a[1].localeCompare(b[1]));
+  const tkSel = document.getElementById('trade-keeper-team');
+  if (tkSel) {
+    tkSel.innerHTML = '<option value="">— Team —</option>' +
+      ownerEntries.map(([k, n]) => `<option value="${k}">${n}</option>`).join('');
+  }
+  renderTradeKeepersList();
 }
 
 function prefillRenameField() {
