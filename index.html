@@ -4347,19 +4347,8 @@ function renderOverview(players, keptPlayers = {}, viewingOwn = true, managerNam
   }).join('');
 
   const ownerKey   = ownerKeyFor(managerName);
-  const canRefresh = viewingOwn || IS_COMMISH;
-  const milbBar    = canRefresh ? `
-    <div style="display:flex;align-items:center;gap:10px;padding:8px 4px 10px;flex-wrap:wrap">
-      <button class="btn btn-secondary" id="milb-refresh-btn"
-        style="font-size:11px;padding:4px 12px;border-color:#7b5ea7;color:#7b5ea7"
-        onclick="doUpdateMiLBStatus('${ownerKey}')">🔄 Sync Roster + MiLB</button>
-      <span id="milb-refresh-status" style="font-size:11px;color:var(--text-3)">
-        Syncs your roster from Fantrax and auto-labels MiLB-eligible players
-      </span>
-    </div>` : '';
-
   const overviewEl = document.getElementById('overview-content');
-  if (overviewEl) overviewEl.innerHTML = milbBar + `
+  if (overviewEl) overviewEl.innerHTML = `
     <table class="roster-tbl"><thead>${thead}</thead><tbody>${tbody}</tbody></table>
   `;
 
