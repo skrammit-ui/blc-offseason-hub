@@ -7756,8 +7756,10 @@ async function doClearAndResyncDraft() {
     if (!res.ok) throw new Error(res.error || 'Unknown error');
     const added = (res.picks?.added || 0) + (res.draft?.added || 0);
     const updated = (res.picks?.updated || 0) + (res.draft?.updated || 0);
-    if (el) { el.textContent = `✓ Cleared & resynced — ${added} added, ${updated} updated`; el.style.color = '#22a366'; }
-    setTimeout(() => location.reload(), 1500);
+    const note = res.picks?.note || res.draft?.message || '';
+    console.log('clearAndResyncDraft result:', JSON.stringify(res));
+    if (el) { el.textContent = `✓ ${added} added, ${updated} updated${note ? ' · ' + note : ''}`; el.style.color = added + updated > 0 ? '#22a366' : '#e06c00'; }
+    if (added + updated > 0) setTimeout(() => location.reload(), 1500);
   } catch(e) {
     if (el) { el.textContent = '⚠ ' + e.message; el.style.color = '#c0392b'; }
   }
