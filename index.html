@@ -7757,8 +7757,11 @@ async function doClearAndResyncDraft() {
     const added = (res.picks?.added || 0) + (res.draft?.added || 0);
     const updated = (res.picks?.updated || 0) + (res.draft?.updated || 0);
     const note = res.picks?.note || res.draft?.message || '';
+    const unresolved = res.picks?.unresolved || [];
     console.log('clearAndResyncDraft result:', JSON.stringify(res));
-    if (el) { el.textContent = `✓ ${added} added, ${updated} updated${note ? ' · ' + note : ''}`; el.style.color = added + updated > 0 ? '#22a366' : '#e06c00'; }
+    if (unresolved.length) console.warn('Unresolved team names from Fantrax:', unresolved);
+    const unresolvedMsg = unresolved.length ? ` · Unresolved teams: ${unresolved.join(', ')}` : '';
+    if (el) { el.textContent = `✓ ${added} added, ${updated} updated${note ? ' · ' + note : ''}${unresolvedMsg}`; el.style.color = added + updated > 0 ? '#22a366' : '#e06c00'; }
     if (added + updated > 0) setTimeout(() => location.reload(), 1500);
   } catch(e) {
     if (el) { el.textContent = '⚠ ' + e.message; el.style.color = '#c0392b'; }
