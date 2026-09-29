@@ -7117,12 +7117,9 @@ async function doDebugTradeData() {
   if (statusEl) { statusEl.textContent = '⏳ Probing trade endpoints…'; statusEl.style.color = 'var(--text-3)'; }
   try {
     const res = await remotePost({ action: 'debugTradeData' });
-    console.log('debugTradeData:', JSON.stringify(res.debug, null, 2));
-    const p = res.debug?.pending;
-    const h = res.debug?.history;
     console.log('debugTradeData full:', JSON.stringify(res.debug, null, 2));
-    const h = res.debug?.history;
     const p = res.debug?.pending;
+    const h = res.debug?.history;
     const msg = [
       p?.error ? `pending:ERROR(${p.error})` : `pending trades:${p?.tradeInfoListLen ?? '?'}, tablesType:${p?.tablesType}, tablesKeys:[${(p?.tablesKeys||[]).join(',')}]`,
       h?.error ? `history:ERROR(${h.error})` : `table:[type=${h?.table?.type},isArr=${h?.table?.isArray},len=${h?.table?.len},keys=${h?.table?.keys}] · dlists:[type=${h?.displayedLists?.type},isArr=${h?.displayedLists?.isArray},len=${h?.displayedLists?.len},keys=${h?.displayedLists?.keys}] · prs.totalNumResults=${h?.prs?.totalNumResults}`,
