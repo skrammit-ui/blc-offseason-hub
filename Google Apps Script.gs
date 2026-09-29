@@ -166,6 +166,8 @@ function doPost(e) {
       }
       case 'refreshTradeKeepers':
         return corsResponse(refreshTradeKeepers(ss));
+      case 'debugTransactionEndpoints':
+        return corsResponse(debugTransactionEndpoints());
       case 'debugDraftPicks':
         return corsResponse(debugDraftPicksData());
       case 'debugDraftResults':
@@ -2590,6 +2592,26 @@ function refreshTradeKeepers(ss) {
 
   Logger.log('refreshTradeKeepers: marked=' + toMark.length + ' from ' + txList.length + ' transactions');
   return { ok: true, marked: toMark.length, keepers: toMark, txTotal: txList.length, topLevelKeys: Object.keys(txData) };
+}
+
+function debugTransactionEndpoints() {
+  var CANDIDATES = [
+    'getLeagueTransactions', 'getTransactionLog', 'getRecentTransactions',
+    'getTransactions', 'getActivityLog', 'getTransactionHistory',
+    'getPendingTransactions', 'getProcessedTransactions', 'getLeagueActivity',
+    'getLeagueNews', 'getActivity'
+  ];
+  var results = {};
+  CANDIDATES.forEach(function(ep) {
+    try {
+      var d = fetchFantrax(ep);
+      results[ep] = { keys: Object.keys(d), error: d.error || null, sample: JSON.stringify(d).slice(0, 200) };
+    } catch(e) {
+      results[ep] = { threw: e.message };
+    }
+  });
+  Logger.log('debugTransactionEndpoints: ' + JSON.stringify(results));
+  return { ok: true, results: results };
 }
 
 function debugDraftPicksData() {
