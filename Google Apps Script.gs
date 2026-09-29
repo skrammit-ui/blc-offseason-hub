@@ -2629,14 +2629,18 @@ function refreshTradeKeepers(ss) {
     });
   });
 
-  // History rows: cells[0].teamId + scorer
+  // History rows: cells[0].content = receiving team name, scorer.name = player name
   historyRows.forEach(function(row) {
-    var teamId     = String((row.cells && row.cells[0] && row.cells[0].teamId) || '').trim();
-    var teamKey    = idToKey[teamId] || '';
     var scorer     = row.scorer || {};
-    var playerId   = String(scorer.id || scorer.fantraxId || scorer.playerId || '').trim();
-    var playerName = playerById[playerId] || String(scorer.name || scorer.playerName || '').trim();
+    // Team: cells[0].content is the receiving team's display name
+    var cellContent = String((row.cells && row.cells[0] && row.cells[0].content) || '').trim();
+    var teamKey    = nameToKey[cellContent.toLowerCase()] || '';
+    // Player: scorer.name is the direct display name; scorerId is the Fantrax player ID
+    var playerId   = String(scorer.scorerId || scorer.id || scorer.fantraxId || '').trim();
+    var playerName = String(scorer.name || scorer.playerName || '').trim();
+    if (playerById[playerId]) playerName = playerById[playerId]; // prefer pre-built name map
     if (playerName.includes(',')) { var p = playerName.split(','); playerName = p[1].trim() + ' ' + p[0].trim(); }
+    Logger.log('histRow: cell="' + cellContent + '" teamKey=' + teamKey + ' player=' + playerName);
     if (teamKey && playerName) toMark.push({ teamKey: teamKey, player: playerName, playerId: playerId });
   });
 
