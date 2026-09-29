@@ -5211,9 +5211,9 @@ function renderPool(players, filter) {
   const lower = filter.toLowerCase();
   const filtered = filter ? players.filter(p => p.player.toLowerCase().includes(lower)) : players;
   poolEl.innerHTML = filtered.map(p => {
-    const isKept = isPlayerKept(p.player);
+    const keeperType = (keeperStore[currentTeam] || {})[p.player];
+    const keptCls = keeperType ? `keeper-${keeperType}` : '';
     const statusNorm = STATUS_MAP[p.status] || 'MLB';
-    const keptCls = isKept ? (statusNorm === 'MiLB' ? 'keeper-milb' : statusNorm === 'Rule 5' ? 'keeper-rule5' : statusNorm === 'Trade' ? 'keeper-trade' : 'keeper-mlb') : '';
     const badge = statusNorm === 'MiLB' ? '<span class="stag stag-milb" style="font-size:9px;padding:1px 4px">MiLB</span>' : '';
     return `<div class="pool-card ${keptCls}" draggable="true"
       data-player="${p.player.replace(/"/g,'&quot;')}"
@@ -5232,15 +5232,7 @@ function filterPool(val) {
 }
 
 function isPlayerKept(playerName) {
-  // Check if player has a keep-btn with kept class in overview
-  const rows = document.querySelectorAll('#view-overview tr');
-  for (const row of rows) {
-    if (row.dataset.player === playerName) {
-      const btn = row.querySelector('.keep-btn');
-      if (btn && (btn.classList.contains('kept-mlb') || btn.classList.contains('kept-milb'))) return true;
-    }
-  }
-  return false;
+  return !!(keeperStore[currentTeam] || {})[playerName];
 }
 
 function poolDragStart(event, playerName) {
@@ -5905,7 +5897,7 @@ function buildDraftBoard() {
       if (!p) continue;
       const sal = parseInt(p.salary);
       if (!sal || sal > 30) continue;
-      keepers.push({ player: playerName, mlb_team: p.mlb_team, position: p.position, manager: team, contract: p.contract, sal, status: p.status || '' });
+      keepers.push({ player: playerName, mlb_team: p.mlb_team, position: p.position, manager: team, contract: p.contract, sal, status: p.status || '', keeperType: type });
     }
     if (hasPickOrder) {
       // Build this team's picks per round, sorted ascending by pick number
@@ -6098,7 +6090,12 @@ function buildDraftBoard() {
     (teamFilter ? filtered : rows).forEach(row => {
       const isKeeper = row.type === 'keeper';
       const isOpen   = row.type === 'open';
-      const rowBg    = isKeeper ? 'background:#edf7f1' : '';
+      const rowBg    = isKeeper
+        ? (row.keeperType === 'trade'  ? 'background:#fff0e6' :
+           row.keeperType === 'milb'   ? 'background:#e8f2fd' :
+           row.keeperType === 'rule5'  ? 'background:#f3eef8' :
+                                         'background:#edf7f1')
+        : '';
       const conColor = row.contract === '2026' ? 'color:var(--red);font-weight:700' : 'color:var(--text-2)';
 
       // SAL — show original salary, highlight if different from rd (bump)
