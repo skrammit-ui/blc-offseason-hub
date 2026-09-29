@@ -166,6 +166,8 @@ function doPost(e) {
       }
       case 'refreshTradeKeepers':
         return corsResponse(refreshTradeKeepers(ss));
+      case 'debugTradeData':
+        return corsResponse(debugTradeData());
       case 'debugTransactionEndpoints':
         return corsResponse(debugTransactionEndpoints());
       case 'debugDraftPicks':
@@ -2651,6 +2653,30 @@ function debugTransactionEndpoints() {
   });
   Logger.log('debugTransactionEndpoints: ' + JSON.stringify(results));
   return { ok: true, results: results };
+}
+
+function debugTradeData() {
+  var out = {};
+
+  try {
+    var pd = fetchFantraxFxpa('getPendingTransactions');
+    out.pending = { keys: Object.keys(pd), tradeInfoListLen: (pd.tradeInfoList || []).length, sample: JSON.stringify(pd).slice(0, 600) };
+  } catch(e) { out.pending = { error: e.message }; }
+
+  try {
+    var hd = fetchFantraxFxpa('getTransactionDetailsHistory', { maxResultsPerPage: '50' });
+    var allTx = [].concat(hd.transactions || hd.transactionList || hd.data || []);
+    out.history = {
+      keys: Object.keys(hd),
+      txCount: allTx.length,
+      sample: JSON.stringify(hd).slice(0, 800),
+      firstTxKeys: allTx.length ? Object.keys(allTx[0]) : [],
+      firstTxType: allTx.length ? (allTx[0].type || allTx[0].transactionType || '(no type field)') : 'n/a'
+    };
+  } catch(e) { out.history = { error: e.message }; }
+
+  Logger.log('debugTradeData: ' + JSON.stringify(out));
+  return { ok: true, debug: out };
 }
 
 function debugDraftPicksData() {
