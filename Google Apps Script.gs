@@ -2632,15 +2632,16 @@ function refreshTradeKeepers(ss) {
   // History rows: cells[0].content = receiving team name, scorer.name = player name
   historyRows.forEach(function(row) {
     var scorer     = row.scorer || {};
-    // Team: cells[0].content is the receiving team's display name
-    var cellContent = String((row.cells && row.cells[0] && row.cells[0].content) || '').trim();
-    var teamKey    = nameToKey[cellContent.toLowerCase()] || '';
+    // cells[0] = FROM team (sent the player), cells[1] = TO team (received the player)
+    var cell1Content = String((row.cells && row.cells[1] && row.cells[1].content) || '').trim();
+    var cell0Content = String((row.cells && row.cells[0] && row.cells[0].content) || '').trim();
+    var teamKey = nameToKey[cell1Content.toLowerCase()] || nameToKey[cell0Content.toLowerCase()] || '';
     // Player: scorer.name is the direct display name; scorerId is the Fantrax player ID
     var playerId   = String(scorer.scorerId || scorer.id || scorer.fantraxId || '').trim();
     var playerName = String(scorer.name || scorer.playerName || '').trim();
-    if (playerById[playerId]) playerName = playerById[playerId]; // prefer pre-built name map
+    if (playerById[playerId]) playerName = playerById[playerId];
     if (playerName.includes(',')) { var p = playerName.split(','); playerName = p[1].trim() + ' ' + p[0].trim(); }
-    Logger.log('histRow: cell="' + cellContent + '" teamKey=' + teamKey + ' player=' + playerName);
+    Logger.log('histRow: cell0="' + cell0Content + '" cell1="' + cell1Content + '" teamKey=' + teamKey + ' player=' + playerName);
     if (teamKey && playerName) toMark.push({ teamKey: teamKey, player: playerName, playerId: playerId });
   });
 
@@ -2705,8 +2706,10 @@ function debugTradeData() {
       totalNumResults: prs && prs.totalNumResults,
       tableRowCount: tableRows.length,
       filterSettingsView: hd.filterSettings && hd.filterSettings.view,
-      firstRow: tableRows[0] ? JSON.stringify(tableRows[0]).slice(0, 600) : null,
-      rawSample: JSON.stringify(hd).slice(0, 800)
+      firstRow: tableRows[0] ? JSON.stringify(tableRows[0]).slice(0, 800) : null,
+      secondRow: tableRows[1] ? JSON.stringify(tableRows[1]).slice(0, 800) : null,
+      tableHeader: hd.table && hd.table.header ? JSON.stringify(hd.table.header).slice(0, 400) : null,
+      rawSample: JSON.stringify(hd).slice(0, 600)
     };
   } catch(e) { out.history = { error: e.message }; }
 
