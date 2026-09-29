@@ -2595,26 +2595,14 @@ function refreshTradeKeepers(ss) {
     Logger.log('getPendingTransactions failed: ' + e.message);
   }
 
-  // getTransactionDetailsHistory — actual data is in paginatedResultSet
+  // getTransactionDetailsHistory filtered to trades only via view:'TRADE'
+  // Response shape: { table: { caption, header, rows: [...] }, paginatedResultSet: { totalNumResults, ... }, ... }
   var historyRows = [];
   try {
-    var histData = fetchFantraxFxpa('getTransactionDetailsHistory', { maxResultsPerPage: '200' });
-    var prs = histData.paginatedResultSet;
-    // paginatedResultSet may be a list or an object with a nested list
-    var rawRows = [];
-    if (Array.isArray(prs)) {
-      rawRows = prs;
-    } else if (prs && typeof prs === 'object') {
-      rawRows = [].concat(prs.rows || prs.results || prs.data || prs.transactions || []);
-    }
-    // Also try histData.table as a fallback
-    if (!rawRows.length) rawRows = [].concat(histData.table || []);
-    historyRows = rawRows.filter(function(row) {
-      var code = String(row.transactionCode || row.type || row.transactionType || '').toUpperCase();
-      return code.indexOf('TRADE') >= 0;
-    });
-    Logger.log('getTransactionDetailsHistory: ' + rawRows.length + ' rows, ' + historyRows.length + ' trade rows' +
-      (prs ? ', prsType=' + typeof prs + (typeof prs === 'object' ? ', prsKeys=' + Object.keys(prs).join(',') : '') : '') +
+    var histData = fetchFantraxFxpa('getTransactionDetailsHistory', { maxResultsPerPage: '200', view: 'TRADE' });
+    var rawRows = [].concat((histData.table && histData.table.rows) || []);
+    historyRows = rawRows;
+    Logger.log('getTransactionDetailsHistory (TRADE): ' + rawRows.length + ' rows' +
       (rawRows[0] ? ', firstRowKeys=' + Object.keys(rawRows[0]).join(',') : ''));
   } catch(e) {
     Logger.log('getTransactionDetailsHistory failed: ' + e.message);
@@ -2662,8 +2650,9 @@ function refreshTradeKeepers(ss) {
 
   toMark.forEach(function(m) { setKeeper(ss, m.teamKey, m.player, 'trade', m.playerId); });
 
-  Logger.log('refreshTradeKeepers: marked=' + toMark.length + ' from ' + allTrades.length + ' trades');
-  return { ok: true, marked: toMark.length, keepers: toMark, txTotal: allTrades.length };
+  var txTotal = pendingTrades.length + historyRows.length;
+  Logger.log('refreshTradeKeepers: marked=' + toMark.length + ' from ' + txTotal + ' trade transactions');
+  return { ok: true, marked: toMark.length, keepers: toMark, txTotal: txTotal };
 }
 
 function debugTransactionEndpoints() {
@@ -2703,15 +2692,16 @@ function debugTradeData() {
   } catch(e) { out.pending = { error: e.message }; }
 
   try {
-    var hd = fetchFantraxFxpa('getTransactionDetailsHistory', { maxResultsPerPage: '50' });
+    var hd = fetchFantraxFxpa('getTransactionDetailsHistory', { maxResultsPerPage: '50', view: 'TRADE' });
     var prs = hd.paginatedResultSet;
     var tbl = hd.table;
-    var dlists = hd.displayedLists;
+    var tableRows = tbl && tbl.rows ? tbl.rows : [];
     out.history = {
       topKeys: Object.keys(hd),
-      prs: { type: typeof prs, isArray: Array.isArray(prs), keys: (prs && !Array.isArray(prs) ? Object.keys(prs) : null), totalNumResults: prs && prs.totalNumResults },
-      table: { type: typeof tbl, isArray: Array.isArray(tbl), len: Array.isArray(tbl) ? tbl.length : null, keys: (tbl && !Array.isArray(tbl) ? Object.keys(tbl) : null), firstItemKeys: (Array.isArray(tbl) && tbl[0] ? Object.keys(tbl[0]) : (tbl && typeof tbl === 'object' ? '(object not array)' : null)) },
-      displayedLists: { type: typeof dlists, isArray: Array.isArray(dlists), len: Array.isArray(dlists) ? dlists.length : null, keys: (dlists && !Array.isArray(dlists) ? Object.keys(dlists) : null) },
+      totalNumResults: prs && prs.totalNumResults,
+      tableRowCount: tableRows.length,
+      filterSettingsView: hd.filterSettings && hd.filterSettings.view,
+      firstRow: tableRows[0] ? JSON.stringify(tableRows[0]).slice(0, 600) : null,
       rawSample: JSON.stringify(hd).slice(0, 800)
     };
   } catch(e) { out.history = { error: e.message }; }
