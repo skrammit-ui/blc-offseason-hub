@@ -7121,8 +7121,8 @@ async function doDebugTradeData() {
     const p = res.debug?.pending;
     const h = res.debug?.history;
     const msg = [
-      p?.error ? `pending:ERROR(${p.error})` : `pending:${p?.tradeInfoListLen ?? '?'} trades (keys:${(p?.keys||[]).join(',')})`,
-      h?.error ? `history:ERROR(${h.error})` : `history:${h?.rowCount ?? '?'} rows, keys:${(h?.topKeys||[]).join(',')}, txCode:"${h?.firstTransactionCode}"`,
+      p?.error ? `pending:ERROR(${p.error})` : `pending:${p?.tradeInfoListLen ?? '?'} trades, tablesType:${p?.tablesType}, tablesKeys:${(p?.tablesKeys||[]).join(',')}`,
+      h?.error ? `history:ERROR(${h.error})` : `history rows:${h?.rowCount ?? '?'}, prsType:${h?.prsType}, prsIsArray:${h?.prsIsArray}, prsLen:${h?.prsLen}, prsKeys:${(h?.prsKeys||[]).join(',')}`,
     ].join(' · ');
     if (statusEl) { statusEl.textContent = msg; statusEl.style.color = 'var(--text-3)'; }
   } catch(e) {
