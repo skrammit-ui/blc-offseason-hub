@@ -2021,9 +2021,9 @@ input[type=file] { display: none; }
   <div class="card">
     <div class="card-header"><span class="card-title">&#x1F7E0; Trade Keepers</span></div>
     <div style="padding:20px">
-      <p style="font-size:12px;color:var(--text-2);margin:0 0 14px">Players with <strong>Trade</strong> status on their roster are required keepers (marked orange). Auto-detect scans current rosters; use the manual row for any overrides.</p>
+      <p style="font-size:12px;color:var(--text-2);margin:0 0 14px">Players acquired via trade are required keepers (marked orange). Sync pulls from Fantrax trade history; use the manual row for any overrides.</p>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
-        <button class="btn btn-primary" style="font-size:11px;padding:5px 14px" onclick="doSyncTradeKeepers()">&#x26A1; Auto-detect Trade Status Players</button>
+        <button class="btn btn-primary" style="font-size:11px;padding:5px 14px" onclick="doSyncTradeKeepers()">&#x26A1; Sync from Fantrax</button>
         <span id="trade-keepers-status" style="font-size:11px;color:var(--text-3)"></span>
       </div>
       <div id="trade-keepers-list"></div>
@@ -7132,39 +7132,24 @@ async function doDebugTxEndpoints() {
 
 async function doSyncTradeKeepers() {
   const statusEl = document.getElementById('trade-keepers-status');
-  if (statusEl) { statusEl.textContent = '⏳ Scanning rosters…'; statusEl.style.color = 'var(--text-3)'; }
-
-  // Scan already-loaded LEAGUE data for players with status = 'Trade'
-  const toMark = [];
-  Object.entries(LEAGUE).forEach(([teamName, players]) => {
-    const teamKey = ownerKeyFor(teamName);
-    if (!teamKey) return;
-    (players || []).forEach(p => {
-      if ((p.status || '').trim() === 'Trade') {
-        toMark.push({ teamKey, player: p.player, playerId: p.id || '' });
-      }
-    });
-  });
-
-  if (!toMark.length) {
-    if (statusEl) { statusEl.textContent = 'No players with Trade status found in current rosters'; statusEl.style.color = 'var(--text-3)'; }
-    return;
-  }
-
+  if (statusEl) { statusEl.textContent = '⏳ Syncing…'; statusEl.style.color = 'var(--text-3)'; }
   try {
-    // Mark each one via setKeeper — batch sequentially to avoid overwhelming GAS
-    for (const m of toMark) {
-      if (!keeperStore[m.teamKey]) keeperStore[m.teamKey] = {};
-      if (keeperStore[m.teamKey][m.player] === 'trade') continue; // already marked
-      await remotePost({ action: 'setKeeper', teamKey: m.teamKey, player: m.player, keeperType: 'trade', playerId: m.playerId });
-      keeperStore[m.teamKey][m.player] = 'trade';
-    }
+    const res = await remotePost({ action: 'refreshTradeKeepers' });
+    if (!res.ok) throw new Error(res.error || 'Unknown error');
     if (statusEl) {
-      statusEl.textContent = `✓ ${toMark.length} trade keeper${toMark.length !== 1 ? 's' : ''} synced`;
-      statusEl.style.color = '#22a366';
+      statusEl.textContent = res.marked > 0
+        ? `✓ ${res.marked} trade keeper${res.marked !== 1 ? 's' : ''} marked`
+        : `✓ Synced — no new trade keepers${res.note ? ' · ' + res.note : ''}`;
+      statusEl.style.color = res.marked > 0 ? '#22a366' : 'var(--text-3)';
+    }
+    if (res.keepers) {
+      res.keepers.forEach(k => {
+        if (!keeperStore[k.teamKey]) keeperStore[k.teamKey] = {};
+        keeperStore[k.teamKey][k.player] = 'trade';
+      });
     }
     renderTradeKeepersList();
-    setTimeout(() => location.reload(), 1800);
+    if (res.marked > 0) setTimeout(() => location.reload(), 1800);
   } catch(e) {
     if (statusEl) { statusEl.textContent = '⚠ ' + e.message; statusEl.style.color = '#c0392b'; }
     console.warn('doSyncTradeKeepers:', e);
