@@ -2588,37 +2588,51 @@ function refreshTradeKeepers(ss) {
     Logger.log('getPendingTransactions failed: ' + e.message);
   }
 
+  // getTransactionDetailsHistory — flat list of rows; each row is one player-move
+  // Structure: { txSetId, cells:[{teamId,...},...], scorer:{...}, transactionCode:"TRADE"|... }
+  var historyRows = [];
   try {
     var histData = fetchFantraxFxpa('getTransactionDetailsHistory', { maxResultsPerPage: '200' });
-    // Filter to trade-type transactions; grouping key varies — try common shapes
-    var allTx = [].concat(histData.transactions || histData.transactionList || histData.data || []);
-    historyTrades = allTx.filter(function(tx) {
-      return String(tx.type || tx.transactionType || '').toUpperCase().indexOf('TRADE') >= 0;
+    var rawRows = [].concat(histData.transactions || histData.transactionList || histData.data || []);
+    historyRows = rawRows.filter(function(row) {
+      var code = String(row.transactionCode || row.type || row.transactionType || '').toUpperCase();
+      return code.indexOf('TRADE') >= 0;
     });
-    Logger.log('getTransactionDetailsHistory: ' + allTx.length + ' total, ' + historyTrades.length + ' trades, keys: ' + Object.keys(histData).join(', '));
+    Logger.log('getTransactionDetailsHistory: ' + rawRows.length + ' rows total, ' + historyRows.length + ' trade rows, topKeys: ' + Object.keys(histData).join(', ') + (rawRows[0] ? ', firstRowKeys: ' + Object.keys(rawRows[0]).join(', ') : ''));
   } catch(e) {
     Logger.log('getTransactionDetailsHistory failed: ' + e.message);
   }
 
-  var allTrades = pendingTrades.concat(historyTrades);
-
-  if (!allTrades.length) {
+  if (!pendingTrades.length && !historyRows.length) {
     return { ok: true, marked: 0, note: 'No trades found via getPendingTransactions or getTransactionDetailsHistory' };
   }
 
-  // Extract "to" side of each player move — that team received the player and must keep them
+  // Extract receiving-team + player from each source
   var toMark = [];
-  allTrades.forEach(function(trade) {
-    var moves = [].concat(trade.moves || []);
-    moves.forEach(function(move) {
-      if (!move.scorer) return; // skip draft pick moves
-      var toTeamId = String((move.to && move.to.teamId) || '').trim();
-      var teamKey  = idToKey[toTeamId] || '';
-      var playerId = String((move.scorer && (move.scorer.id || move.scorer.fantraxId || move.scorer.playerId)) || '').trim();
-      var playerName = playerById[playerId] || String((move.scorer && (move.scorer.name || move.scorer.playerName)) || '').trim();
-      if (playerName.includes(',')) { var pts = playerName.split(','); playerName = pts[1].trim() + ' ' + pts[0].trim(); }
+
+  // Pending trades: moves[].to.teamId + moves[].scorer
+  pendingTrades.forEach(function(trade) {
+    [].concat(trade.moves || []).forEach(function(move) {
+      if (!move.scorer) return;
+      var toTeamId   = String((move.to && move.to.teamId) || '').trim();
+      var teamKey    = idToKey[toTeamId] || '';
+      var scorer     = move.scorer;
+      var playerId   = String(scorer.id || scorer.fantraxId || scorer.playerId || '').trim();
+      var playerName = playerById[playerId] || String(scorer.name || scorer.playerName || '').trim();
+      if (playerName.includes(',')) { var p = playerName.split(','); playerName = p[1].trim() + ' ' + p[0].trim(); }
       if (teamKey && playerName) toMark.push({ teamKey: teamKey, player: playerName, playerId: playerId });
     });
+  });
+
+  // History rows: cells[0].teamId + scorer
+  historyRows.forEach(function(row) {
+    var teamId     = String((row.cells && row.cells[0] && row.cells[0].teamId) || '').trim();
+    var teamKey    = idToKey[teamId] || '';
+    var scorer     = row.scorer || {};
+    var playerId   = String(scorer.id || scorer.fantraxId || scorer.playerId || '').trim();
+    var playerName = playerById[playerId] || String(scorer.name || scorer.playerName || '').trim();
+    if (playerName.includes(',')) { var p = playerName.split(','); playerName = p[1].trim() + ' ' + p[0].trim(); }
+    if (teamKey && playerName) toMark.push({ teamKey: teamKey, player: playerName, playerId: playerId });
   });
 
   // Deduplicate by teamKey+player
@@ -2666,12 +2680,16 @@ function debugTradeData() {
   try {
     var hd = fetchFantraxFxpa('getTransactionDetailsHistory', { maxResultsPerPage: '50' });
     var allTx = [].concat(hd.transactions || hd.transactionList || hd.data || []);
+    var first = allTx[0] || {};
     out.history = {
-      keys: Object.keys(hd),
-      txCount: allTx.length,
-      sample: JSON.stringify(hd).slice(0, 800),
-      firstTxKeys: allTx.length ? Object.keys(allTx[0]) : [],
-      firstTxType: allTx.length ? (allTx[0].type || allTx[0].transactionType || '(no type field)') : 'n/a'
+      topKeys: Object.keys(hd),
+      rowCount: allTx.length,
+      firstRowKeys: Object.keys(first),
+      firstTransactionCode: first.transactionCode || '(none)',
+      firstType: first.type || first.transactionType || '(none)',
+      firstCellsTeamId: (first.cells && first.cells[0] && first.cells[0].teamId) || '(none)',
+      firstScorerKeys: first.scorer ? Object.keys(first.scorer) : [],
+      rawSample: JSON.stringify(hd).slice(0, 600)
     };
   } catch(e) { out.history = { error: e.message }; }
 
