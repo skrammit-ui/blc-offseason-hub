@@ -358,7 +358,8 @@ tr.keeper-trade:hover  td { background: #ffe4cc !important; }
 .keep-btn.kept-mlb    { border-color: var(--green);  background: var(--green);  color: #fff; }
 .keep-btn.kept-milb   { border-color: var(--blue);   background: var(--blue);   color: #fff; }
 .keep-btn.kept-rule5  { border-color: var(--purple);  background: var(--purple);  color: #fff; }
-.keep-btn.kept-trade  { border-color: var(--orange);  background: var(--orange);  color: #fff; }
+.keep-btn.kept-trade  { border-color: var(--orange);  background: var(--orange);  color: #fff; cursor: default; }
+.keep-btn.kept-trade:hover { border-color: var(--orange); background: var(--orange); color: #fff; }
 
 /* ── View tabs ── */
 .view-tab {
@@ -4080,6 +4081,9 @@ async function toggleKeeper(btn) {
   const isKept = [...btn.classList].some(c => c.startsWith('kept-'));
   const normStatus = row.dataset.statusNorm || 'MLB';
 
+  // Trade keepers are forced — cannot be toggled
+  if (btn.classList.contains('kept-trade')) return;
+
   if (isKept) {
     // Un-keep
     btn.classList.remove('kept-mlb', 'kept-milb', 'kept-rule5', 'kept-trade');
@@ -4238,7 +4242,7 @@ function applyStatus(el, newStatus) {
         const rowKeptCls = newStatus === 'MiLB' ? 'keeper-milb' : newStatus === 'Rule 5' ? 'keeper-rule5' : newStatus === 'Trade' ? 'keeper-trade' : 'keeper-mlb';
         newBtn.classList.add(keptCls);
         newRow.classList.add(rowKeptCls);
-        newBtn.title = 'Remove from keepers';
+        newBtn.title = newStatus === 'Trade' ? 'Required trade keeper — cannot be removed' : 'Remove from keepers';
       }
     }
   }
@@ -4365,7 +4369,7 @@ function renderOverview(players, keptPlayers = {}, viewingOwn = true, managerNam
     const btn = row.querySelector('.keep-btn');
     if (btn) {
       btn.classList.add(`kept-${type}`);
-      btn.title = 'Remove from keepers';
+      btn.title = type === 'trade' ? 'Required trade keeper — cannot be removed' : 'Remove from keepers';
     }
     keeperStore[managerName][playerName] = type;
   });
