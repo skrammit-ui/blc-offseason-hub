@@ -2582,23 +2582,40 @@ function refreshTradeKeepers(ss) {
 
   try {
     var pendingData = fetchFantraxFxpa('getPendingTransactions');
-    pendingTrades = [].concat(pendingData.tradeInfoList || []);
-    Logger.log('getPendingTransactions: ' + pendingTrades.length + ' trades, keys: ' + Object.keys(pendingData).join(', '));
+    // tradeInfoList may be top-level or nested under tables
+    var tables = pendingData.tables;
+    pendingTrades = [].concat(
+      pendingData.tradeInfoList ||
+      (tables && (tables.tradeInfoList || (Array.isArray(tables) ? tables : []))) ||
+      []
+    );
+    Logger.log('getPendingTransactions: ' + pendingTrades.length + ' trades, keys: ' + Object.keys(pendingData).join(', ') +
+      (tables ? ', tablesType=' + typeof tables + (typeof tables === 'object' ? ', tablesKeys=' + Object.keys(tables).join(',') : '') : ''));
   } catch(e) {
     Logger.log('getPendingTransactions failed: ' + e.message);
   }
 
-  // getTransactionDetailsHistory — flat list of rows; each row is one player-move
-  // Structure: { txSetId, cells:[{teamId,...},...], scorer:{...}, transactionCode:"TRADE"|... }
+  // getTransactionDetailsHistory — actual data is in paginatedResultSet
   var historyRows = [];
   try {
     var histData = fetchFantraxFxpa('getTransactionDetailsHistory', { maxResultsPerPage: '200' });
-    var rawRows = [].concat(histData.transactions || histData.transactionList || histData.data || []);
+    var prs = histData.paginatedResultSet;
+    // paginatedResultSet may be a list or an object with a nested list
+    var rawRows = [];
+    if (Array.isArray(prs)) {
+      rawRows = prs;
+    } else if (prs && typeof prs === 'object') {
+      rawRows = [].concat(prs.rows || prs.results || prs.data || prs.transactions || []);
+    }
+    // Also try histData.table as a fallback
+    if (!rawRows.length) rawRows = [].concat(histData.table || []);
     historyRows = rawRows.filter(function(row) {
       var code = String(row.transactionCode || row.type || row.transactionType || '').toUpperCase();
       return code.indexOf('TRADE') >= 0;
     });
-    Logger.log('getTransactionDetailsHistory: ' + rawRows.length + ' rows total, ' + historyRows.length + ' trade rows, topKeys: ' + Object.keys(histData).join(', ') + (rawRows[0] ? ', firstRowKeys: ' + Object.keys(rawRows[0]).join(', ') : ''));
+    Logger.log('getTransactionDetailsHistory: ' + rawRows.length + ' rows, ' + historyRows.length + ' trade rows' +
+      (prs ? ', prsType=' + typeof prs + (typeof prs === 'object' ? ', prsKeys=' + Object.keys(prs).join(',') : '') : '') +
+      (rawRows[0] ? ', firstRowKeys=' + Object.keys(rawRows[0]).join(',') : ''));
   } catch(e) {
     Logger.log('getTransactionDetailsHistory failed: ' + e.message);
   }
@@ -2674,21 +2691,32 @@ function debugTradeData() {
 
   try {
     var pd = fetchFantraxFxpa('getPendingTransactions');
-    out.pending = { keys: Object.keys(pd), tradeInfoListLen: (pd.tradeInfoList || []).length, sample: JSON.stringify(pd).slice(0, 600) };
+    var ptables = pd.tables;
+    out.pending = {
+      keys: Object.keys(pd),
+      noResults: pd.noResults,
+      tradeInfoListLen: (pd.tradeInfoList || []).length,
+      tablesType: typeof ptables,
+      tablesKeys: ptables && typeof ptables === 'object' ? Object.keys(ptables) : null,
+      sample: JSON.stringify(pd).slice(0, 400)
+    };
   } catch(e) { out.pending = { error: e.message }; }
 
   try {
     var hd = fetchFantraxFxpa('getTransactionDetailsHistory', { maxResultsPerPage: '50' });
-    var allTx = [].concat(hd.transactions || hd.transactionList || hd.data || []);
-    var first = allTx[0] || {};
+    var prs = hd.paginatedResultSet;
+    var rawRows = Array.isArray(prs) ? prs : (prs && typeof prs === 'object' ? [].concat(prs.rows || prs.results || prs.data || prs.transactions || []) : []);
+    if (!rawRows.length) rawRows = [].concat(hd.table || []);
+    var first = rawRows[0] || {};
     out.history = {
       topKeys: Object.keys(hd),
-      rowCount: allTx.length,
+      prsType: typeof prs,
+      prsKeys: prs && typeof prs === 'object' && !Array.isArray(prs) ? Object.keys(prs) : null,
+      prsIsArray: Array.isArray(prs),
+      prsLen: Array.isArray(prs) ? prs.length : null,
+      rowCount: rawRows.length,
       firstRowKeys: Object.keys(first),
       firstTransactionCode: first.transactionCode || '(none)',
-      firstType: first.type || first.transactionType || '(none)',
-      firstCellsTeamId: (first.cells && first.cells[0] && first.cells[0].teamId) || '(none)',
-      firstScorerKeys: first.scorer ? Object.keys(first.scorer) : [],
       rawSample: JSON.stringify(hd).slice(0, 600)
     };
   } catch(e) { out.history = { error: e.message }; }
