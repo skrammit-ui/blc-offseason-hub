@@ -7120,10 +7120,13 @@ async function doDebugTradeData() {
     console.log('debugTradeData:', JSON.stringify(res.debug, null, 2));
     const p = res.debug?.pending;
     const h = res.debug?.history;
+    console.log('debugTradeData full:', JSON.stringify(res.debug, null, 2));
+    const h = res.debug?.history;
+    const p = res.debug?.pending;
     const msg = [
-      p?.error ? `pending:ERROR(${p.error})` : `pending:${p?.tradeInfoListLen ?? '?'} trades, tablesType:${p?.tablesType}, tablesKeys:${(p?.tablesKeys||[]).join(',')}`,
-      h?.error ? `history:ERROR(${h.error})` : `history rows:${h?.rowCount ?? '?'}, prsType:${h?.prsType}, prsIsArray:${h?.prsIsArray}, prsLen:${h?.prsLen}, prsKeys:${(h?.prsKeys||[]).join(',')}`,
-    ].join(' · ');
+      p?.error ? `pending:ERROR(${p.error})` : `pending trades:${p?.tradeInfoListLen ?? '?'}, tablesType:${p?.tablesType}, tablesKeys:[${(p?.tablesKeys||[]).join(',')}]`,
+      h?.error ? `history:ERROR(${h.error})` : `table:[type=${h?.table?.type},isArr=${h?.table?.isArray},len=${h?.table?.len},keys=${h?.table?.keys}] · dlists:[type=${h?.displayedLists?.type},isArr=${h?.displayedLists?.isArray},len=${h?.displayedLists?.len},keys=${h?.displayedLists?.keys}] · prs.totalNumResults=${h?.prs?.totalNumResults}`,
+    ].join(' | ');
     if (statusEl) { statusEl.textContent = msg; statusEl.style.color = 'var(--text-3)'; }
   } catch(e) {
     if (statusEl) { statusEl.textContent = '⚠ ' + e.message; statusEl.style.color = '#c0392b'; }

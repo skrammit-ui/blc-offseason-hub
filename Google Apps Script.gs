@@ -2705,19 +2705,14 @@ function debugTradeData() {
   try {
     var hd = fetchFantraxFxpa('getTransactionDetailsHistory', { maxResultsPerPage: '50' });
     var prs = hd.paginatedResultSet;
-    var rawRows = Array.isArray(prs) ? prs : (prs && typeof prs === 'object' ? [].concat(prs.rows || prs.results || prs.data || prs.transactions || []) : []);
-    if (!rawRows.length) rawRows = [].concat(hd.table || []);
-    var first = rawRows[0] || {};
+    var tbl = hd.table;
+    var dlists = hd.displayedLists;
     out.history = {
       topKeys: Object.keys(hd),
-      prsType: typeof prs,
-      prsKeys: prs && typeof prs === 'object' && !Array.isArray(prs) ? Object.keys(prs) : null,
-      prsIsArray: Array.isArray(prs),
-      prsLen: Array.isArray(prs) ? prs.length : null,
-      rowCount: rawRows.length,
-      firstRowKeys: Object.keys(first),
-      firstTransactionCode: first.transactionCode || '(none)',
-      rawSample: JSON.stringify(hd).slice(0, 600)
+      prs: { type: typeof prs, isArray: Array.isArray(prs), keys: (prs && !Array.isArray(prs) ? Object.keys(prs) : null), totalNumResults: prs && prs.totalNumResults },
+      table: { type: typeof tbl, isArray: Array.isArray(tbl), len: Array.isArray(tbl) ? tbl.length : null, keys: (tbl && !Array.isArray(tbl) ? Object.keys(tbl) : null), firstItemKeys: (Array.isArray(tbl) && tbl[0] ? Object.keys(tbl[0]) : (tbl && typeof tbl === 'object' ? '(object not array)' : null)) },
+      displayedLists: { type: typeof dlists, isArray: Array.isArray(dlists), len: Array.isArray(dlists) ? dlists.length : null, keys: (dlists && !Array.isArray(dlists) ? Object.keys(dlists) : null) },
+      rawSample: JSON.stringify(hd).slice(0, 800)
     };
   } catch(e) { out.history = { error: e.message }; }
 
