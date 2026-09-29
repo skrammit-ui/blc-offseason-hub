@@ -1422,6 +1422,42 @@ function fetchFantrax(endpoint, params) {
   }
 }
 
+// ── POST helper for the fxpa/req endpoint (trades, pending transactions) ─────
+function fetchFantraxFxpa(method, params) {
+  const { leagueId, cookie } = getFantraxProps();
+  if (!leagueId || !cookie) throw new Error('Fantrax credentials not configured.');
+
+  const payload = JSON.stringify({
+    msgs: [{ method: method, data: Object.assign({ leagueId: leagueId }, params || {}) }]
+  });
+
+  const url = 'https://www.fantrax.com/fxpa/req?leagueId=' + encodeURIComponent(leagueId);
+
+  const response = UrlFetchApp.fetch(url, {
+    method: 'POST',
+    headers: {
+      'Cookie': cookie,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'User-Agent': 'Mozilla/5.0 (compatible; GoogleAppsScript)',
+    },
+    payload: payload,
+    muteHttpExceptions: true,
+  });
+
+  const code = response.getResponseCode();
+  if (code !== 200) throw new Error('Fantrax FXPA returned HTTP ' + code + ' for ' + method);
+
+  try {
+    const json = JSON.parse(response.getContentText());
+    // Standard response shape: { responses: [{ data: {...} }] }
+    if (json.responses && json.responses[0]) return json.responses[0].data || json.responses[0];
+    return json;
+  } catch(e) {
+    throw new Error('Fantrax FXPA returned non-JSON for ' + method + ': ' + response.getContentText().substring(0, 200));
+  }
+}
+
 // ── Test connection ───────────────────────────────────────────────────────────
 function testFantraxConnection() {
   try {
@@ -2536,62 +2572,65 @@ function refreshTradeKeepers(ss) {
     if (name) playerById[id] = name;
   });
 
-  // Fetch transactions — try candidate endpoint names in order
-  var txData = null;
-  var txEndpoint = '';
-  var txAttempts = [];
-  var CANDIDATES = ['getLeagueTransactions', 'getTransactionLog', 'getRecentTransactions', 'getTransactions', 'getActivityLog'];
-  for (var ci = 0; ci < CANDIDATES.length; ci++) {
-    var ep = CANDIDATES[ci];
-    try {
-      var d = fetchFantrax(ep);
-      // Fantrax returns { error: '...' } for unknown endpoints
-      if (d && !d.error) { txData = d; txEndpoint = ep; break; }
-      txAttempts.push(ep + '→' + JSON.stringify(d).slice(0, 80));
-    } catch(e) {
-      txAttempts.push(ep + '→throw:' + e.message);
-    }
+  // Fetch trades via fxpa/req POST endpoint
+  // getPendingTransactions = accepted but not yet executed trades
+  // getTransactionDetailsHistory = all completed transactions (filtered to trades below)
+  var pendingTrades = [];
+  var historyTrades = [];
+
+  try {
+    var pendingData = fetchFantraxFxpa('getPendingTransactions');
+    pendingTrades = [].concat(pendingData.tradeInfoList || []);
+    Logger.log('getPendingTransactions: ' + pendingTrades.length + ' trades, keys: ' + Object.keys(pendingData).join(', '));
+  } catch(e) {
+    Logger.log('getPendingTransactions failed: ' + e.message);
   }
 
-  if (!txData) {
-    Logger.log('refreshTradeKeepers: no valid endpoint. Attempts: ' + txAttempts.join(' | '));
-    return { ok: false, error: 'No working Fantrax transactions endpoint found', attempts: txAttempts };
+  try {
+    var histData = fetchFantraxFxpa('getTransactionDetailsHistory', { maxResultsPerPage: '200' });
+    // Filter to trade-type transactions; grouping key varies — try common shapes
+    var allTx = [].concat(histData.transactions || histData.transactionList || histData.data || []);
+    historyTrades = allTx.filter(function(tx) {
+      return String(tx.type || tx.transactionType || '').toUpperCase().indexOf('TRADE') >= 0;
+    });
+    Logger.log('getTransactionDetailsHistory: ' + allTx.length + ' total, ' + historyTrades.length + ' trades, keys: ' + Object.keys(histData).join(', '));
+  } catch(e) {
+    Logger.log('getTransactionDetailsHistory failed: ' + e.message);
   }
 
-  // Normalize transaction list across possible response shapes
-  var txList = [].concat(
-    txData.transactions || txData.leagueTransactions || txData.activity ||
-    txData.transactionLog || txData.recentTransactions || txData.data || []
-  );
+  var allTrades = pendingTrades.concat(historyTrades);
 
-  if (!Array.isArray(txList) || txList.length === 0) {
-    return { ok: true, marked: 0, note: 'Endpoint ' + txEndpoint + ' returned no transactions. Keys: ' + Object.keys(txData).join(', ') };
+  if (!allTrades.length) {
+    return { ok: true, marked: 0, note: 'No trades found via getPendingTransactions or getTransactionDetailsHistory' };
   }
 
-  // Extract trade-acquired players
+  // Extract "to" side of each player move — that team received the player and must keep them
   var toMark = [];
-  txList.forEach(function(tx) {
-    var txType = String(tx.type || tx.transactionType || tx.action || '').toUpperCase();
-    if (txType.indexOf('TRADE') < 0) return;
-
-    var players = [].concat(tx.players || tx.adds || tx.moves || []);
-    players.forEach(function(p) {
-      var action = String(p.type || p.action || p.transactionType || '').toUpperCase();
-      if (action !== 'ADD' && action.indexOf('ADD') < 0 && action !== 'ACQUIRE') return;
-
-      var teamId   = String(p.teamId || p.ownerId || tx.teamId || '').trim();
-      var teamKey  = idToKey[teamId] || nameToKey[String(p.teamName || '').toLowerCase()] || '';
-      var playerId = String(p.playerId || p.id || '').trim();
-      var playerName = playerById[playerId] || String(p.playerName || p.name || '').trim();
-
+  allTrades.forEach(function(trade) {
+    var moves = [].concat(trade.moves || []);
+    moves.forEach(function(move) {
+      if (!move.scorer) return; // skip draft pick moves
+      var toTeamId = String((move.to && move.to.teamId) || '').trim();
+      var teamKey  = idToKey[toTeamId] || '';
+      var playerId = String((move.scorer && (move.scorer.id || move.scorer.fantraxId || move.scorer.playerId)) || '').trim();
+      var playerName = playerById[playerId] || String((move.scorer && (move.scorer.name || move.scorer.playerName)) || '').trim();
+      if (playerName.includes(',')) { var pts = playerName.split(','); playerName = pts[1].trim() + ' ' + pts[0].trim(); }
       if (teamKey && playerName) toMark.push({ teamKey: teamKey, player: playerName, playerId: playerId });
     });
   });
 
+  // Deduplicate by teamKey+player
+  var seen = {};
+  toMark = toMark.filter(function(m) {
+    var k = m.teamKey + '|' + m.player;
+    if (seen[k]) return false;
+    seen[k] = true; return true;
+  });
+
   toMark.forEach(function(m) { setKeeper(ss, m.teamKey, m.player, 'trade', m.playerId); });
 
-  Logger.log('refreshTradeKeepers: marked=' + toMark.length + ' from ' + txList.length + ' transactions');
-  return { ok: true, marked: toMark.length, keepers: toMark, txTotal: txList.length, topLevelKeys: Object.keys(txData) };
+  Logger.log('refreshTradeKeepers: marked=' + toMark.length + ' from ' + allTrades.length + ' trades');
+  return { ok: true, marked: toMark.length, keepers: toMark, txTotal: allTrades.length };
 }
 
 function debugTransactionEndpoints() {
