@@ -4882,8 +4882,8 @@ function prefillFromKeepers(players) {
     }
     for (const rd of Object.keys(teamPicksByRd)) teamPicksByRd[rd].sort((a,b) => a-b);
 
-    // Assign highest-SAL keepers first; use latest available pick per round,
-    // climbing up (SAL-1, SAL-2…) if no slot found in the keeper's own round.
+    // Assign lowest-SAL keepers first so they claim their exact round before
+    // higher-SAL keepers cascade downward and displace them.
     const occupiedSlots = new Set();
     const allMlb = keptMlb.slice().sort((a,b) =>
       (parseInt(a.salary)||0) - (parseInt(b.salary)||0) || a.player.localeCompare(b.player)
@@ -5067,13 +5067,13 @@ function buildBuilderView(players) {
   const sectionLabels = { hit: 'Offense', pit: 'Pitching', bench: 'Bench · 8 spots', milb: 'MiLB Reserve' };
 
   // Count keepers currently slotted
-  const mlbSlotted  = Object.entries(slotAssignments).filter(([id, p]) => {
+  const mlbSlotted  = Object.entries(slotAssignments).filter(([id]) => {
     const slot = ROSTER_SLOTS.find(s => s.id === id);
-    return slot && slot.type !== 'milb' && STATUS_MAP[p.status] !== 'MiLB';
+    return slot && slot.type !== 'milb';
   }).length;
-  const milbSlotted = Object.entries(slotAssignments).filter(([id, p]) => {
+  const milbSlotted = Object.entries(slotAssignments).filter(([id]) => {
     const slot = ROSTER_SLOTS.find(s => s.id === id);
-    return slot && (slot.type === 'milb' || STATUS_MAP[p.status] === 'MiLB');
+    return slot && slot.type === 'milb';
   }).length;
   const totalKeepers = mlbSlotted + milbSlotted;
   const overLimit    = totalKeepers > 40;
@@ -5120,7 +5120,7 @@ function buildBuilderView(players) {
       }
     }
     const filled = slotAssignments[slot.id];
-    const isMilb = filled && STATUS_MAP[filled.status] === 'MiLB';
+    const isMilb = filled && (keeperStore[currentTeam] || {})[filled.player] === 'milb';
     const milbSlotIdx = slot.type === 'milb' ? parseInt(slot.id.replace('MiLB','')) : 0;
     const isOverflowMilb = milbSlotIdx > 25 && !!filled;
     let filledCls = '';
@@ -5911,14 +5911,20 @@ function setGenericPickOrder() {
   });
 
   if (document.getElementById('page-draft').classList.contains('active')) buildDraftBoard();
-  if (currentTeam) buildDraftPlanView(LEAGUE[currentTeam] || []);
+  if (currentTeam) {
+    prefillFromKeepers(LEAGUE[currentTeam] || []);
+    buildDraftPlanView(LEAGUE[currentTeam] || []);
+  }
 }
 
 function updatePickOrder(round, pick, newTeam) {
   pickOrder[pickKey(round, pick)] = newTeam;
   buildDraftBoard();
-  // If Rosters page is active and matches currentTeam, refresh draft planner
-  if (newTeam === currentTeam || currentTeam) buildDraftPlanView(LEAGUE[currentTeam] || []);
+  // If Rosters page is active, refresh draft planner with fresh prefill (pick order changed)
+  if (currentTeam) {
+    prefillFromKeepers(LEAGUE[currentTeam] || []);
+    buildDraftPlanView(LEAGUE[currentTeam] || []);
+  }
 }
 
 function buildDraftBoard() {
@@ -5961,7 +5967,7 @@ function buildDraftBoard() {
 
       const teamCustom = customDraftSlots[ownerKeyFor(team)] || {};
       const occupiedSlots = new Set();
-      keepers.sort((a,b) => b.sal - a.sal || a.player.localeCompare(b.player));
+      keepers.sort((a,b) => a.sal - b.sal || a.player.localeCompare(b.player));
 
       // First pass: honour custom placements from the Draft Planner
       const needsAutoPlace = [];
