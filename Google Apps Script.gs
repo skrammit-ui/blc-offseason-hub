@@ -194,6 +194,8 @@ function doPost(e) {
         return corsResponse(debugFantraxPlayerEndpoints());
       case 'debugFantraxStatsEndpoints':
         return corsResponse(debugFantraxStatsEndpoints());
+      case 'debugMLBNotFound':
+        return corsResponse(debugMLBNotFound(ss));
       case 'saveProspectNote':
         saveProspectNote(ss, payload.player, payload.overrides);
         return corsResponse({ ok: true });
@@ -1605,14 +1607,23 @@ function searchMLBPlayerId(name, mlbTeamAbbr) {
                 '&sportIds=1,11,12,13,14,15,16';
     var resp = JSON.parse(UrlFetchApp.fetch(url, { muteHttpExceptions: true }).getContentText());
     var people = resp.people || [];
-    // If no results, retry with straight apostrophe stripped entirely (e.g. "OHearn")
-    if (!people.length && normalized !== name.replace(/['']/g, '')) {
-      var stripped = name.replace(/[‘’‚‛ʼ']/g, '');
-      var url2 = MLB_STATS_API + '/people/search?names=' + encodeURIComponent(stripped) +
-                 '&sportIds=1,11,12,13,14,15,16';
+    // Retry 1: strip apostrophes (e.g. "O’Hearn" → "OHearn")
+    if (!people.length && normalized !== name.replace(/[‘’]/g, ‘’)) {
+      var stripped = name.replace(/[‘’‚‛ʼ’]/g, ‘’);
+      var url2 = MLB_STATS_API + ‘/people/search?names=’ + encodeURIComponent(stripped) +
+                 ‘&sportIds=1,11,12,13,14,15,16’;
       var resp2 = JSON.parse(UrlFetchApp.fetch(url2, { muteHttpExceptions: true }).getContentText());
       people = resp2.people || [];
-      Logger.log('searchMLBPlayerId("' + name + '"): retried as "' + stripped + '", found ' + people.length);
+      Logger.log(‘searchMLBPlayerId("’ + name + ‘"): strip-apostrophe retry as "’ + stripped + ‘", found ‘ + people.length);
+    }
+    // Retry 2: insert apostrophe for Irish O-surnames stored without one (e.g. "OHearn" → "O’Hearn")
+    if (!people.length && /\bO[A-Z]/.test(normalized)) {
+      var withApos = normalized.replace(/\bO([A-Z])/g, "O’$1");
+      var url3 = MLB_STATS_API + ‘/people/search?names=’ + encodeURIComponent(withApos) +
+                 ‘&sportIds=1,11,12,13,14,15,16’;
+      var resp3 = JSON.parse(UrlFetchApp.fetch(url3, { muteHttpExceptions: true }).getContentText());
+      people = resp3.people || [];
+      Logger.log(‘searchMLBPlayerId("’ + name + ‘"): O-apostrophe retry as "’ + withApos + ‘", found ‘ + people.length);
     }
     if (!people.length) return null;
     if (people.length === 1) return String(people[0].id);
@@ -1637,18 +1648,20 @@ function batchFetchMLBCareerStats(mlbIds) {
   for (let i = 0; i < mlbIds.length; i += 150) {
     const chunk = mlbIds.slice(i, i + 150);
     try {
+      // sportId=1 is NOT a valid hydrate sub-param — keep it as a top-level query param
       const url = MLB_STATS_API + '/people?personIds=' + chunk.join(',') +
-                  '&hydrate=stats(group=[hitting,pitching],type=career,sportId=1)';
+                  '&hydrate=stats(group=[hitting,pitching],type=career)&sportId=1';
       const resp = JSON.parse(UrlFetchApp.fetch(url, { muteHttpExceptions: true }).getContentText());
-      (resp.people || []).forEach(person => {
-        let careerAB = 0, careerIP = 0;
-        (person.stats || []).forEach(s => {
+      (resp.people || []).forEach(function(person) {
+        var careerAB = 0, careerIP = 0;
+        (person.stats || []).forEach(function(s) {
           const split = s.splits && s.splits[0];
           if (!split) return;
           if (s.group && s.group.displayName === 'hitting')  careerAB = split.stat.atBats || 0;
           if (s.group && s.group.displayName === 'pitching') careerIP = parseFloat(split.stat.inningsPitched || '0');
         });
         result[String(person.id)] = { careerAB, careerIP };
+      });
       });
     } catch(e) {
       Logger.log('batchFetchMLBCareerStats chunk[' + i + ']: ' + e.message);
@@ -3108,6 +3121,23 @@ function debugRosterValues(ss) {
 // for players with the green "M" (MiLB eligible). Check the Execution Log.
 // Run from Script Editor to verify MiLB-eligible detection.
 // contract.smallId='Q' = MiLB/indefinite keeper contract.
+// Returns all players in the MLBCareerCache that have no mlbId (empty string).
+// These are players whose name search failed in MLB Stats API — they're auto-labeled MiLB.
+function debugMLBNotFound(ss) {
+  if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
+  const cache = getMLBCareerCache(ss);
+  var notFound = [];
+  Object.entries(cache).forEach(function(entry) {
+    var fid = entry[0], row = entry[1];
+    if (!row.mlbId) {
+      notFound.push({ fantraxId: fid, playerName: row.playerName || fid, careerAB: row.careerAB || 0, careerIP: row.careerIP || 0, eligible: row.eligible });
+    }
+  });
+  notFound.sort(function(a, b) { return (a.playerName || '').localeCompare(b.playerName || ''); });
+  Logger.log('debugMLBNotFound: ' + notFound.length + ' players with no mlbId');
+  return { ok: true, count: notFound.length, players: notFound };
+}
+
 // Flags: (1) MINORS-slot players, (2) ACTIVE/RESERVE players with Q contract
 // (MiLB-eligible in MLB slots — the green-M case), (3) anyone named Bericoto.
 function debugMiLBEligibility() {

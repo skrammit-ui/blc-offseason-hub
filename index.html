@@ -2200,6 +2200,7 @@ input[type=file] { display: none; }
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <button class="btn btn-secondary" style="font-size:11px;padding:5px 14px;border-color:#7b5ea7;color:#7b5ea7" onclick="doMLBCareerRefresh()">🔬 Refresh MLB Career Stats</button>
+          <button class="btn btn-secondary" style="font-size:11px;padding:5px 12px" onclick="doMLBNotFoundList()">👤 Who wasn't found?</button>
           <span id="mlb-career-status" style="font-size:11px;color:var(--text-3)"></span>
         </div>
         <div id="mlb-career-results" style="display:none;margin-top:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px"></div>
@@ -7958,6 +7959,35 @@ async function doMLBCareerRefresh() {
       statusEl.textContent = '⚠ ' + (res.error || 'Failed');
       statusEl.style.color = '#c0392b';
       resultsEl.innerHTML = `<pre style="font-size:10px;font-family:var(--mono);white-space:pre-wrap;color:var(--text)">${escHtml(JSON.stringify(res, null, 2))}</pre>`;
+    }
+    resultsEl.style.display = 'block';
+  } catch(e) {
+    statusEl.textContent = '⚠ ' + e.message;
+    statusEl.style.color = '#c0392b';
+  }
+}
+
+async function doMLBNotFoundList() {
+  const statusEl  = document.getElementById('mlb-career-status');
+  const resultsEl = document.getElementById('mlb-career-results');
+  statusEl.textContent = '⏳ Querying…';
+  statusEl.style.color = 'var(--text-3)';
+  resultsEl.style.display = 'none';
+  try {
+    const res = await remotePost({ action: 'debugMLBNotFound' });
+    if (res.ok) {
+      const players = res.players || [];
+      statusEl.textContent = `${players.length} players with no MLB Stats API match`;
+      statusEl.style.color = players.length ? '#e06c00' : '#22a366';
+      if (!players.length) {
+        resultsEl.innerHTML = '<div style="color:#22a366">All players found in MLB Stats API.</div>';
+      } else {
+        const rows = players.map(p => `<tr><td style="padding:2px 10px 2px 0">${escHtml(p.playerName)}</td><td style="padding:2px 10px 2px 0;color:var(--text-3)">${p.fantraxId}</td></tr>`).join('');
+        resultsEl.innerHTML = `<div style="color:var(--text-2);margin-bottom:6px"><strong>${players.length}</strong> players not found in MLB Stats API (auto-labeled MiLB):</div><table style="font-size:11px;font-family:var(--mono)">${rows}</table>`;
+      }
+    } else {
+      statusEl.textContent = '⚠ ' + (res.error || 'Failed');
+      statusEl.style.color = '#c0392b';
     }
     resultsEl.style.display = 'block';
   } catch(e) {
