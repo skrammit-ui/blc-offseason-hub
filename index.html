@@ -1813,7 +1813,7 @@ input[type=file] { display: none; }
         <img id="team-logo" src="icons/teamroster.png" alt="Team Logo"
              onerror="this.src='icons/teamroster.png';this.onerror=null">
         <span class="card-title" id="roster-card-title">Wetherholt 45s</span>
-        <select id="roster-team-select" class="roster-team-select" title="Browse team rosters" onchange="viewTeamOverview(this.value)"></select>
+        <select id="roster-team-select" class="roster-team-select" title="Browse team rosters" onchange="loadTeam(this.value)"></select>
         <label id="logo-upload-label" for="logo-file-input" style="display:none" title="Upload team logo"><img src="icons/upload-logo.svg" style="width:14px;height:14px;display:block;cursor:pointer"></label>
         <input type="file" id="logo-file-input" accept="image/*" style="display:none"
                onchange="uploadTeamLogo(this)">
@@ -5407,7 +5407,8 @@ function buildDraftPlanView(players) {
   const keptMap = keeperStore[currentTeam] || {};
   const keptMlbPlayers = players.filter(p => {
     const type = keptMap[p.player];
-    return type && type !== 'milb' && STATUS_MAP[p.status] !== 'MiLB';
+    // Trust keeperStore type — don't let a stale roster status override an explicit keeper choice
+    return type && type !== 'milb';
   });
   const keptMilbPlayers = players.filter(p => keptMap[p.player] === 'milb');
 
