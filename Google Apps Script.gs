@@ -1600,30 +1600,34 @@ function upsertMLBCareerCache(ss, entries) {
 // Search MLB Stats API for a player's numeric id by full name.
 // Uses mlbTeamAbbr (e.g. "SF") to disambiguate when multiple results return.
 function searchMLBPlayerId(name, mlbTeamAbbr) {
-  // Normalize curly/smart apostrophes → straight ASCII (handles "O'Hearn", "O'Brien", etc.)
-  var normalized = name.replace(/[‘’‚‛ʼ]/g, "'");
+  // Normalize curly apostrophes to straight ASCII using charCodes (avoids non-ASCII in source).
+  var normalized = name;
+  var curlyCodes = [0x2018, 0x2019, 0x201A, 0x201B, 0x02BC];
+  for (var ci = 0; ci < curlyCodes.length; ci++) {
+    normalized = normalized.split(String.fromCharCode(curlyCodes[ci])).join("'");
+  }
   try {
     var url = MLB_STATS_API + '/people/search?names=' + encodeURIComponent(normalized) +
                 '&sportIds=1,11,12,13,14,15,16';
     var resp = JSON.parse(UrlFetchApp.fetch(url, { muteHttpExceptions: true }).getContentText());
     var people = resp.people || [];
     // Retry 1: strip apostrophes (e.g. "O’Hearn" -> "OHearn")
-    if (!people.length && normalized !== name.replace(/[‘’]/g, ‘’)) {
-      var stripped = name.replace(/[‘’‚‛ʼ’]/g, ‘’);
-      var url2 = MLB_STATS_API + ‘/people/search?names=’ + encodeURIComponent(stripped) +
-                 ‘&sportIds=1,11,12,13,14,15,16’;
+    var nameStripped = normalized.replace(/'/g, '');
+    if (!people.length && nameStripped !== normalized) {
+      var url2 = MLB_STATS_API + '/people/search?names=' + encodeURIComponent(nameStripped) +
+                 '&sportIds=1,11,12,13,14,15,16';
       var resp2 = JSON.parse(UrlFetchApp.fetch(url2, { muteHttpExceptions: true }).getContentText());
       people = resp2.people || [];
-      Logger.log(‘searchMLBPlayerId("’ + name + ‘"): strip-apostrophe retry as "’ + stripped + ‘", found ‘ + people.length);
+      Logger.log('searchMLBPlayerId("' + name + '"): strip-apostrophe retry as "' + nameStripped + '", found ' + people.length);
     }
     // Retry 2: insert apostrophe for Irish O-surnames stored without one (e.g. "OHearn" -> "O’Hearn")
     if (!people.length && /\bO[A-Z]/.test(normalized)) {
-      var withApos = normalized.replace(/\bO([A-Z])/g, "O’$1");
-      var url3 = MLB_STATS_API + ‘/people/search?names=’ + encodeURIComponent(withApos) +
-                 ‘&sportIds=1,11,12,13,14,15,16’;
+      var withApos = normalized.replace(/\bO([A-Z])/g, "O'$1");
+      var url3 = MLB_STATS_API + '/people/search?names=' + encodeURIComponent(withApos) +
+                 '&sportIds=1,11,12,13,14,15,16';
       var resp3 = JSON.parse(UrlFetchApp.fetch(url3, { muteHttpExceptions: true }).getContentText());
       people = resp3.people || [];
-      Logger.log(‘searchMLBPlayerId("’ + name + ‘"): O-apostrophe retry as "’ + withApos + ‘", found ‘ + people.length);
+      Logger.log('searchMLBPlayerId("' + name + '"): O-apostrophe retry as "' + withApos + '", found ' + people.length);
     }
     if (!people.length) return null;
     if (people.length === 1) return String(people[0].id);
