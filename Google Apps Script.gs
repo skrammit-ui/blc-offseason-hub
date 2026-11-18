@@ -1620,16 +1620,18 @@ function searchMLBPlayerId(name, mlbTeamAbbr) {
       people = resp2.people || [];
       Logger.log('searchMLBPlayerId("' + name + '"): strip-apostrophe retry as "' + nameStripped + '", found ' + people.length);
     }
-    // Retry 2: insert apostrophe for Irish O-surnames stored without one (e.g. "OHearn" -> "O’Hearn")
+    // Retry 2: insert apostrophe for Irish O-surnames stored without one (e.g. "OHearn" -> "O'Hearn")
+    // Encode apostrophe as %27 since encodeURIComponent leaves it literal in the URL
     if (!people.length && /\bO[A-Z]/.test(normalized)) {
       var withApos = normalized.replace(/\bO([A-Z])/g, "O'$1");
-      var url3 = MLB_STATS_API + '/people/search?names=' + encodeURIComponent(withApos) +
+      var withAposEnc = withApos.split("'").map(encodeURIComponent).join('%27');
+      var url3 = MLB_STATS_API + '/people/search?names=' + withAposEnc +
                  '&sportIds=1,11,12,13,14,15,16';
       var resp3 = JSON.parse(UrlFetchApp.fetch(url3, { muteHttpExceptions: true }).getContentText());
       people = resp3.people || [];
       Logger.log('searchMLBPlayerId("' + name + '"): O-apostrophe retry as "' + withApos + '", found ' + people.length);
     }
-    // Retry 3: strip Fantrax split suffixes like "-H" / "-P" (e.g. "Shohei Ohtani-H" -> "Shohei Ohtani")
+    // Retry 3: strip Fantrax split suffixes -H / -P (e.g. "Shohei Ohtani-H" -> "Shohei Ohtani")
     if (!people.length && /-[HP]$/.test(normalized)) {
       var noSuffix = normalized.replace(/-[HP]$/, '').trim();
       var url4 = MLB_STATS_API + '/people/search?names=' + encodeURIComponent(noSuffix) +
@@ -1638,7 +1640,7 @@ function searchMLBPlayerId(name, mlbTeamAbbr) {
       people = resp4.people || [];
       Logger.log('searchMLBPlayerId("' + name + '"): split-suffix retry as "' + noSuffix + '", found ' + people.length);
     }
-    // Retry 4: strip generational suffix "Jr." / "Sr." / "II" / "III" (e.g. "Nestor Cortes Jr." -> "Nestor Cortes")
+    // Retry 4: strip generational suffix Jr./Sr./II/III/IV (e.g. "Nestor Cortes Jr." -> "Nestor Cortes")
     if (!people.length && / (Jr\.?|Sr\.?|II|III|IV)$/i.test(normalized)) {
       var noSuffix2 = normalized.replace(/ (Jr\.?|Sr\.?|II|III|IV)$/i, '').trim();
       var url5 = MLB_STATS_API + '/people/search?names=' + encodeURIComponent(noSuffix2) +
@@ -1647,7 +1649,18 @@ function searchMLBPlayerId(name, mlbTeamAbbr) {
       people = resp5.people || [];
       Logger.log('searchMLBPlayerId("' + name + '"): gen-suffix retry as "' + noSuffix2 + '", found ' + people.length);
     }
-    if (!people.length) return null;
+    // Retry 5: strip periods from initials (e.g. "J.P. Sears" -> "JP Sears")
+    if (!people.length && normalized.indexOf('.') !== -1) {
+      var noDots = normalized.replace(/\./g, '');
+      if (noDots !== normalized) {
+        var url6 = MLB_STATS_API + '/people/search?names=' + encodeURIComponent(noDots) +
+                   '&sportIds=1,11,12,13,14,15,16';
+        var resp6 = JSON.parse(UrlFetchApp.fetch(url6, { muteHttpExceptions: true }).getContentText());
+        people = resp6.people || [];
+        Logger.log('searchMLBPlayerId("' + name + '"): no-dots retry as "' + noDots + '", found ' + people.length);
+      }
+    }
+        if (!people.length) return null;
     if (people.length === 1) return String(people[0].id);
     if (mlbTeamAbbr) {
       var match = people.find(function(p) {
