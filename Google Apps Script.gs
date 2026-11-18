@@ -1598,17 +1598,28 @@ function upsertMLBCareerCache(ss, entries) {
 // Search MLB Stats API for a player's numeric id by full name.
 // Uses mlbTeamAbbr (e.g. "SF") to disambiguate when multiple results return.
 function searchMLBPlayerId(name, mlbTeamAbbr) {
+  // Normalize curly/smart apostrophes → straight ASCII (handles "O'Hearn", "O'Brien", etc.)
+  var normalized = name.replace(/[‘’‚‛ʼ]/g, "'");
   try {
-    const url = MLB_STATS_API + '/people/search?names=' + encodeURIComponent(name) +
+    var url = MLB_STATS_API + '/people/search?names=' + encodeURIComponent(normalized) +
                 '&sportIds=1,11,12,13,14,15,16';
-    const resp = JSON.parse(UrlFetchApp.fetch(url, { muteHttpExceptions: true }).getContentText());
-    const people = resp.people || [];
+    var resp = JSON.parse(UrlFetchApp.fetch(url, { muteHttpExceptions: true }).getContentText());
+    var people = resp.people || [];
+    // If no results, retry with straight apostrophe stripped entirely (e.g. "OHearn")
+    if (!people.length && normalized !== name.replace(/['']/g, '')) {
+      var stripped = name.replace(/[‘’‚‛ʼ']/g, '');
+      var url2 = MLB_STATS_API + '/people/search?names=' + encodeURIComponent(stripped) +
+                 '&sportIds=1,11,12,13,14,15,16';
+      var resp2 = JSON.parse(UrlFetchApp.fetch(url2, { muteHttpExceptions: true }).getContentText());
+      people = resp2.people || [];
+      Logger.log('searchMLBPlayerId("' + name + '"): retried as "' + stripped + '", found ' + people.length);
+    }
     if (!people.length) return null;
     if (people.length === 1) return String(people[0].id);
     if (mlbTeamAbbr) {
-      const match = people.find(p =>
-        p.currentTeam && String(p.currentTeam.abbreviation || '').toUpperCase() === mlbTeamAbbr.toUpperCase()
-      );
+      var match = people.find(function(p) {
+        return p.currentTeam && String(p.currentTeam.abbreviation || '').toUpperCase() === mlbTeamAbbr.toUpperCase();
+      });
       if (match) return String(match.id);
     }
     return String(people[0].id);
@@ -1810,7 +1821,13 @@ function refreshMLBCareerCache() {
     const info     = fantraxInfo[fid] || {};
     const careerAB = s.careerAB !== undefined ? s.careerAB : (cache[fid] ? cache[fid].careerAB : 0);
     const careerIP = s.careerIP !== undefined ? s.careerIP : (cache[fid] ? cache[fid].careerIP : 0);
-    const eligible = !mlbId || (careerAB < MILB_AB_MAX && careerIP < MILB_IP_MAX);
+    // If mlbId not found: preserve previously cached eligibility so veterans with
+    // name-search failures (e.g. apostrophes) don't get incorrectly flagged MiLB.
+    // New players with no prior cache entry default to eligible (conservative).
+    const eligible = mlbId
+      ? (careerAB < MILB_AB_MAX && careerIP < MILB_IP_MAX)
+      : (cache[fid] ? cache[fid].eligible : true);
+    if (!mlbId) Logger.log('No MLB ID for ' + (info.name || fid) + ' — keeping eligible=' + eligible);
     return { fantraxId: fid, playerName: info.name || fid, mlbId, careerAB, careerIP, eligible };
   });
 
@@ -1919,7 +1936,9 @@ function refreshMLBCareerCacheForTeam(teamKey) {
     const s        = mlbId ? (statsMap[mlbId] || {}) : {};
     const careerAB = s.careerAB !== undefined ? s.careerAB : (cache[pid] ? cache[pid].careerAB : 0);
     const careerIP = s.careerIP !== undefined ? s.careerIP : (cache[pid] ? cache[pid].careerIP : 0);
-    const eligible = !mlbId || (careerAB < MILB_AB_MAX && careerIP < MILB_IP_MAX);
+    const eligible = mlbId
+      ? (careerAB < MILB_AB_MAX && careerIP < MILB_IP_MAX)
+      : (cache[pid] ? cache[pid].eligible : true);
     entries.push({ fantraxId: pid, playerName: name, mlbId, careerAB, careerIP, eligible });
     if (eligible && statusIdx >= 0) {
       sheet.getRange(rowIdx + 2, statusIdx + 1).setValue('Minors');
