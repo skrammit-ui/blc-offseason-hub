@@ -4950,7 +4950,8 @@ function prefillFromKeepers(players) {
       const [rdPart, pkPart] = savedSlot.split('_');
       const rd = parseInt(rdPart);
       const pks = teamPicksByRd[rd];
-      if (pks && pks.length > 0 && !pks.includes(parseInt(pkPart))) {
+      if (!pks) continue; // team no longer has any picks in this round — skip stale override
+      if (pks.length > 0 && !pks.includes(parseInt(pkPart))) {
         resolvedSlot = `${rd}_${pks[0]}`;
       }
     }
@@ -5489,8 +5490,16 @@ boardHtml += `<div style="font-size:10px;font-weight:700;letter-spacing:.07em;te
     if (hasPlannerPickOrder) {
       if (pks) pks.slice().sort((a,b)=>a-b).forEach(pk => pickSlots.push({r, pk, slotKey: `${r}_${pk}`}));
       // also show any rounds with an existing assignment that lost pick order
-      else if (Object.keys(draftAssignments).some(k => k === String(r) && draftAssignments[k]?.length))
-        pickSlots.push({r, pk: null, slotKey: String(r)});
+      else {
+        const orphaned = Object.keys(draftAssignments).filter(k => {
+          const kRd = parseInt(k.split('_')[0] || k);
+          return kRd === r && draftAssignments[k]?.length;
+        });
+        orphaned.forEach(k => {
+          const pk = k.includes('_') ? parseInt(k.split('_')[1]) : null;
+          pickSlots.push({r, pk, slotKey: k});
+        });
+      }
     } else {
       pickSlots.push({r, pk: null, slotKey: String(r)});
     }
