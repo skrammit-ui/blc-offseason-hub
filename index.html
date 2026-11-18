@@ -4825,7 +4825,8 @@ function prefillFromKeepers(players) {
   for (const [playerName, type] of Object.entries(keptMap)) {
     const p = players.find(x => x.player === playerName);
     if (!p) continue;
-    if (type === 'milb') keptMilb.push(p);
+    const treatAsMilb = type === 'milb' || (type === 'trade' && STATUS_MAP[p.status] === 'MiLB');
+    if (treatAsMilb) keptMilb.push(p);
     else keptMlb.push(p);
   }
 
@@ -5415,12 +5416,16 @@ function buildDraftPlanView(players) {
 
   // All MLB keepers from keeperStore (consistent with prefillFromKeepers)
   const keptMap = keeperStore[currentTeam] || {};
+  // Trade keepers with MiLB roster status default to MiLB slot (user can override via status picker)
+  const isMilbKeeper = (type, p) => type === 'milb' || (type === 'trade' && STATUS_MAP[p.status] === 'MiLB');
   const keptMlbPlayers = players.filter(p => {
     const type = keptMap[p.player];
-    // Trust keeperStore type — don't let a stale roster status override an explicit keeper choice
-    return type && type !== 'milb';
+    return type && !isMilbKeeper(type, p);
   });
-  const keptMilbPlayers = players.filter(p => keptMap[p.player] === 'milb');
+  const keptMilbPlayers = players.filter(p => {
+    const type = keptMap[p.player];
+    return !!type && isMilbKeeper(type, p);
+  });
 
   const roundsUsed = Object.keys(draftAssignments).filter(r => draftAssignments[r]?.length).length;
   const totalKept = keptMlbPlayers.length;
