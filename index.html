@@ -4888,23 +4888,32 @@ function prefillFromKeepers(players) {
     const allMlb = keptMlb.slice().sort((a,b) =>
       (parseInt(b.salary)||0) - (parseInt(a.salary)||0) || a.player.localeCompare(b.player)
     );
+    const hasTeamPicks = Object.keys(teamPicksByRd).length > 0;
     for (const p of allMlb) {
       const sal = parseInt(p.salary);
       if (!sal || sal > 30) continue;
-      for (let tryRd = sal; tryRd >= 1; tryRd--) {
-        const pks = teamPicksByRd[tryRd];
-        if (!pks) continue;
-        let placed = false;
-        for (let i = pks.length - 1; i >= 0; i--) {
-          const slotKey = `${tryRd}_${pks[i]}`;
-          if (!occupiedSlots.has(slotKey)) {
-            occupiedSlots.add(slotKey);
-            draftAssignments[slotKey] = [p];
-            placed = true;
-            break;
+      let placed = false;
+      if (hasTeamPicks) {
+        for (let tryRd = sal; tryRd >= 1; tryRd--) {
+          const pks = teamPicksByRd[tryRd];
+          if (!pks) continue;
+          for (let i = pks.length - 1; i >= 0; i--) {
+            const slotKey = `${tryRd}_${pks[i]}`;
+            if (!occupiedSlots.has(slotKey)) {
+              occupiedSlots.add(slotKey);
+              draftAssignments[slotKey] = [p];
+              placed = true;
+              break;
+            }
           }
+          if (placed) break;
         }
-        if (placed) break;
+      }
+      if (!placed) {
+        // No matching pick found — team has no pick in this round (or all earlier slots taken).
+        // Fall back to salary-round key so the player still appears on the board.
+        const rdKey = String(sal);
+        if (!draftAssignments[rdKey]) draftAssignments[rdKey] = [p];
       }
     }
   } else {
