@@ -1607,7 +1607,7 @@ function searchMLBPlayerId(name, mlbTeamAbbr) {
                 '&sportIds=1,11,12,13,14,15,16';
     var resp = JSON.parse(UrlFetchApp.fetch(url, { muteHttpExceptions: true }).getContentText());
     var people = resp.people || [];
-    // Retry 1: strip apostrophes (e.g. "O’Hearn" → "OHearn")
+    // Retry 1: strip apostrophes (e.g. "O’Hearn" -> "OHearn")
     if (!people.length && normalized !== name.replace(/[‘’]/g, ‘’)) {
       var stripped = name.replace(/[‘’‚‛ʼ’]/g, ‘’);
       var url2 = MLB_STATS_API + ‘/people/search?names=’ + encodeURIComponent(stripped) +
@@ -1616,7 +1616,7 @@ function searchMLBPlayerId(name, mlbTeamAbbr) {
       people = resp2.people || [];
       Logger.log(‘searchMLBPlayerId("’ + name + ‘"): strip-apostrophe retry as "’ + stripped + ‘", found ‘ + people.length);
     }
-    // Retry 2: insert apostrophe for Irish O-surnames stored without one (e.g. "OHearn" → "O’Hearn")
+    // Retry 2: insert apostrophe for Irish O-surnames stored without one (e.g. "OHearn" -> "O’Hearn")
     if (!people.length && /\bO[A-Z]/.test(normalized)) {
       var withApos = normalized.replace(/\bO([A-Z])/g, "O’$1");
       var url3 = MLB_STATS_API + ‘/people/search?names=’ + encodeURIComponent(withApos) +
