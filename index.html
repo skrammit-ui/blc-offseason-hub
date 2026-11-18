@@ -4886,7 +4886,7 @@ function prefillFromKeepers(players) {
     // climbing up (SAL-1, SAL-2…) if no slot found in the keeper's own round.
     const occupiedSlots = new Set();
     const allMlb = keptMlb.slice().sort((a,b) =>
-      (parseInt(b.salary)||0) - (parseInt(a.salary)||0) || a.player.localeCompare(b.player)
+      (parseInt(a.salary)||0) - (parseInt(b.salary)||0) || a.player.localeCompare(b.player)
     );
     const hasTeamPicks = Object.keys(teamPicksByRd).length > 0;
     for (const p of allMlb) {
