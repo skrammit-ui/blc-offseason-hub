@@ -1629,6 +1629,24 @@ function searchMLBPlayerId(name, mlbTeamAbbr) {
       people = resp3.people || [];
       Logger.log('searchMLBPlayerId("' + name + '"): O-apostrophe retry as "' + withApos + '", found ' + people.length);
     }
+    // Retry 3: strip Fantrax split suffixes like "-H" / "-P" (e.g. "Shohei Ohtani-H" -> "Shohei Ohtani")
+    if (!people.length && /-[HP]$/.test(normalized)) {
+      var noSuffix = normalized.replace(/-[HP]$/, '').trim();
+      var url4 = MLB_STATS_API + '/people/search?names=' + encodeURIComponent(noSuffix) +
+                 '&sportIds=1,11,12,13,14,15,16';
+      var resp4 = JSON.parse(UrlFetchApp.fetch(url4, { muteHttpExceptions: true }).getContentText());
+      people = resp4.people || [];
+      Logger.log('searchMLBPlayerId("' + name + '"): split-suffix retry as "' + noSuffix + '", found ' + people.length);
+    }
+    // Retry 4: strip generational suffix "Jr." / "Sr." / "II" / "III" (e.g. "Nestor Cortes Jr." -> "Nestor Cortes")
+    if (!people.length && / (Jr\.?|Sr\.?|II|III|IV)$/i.test(normalized)) {
+      var noSuffix2 = normalized.replace(/ (Jr\.?|Sr\.?|II|III|IV)$/i, '').trim();
+      var url5 = MLB_STATS_API + '/people/search?names=' + encodeURIComponent(noSuffix2) +
+                 '&sportIds=1,11,12,13,14,15,16';
+      var resp5 = JSON.parse(UrlFetchApp.fetch(url5, { muteHttpExceptions: true }).getContentText());
+      people = resp5.people || [];
+      Logger.log('searchMLBPlayerId("' + name + '"): gen-suffix retry as "' + noSuffix2 + '", found ' + people.length);
+    }
     if (!people.length) return null;
     if (people.length === 1) return String(people[0].id);
     if (mlbTeamAbbr) {
