@@ -1666,7 +1666,6 @@ function batchFetchMLBCareerStats(mlbIds) {
         });
         result[String(person.id)] = { careerAB, careerIP };
       });
-      });
     } catch(e) {
       Logger.log('batchFetchMLBCareerStats chunk[' + i + ']: ' + e.message);
     }
