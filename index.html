@@ -4891,10 +4891,11 @@ function prefillFromKeepers(players) {
     const hasTeamPicks = Object.keys(teamPicksByRd).length > 0;
     for (const p of allMlb) {
       const sal = parseInt(p.salary);
-      if (!sal || sal > 30) continue;
+      if (sal > 30) continue;
       let placed = false;
+      const startRd = sal >= 1 ? sal : 30;
       if (hasTeamPicks) {
-        for (let tryRd = sal; tryRd >= 1; tryRd--) {
+        for (let tryRd = startRd; tryRd >= 1; tryRd--) {
           const pks = teamPicksByRd[tryRd];
           if (!pks) continue;
           for (let i = pks.length - 1; i >= 0; i--) {
@@ -4910,9 +4911,8 @@ function prefillFromKeepers(players) {
         }
       }
       if (!placed) {
-        // No matching pick found — team has no pick in this round (or all earlier slots taken).
-        // Fall back to salary-round key so the player still appears on the board.
-        const rdKey = String(sal);
+        // No matching pick found — fall back to salary-round key so player appears on board.
+        const rdKey = String(startRd);
         if (!draftAssignments[rdKey]) draftAssignments[rdKey] = [p];
       }
     }
@@ -5595,6 +5595,34 @@ boardHtml += `<div style="font-size:10px;font-weight:700;letter-spacing:.07em;te
           <span style="font-size:10px;color:var(--text-3);flex-shrink:0">${p.mlb_team} · ${fmtPos(p.position)}</span>
           ${p.contract ? conTag(p.contract) : ''}
           ${isOver ? '<span style="font-size:9px;font-weight:700;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:3px;padding:1px 5px;flex-shrink:0">Uses MLB spot</span>' : ''}
+        </div>
+      </div>`;
+    });
+    boardHtml += `</div>`;
+  }
+
+  // Unplaced MLB keepers — keepers that never made it into draftAssignments
+  const placedInDraft = new Set(
+    Object.values(draftAssignments).flatMap(arr => (arr || []).map(p => p.player))
+  );
+  const unplacedMlb = keptMlbPlayers.filter(p => !placedInDraft.has(p.player));
+  if (unplacedMlb.length) {
+    boardHtml += `<div style="margin-top:16px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--red);margin-bottom:8px">
+        ⚠ Needs Round Assignment
+      </div>`;
+    unplacedMlb.forEach(p => {
+      const sal = parseInt(p.salary);
+      boardHtml += `<div class="draft-round" style="border-left:3px solid var(--red);opacity:.85;margin-bottom:4px">
+        <div style="font-family:var(--mono);flex-shrink:0;padding-right:6px;min-width:32px;display:flex;flex-direction:column;align-items:center;line-height:1.1">
+          <span style="font-size:8px;color:var(--text-3);letter-spacing:.05em">RD</span>
+          <span style="font-size:13px;font-weight:700;color:var(--red)">${sal || '—'}</span>
+        </div>
+        <div style="flex:1;min-width:0;display:flex;align-items:center;gap:5px;overflow:hidden">
+          <span style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.player}</span>
+          <span style="font-size:10px;color:var(--text-3);flex-shrink:0">${p.mlb_team} · ${fmtPos(p.position)}</span>
+          ${sal ? rdTile(sal) : ''}
+          <span style="font-size:9px;font-weight:600;color:var(--red)">No pick available in Rd ${sal || '?'}</span>
         </div>
       </div>`;
     });
