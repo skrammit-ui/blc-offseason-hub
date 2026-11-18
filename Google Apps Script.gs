@@ -3160,15 +3160,29 @@ function debugRosterValues(ss) {
 function debugMLBNotFound(ss) {
   if (!ss) ss = SpreadsheetApp.openById(SHEET_ID);
   const cache = getMLBCareerCache(ss);
+  // Build set of fantraxIds currently on active rosters
+  var rosterSheet = ss.getSheetByName('Rosters');
+  var rosterIds = {};
+  if (rosterSheet && rosterSheet.getLastRow() > 1) {
+    var rosterData = rosterSheet.getDataRange().getValues();
+    var rHeaders = rosterData[0];
+    var idCol = rHeaders.indexOf('id');
+    var nameCol = rHeaders.indexOf('player');
+    var teamCol = rHeaders.indexOf('teamKey') >= 0 ? rHeaders.indexOf('teamKey') : rHeaders.indexOf('team');
+    for (var ri = 1; ri < rosterData.length; ri++) {
+      var rid = String(rosterData[ri][idCol] || '').trim();
+      if (rid) rosterIds[rid] = { name: String(rosterData[ri][nameCol] || ''), team: String(rosterData[ri][teamCol] || '') };
+    }
+  }
   var notFound = [];
   Object.entries(cache).forEach(function(entry) {
     var fid = entry[0], row = entry[1];
-    if (!row.mlbId) {
-      notFound.push({ fantraxId: fid, playerName: row.playerName || fid, careerAB: row.careerAB || 0, careerIP: row.careerIP || 0, eligible: row.eligible });
+    if (!row.mlbId && rosterIds[fid]) {
+      notFound.push({ fantraxId: fid, playerName: rosterIds[fid].name || row.playerName || fid, team: rosterIds[fid].team });
     }
   });
   notFound.sort(function(a, b) { return (a.playerName || '').localeCompare(b.playerName || ''); });
-  Logger.log('debugMLBNotFound: ' + notFound.length + ' players with no mlbId');
+  Logger.log('debugMLBNotFound: ' + notFound.length + ' active-roster players with no mlbId');
   return { ok: true, count: notFound.length, players: notFound };
 }
 
